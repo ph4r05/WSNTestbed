@@ -1,4 +1,4 @@
-package com.mycompany.wsnusbcollect;
+package fi.wsnusbcollect;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
