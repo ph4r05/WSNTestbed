@@ -17,71 +17,71 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class App {
+
     private static final Logger log = LoggerFactory.getLogger(App.class);
-    
     // receives other command line parameters than options
     @Argument
     private List<String> arguments = new ArrayList<String>(8);
     
-    @Option(name="--debug",usage="enables debug output")
+    @Option(name = "--debug", usage = "enables debug output")
     private boolean debug;
     
-    @Option(name="--detect-nodes",usage="performs node detection")
+    @Option(name = "--detect-nodes", usage = "performs node detection")
     private boolean detectNodes;
     
-    @Option(name="--check-nodes-connection",usage="checks whether node connection corresponds to DB settings")
+    @Option(name = "--check-nodes-connection", usage = "checks whether node connection corresponds to DB settings")
     private boolean checkNodesConnection;
     
-    @Option(name="-c",usage="read configuration from this config file",metaVar="INPUT")
+    @Option(name = "-c", usage = "read configuration from this config file")
     private File configFile = null;
-    
-    public static void main(String[] args)  {
+
+    public static void main(String[] args) {
         log.info("Starting application");
         try {
             // some inits in static scope
             // ...
-            
+
             // do main on instance
             new App().doMain(args);
-            
+
             // ending application
             // ... 
-            
+
         } catch (IOException ex) {
             log.error("Exception thrown: ", ex);
-        } catch(CmdLineException ex){
+        } catch (CmdLineException ex) {
             log.error("Error in processing command line arguments", ex);
-        } catch(RuntimeException ex){
+        } catch (RuntimeException ex) {
             log.error("Runtime exception occurred", ex);
-        } catch(Exception ex){
+        } catch (Exception ex) {
             log.error("Generic exception occurred", ex);
         }
-        
-        
+
+
         log.info("Everything OK, exiting");
     }
-    
-     public void doMain(String[] args) throws IOException, CmdLineException {
+
+    public void doMain(String[] args) throws IOException, CmdLineException {
         CmdLineParser parser = new CmdLineParser(this);
-        
+
         // if you have a wider console, you could increase the value;
         // here 80 is also the default
         parser.setUsageWidth(80);
-        
+
         try {
             // parse the arguments.
             parser.parseArgument(args);
 
             // you can parse additional arguments if you want.
-            parser.parseArgument("include","mote");
+            //parser.parseArgument("include","mote");
 
             // after parsing arguments, you should check
             // if enough arguments are given.
-            if( arguments.isEmpty() ){
-                throw new CmdLineException("No argument is given");
-                }
+//            if (arguments.isEmpty()) {
+//                throw new CmdLineException("No argument is given");
+//            }
 
-        } catch( CmdLineException e ) {
+        } catch (CmdLineException e) {
             // if there's a problem in the command line,
             // you'll get this exception. this will report
             // an error message.
@@ -92,7 +92,7 @@ public class App {
             System.err.println();
 
             // print option sample. This is useful some time
-            System.err.println(" Example: java SampleMain"+parser.printExample(ExampleMode.ALL));
+            System.err.println(" Example: java SampleMain" + parser.printExample(ExampleMode.ALL));
 
             return;
         }
@@ -100,19 +100,19 @@ public class App {
         // this will redirect the output to the specified output
         //System.out.println(out);
 
-        if(debug){
+        if (debug) {
             System.out.println("-d flag is set");
         }
-        
-        if (detectNodes){
+
+        if (detectNodes) {
             System.out.println("detectNodes flag is set");
         }
-        
-        if (checkNodesConnection){
+
+        if (checkNodesConnection) {
             System.out.println("checkNodesConnection flag is set");
         }
-        
-        if (configFile!=null && (configFile instanceof File)){
+
+        if (configFile != null && (configFile instanceof File)) {
             System.out.println("Config file set: " + configFile.getName());
         }
 
@@ -126,8 +126,8 @@ public class App {
 
         // access non-option arguments
         System.out.println("other arguments are:");
-        for( String s : arguments )
+        for (String s : arguments) {
             System.out.println(s);
+        }
     }
-    
 }
