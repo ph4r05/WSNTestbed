@@ -11,7 +11,9 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -42,10 +44,9 @@ public class USBarbitrator {
             
             // motelist records
             LinkedList<MotelistRecord> mlistRecords = new LinkedList<MotelistRecord>();
-            
             // parse udev rules list to complete information - get mapping 
             // USB serial -> device path (created by udev)
-            loadUdevRules();
+            Map<String, String> udevConfig = loadUdevRules();
             
             // execute motelist command
             Process p = Runtime.getRuntime().exec(motelistCommand);
@@ -53,24 +54,28 @@ public class USBarbitrator {
             String line = null;
              while ((line = bri.readLine()) != null) {
                  // process detected motes here                 
-                 log.info("Output from motelist: " + line);
-                 System.out.println(line);
-                 
                  if (line.startsWith("No devices found")){
                      log.info("No devices was found, return null");
                      break;
                  }
-                 
-                MotelistRecord motelistOutput = this.parseMotelistOutput(line);
-                log.info(motelistOutput.toString());
                 
+                // parse motelist output
+                MotelistRecord motelistOutput = this.parseMotelistOutput(line);
+                
+                // if udev device alias present, map it
+                if (udevConfig.containsKey(motelistOutput.getSerial())){
+                    motelistOutput.setDeviceAlias(udevConfig.get(motelistOutput.getSerial()));
+                }
+                
+                log.debug("MoteRecord: " + motelistOutput.toString());
+                
+                // add parsed node record to list for further processing
                 mlistRecords.add(motelistOutput);
             }
             bri.close();
             
-            // sunchronous call
+            // sunchronous call, wait for command completion
             p.waitFor();
-            
             
         } catch (IOException ex) {
             log.error("IOException error, try checking motelist command", ex);
@@ -110,20 +115,25 @@ public class USBarbitrator {
      * Parse udev rules from udev config file = udev config file format could change
      * this is quite temporary method to ease initial db population to detect node 
      * dev aliases
+     * 
+     * @return Mapping USB serial -> node file
      */
-    public void loadUdevRules() throws FileNotFoundException, IOException{
+    public Map<String, String> loadUdevRules() throws FileNotFoundException, IOException{
         String udevRulesFilePath = App.getRunningInstance().getProps().getProperty("moteUdevRules");
         if (udevRulesFilePath==null || udevRulesFilePath.isEmpty()){
             log.warn("udev rules file path is empty, cannot detect alias nodes");
-            return;
+            return new HashMap<String, String>();
         }
         
         // file exists & can read it?
         File udevRulesFile = new File(udevRulesFilePath);
         if (udevRulesFile.exists()==false || udevRulesFile.canRead()==false){
             log.warn("Udev file probably does not exist or cannot be read. File: " + udevRulesFilePath);
-            return;
+            return new HashMap<String, String>();
         }
+        
+        // init returning map
+        Map resultMap = new HashMap<String, String>();
         
         log.debug("Loading udev configuration");
         
@@ -132,7 +142,6 @@ public class USBarbitrator {
         
         // we will need to parse config file, compile regex pattern
         Pattern linePattern = Pattern.compile(UDEV_RULES_LINE_PATTERN, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
-        log.debug("Mathching against pattern: " + UDEV_RULES_LINE_PATTERN);
         
         String strLine;
         //Read File Line By Line
@@ -170,9 +179,25 @@ public class USBarbitrator {
             
             String serial = m.group(1);
             String device = m.group(2);
-            log.info("Serial=" + serial + "; device=" + device);
+            log.info("Read info from config file: Serial=" + serial + "; device=" + device);
+            
+            // prepend /dev/ to device
+            device = "/dev/" + device;
+            
+            // conflict check - if duplicate serial occurs, warn user
+            if (resultMap.containsKey(serial)){
+                log.error("Error occurred, duplicate serial detected in config file, "
+                        + "please resolve this issue. Returning empty map. Ambiguation present.");
+                log.debug("First record: serial=" + serial + " device=" + resultMap.get(serial));
+                log.debug("Second record: serial=" + serial + " device=" + device);
+                return new HashMap<String, String>();
+            }
+            
+            resultMap.put(serial, device);
         }
         //Close the input stream
         br.close();
+        
+        return resultMap;
     }
 }

@@ -14,6 +14,7 @@ public class MotelistRecord {
     private String usbPath;
     private String serial;
     private String devicePath;
+    private String deviceAlias;
     private String description;
 
     public String getBus() {
@@ -64,6 +65,14 @@ public class MotelistRecord {
         this.usbPath = usbPath;
     }
 
+    public String getDeviceAlias() {
+        return deviceAlias;
+    }
+
+    public void setDeviceAlias(String deviceAlias) {
+        this.deviceAlias = deviceAlias;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj == null) {
@@ -88,6 +97,6 @@ public class MotelistRecord {
 
     @Override
     public String toString() {
-        return "MotelistRecord{" + "bus=" + bus + ", dev=" + dev + ", usbPath=" + usbPath + ", serial=" + serial + ", deviceInfo=" + devicePath + ", description=" + description + '}';
+        return "MotelistRecord{" + "bus=" + bus + ", dev=" + dev + ", usbPath=" + usbPath + ", serial=" + serial + ", devicePath=" + devicePath + ", deviceAlias=" + deviceAlias + ", description=" + description + '}';
     }
 }
