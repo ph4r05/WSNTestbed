@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package fi.wsnusbcollect.usb;
 
 import fi.wsnusbcollect.App;
@@ -16,16 +12,31 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
 
 /**
- *
+ * USB arbitrator class - manages connected nodes
  * @author ph4r05
  */
+@Repository
 public class USBarbitrator {
     private static final Logger log = LoggerFactory.getLogger(USBarbitrator.class);
     private static final String UDEV_RULES_LINE_PATTERN = "^ATTRS\\{serial\\}\\s*==\\s*\\\"([0-9a-zA-Z_]+)\\\",\\s*NAME\\s*=\\s*\\\"([0-9a-zA-Z_]+)\\\".*";
+    
+    @PersistenceContext
+    private EntityManager em;
+    
+    @Autowired
+    private JdbcTemplate template;
+    
+    // serial->motelist record association
+    private Map<String, MotelistRecord> moteList = null;
     
     /**
      * Detects connected nodes via command: motelist -usb -c
@@ -39,6 +50,12 @@ public class USBarbitrator {
                 log.info("Debugging mode enabled in USBarbitrator");
             }
             
+            // if is map nonempty
+            if (this.moteList!=null && this.moteList.isEmpty()==false){
+                log.debug("moteList map is nonempty, will be flushed with detect data");
+            }
+            
+            this.moteList = new HashMap<String, MotelistRecord>();            
             String motelistCommand = App.getRunningInstance().getMotelistCommand() + " -usb -c";
             log.info("Will use motelist command: " + motelistCommand);
             
@@ -71,6 +88,8 @@ public class USBarbitrator {
                 
                 // add parsed node record to list for further processing
                 mlistRecords.add(motelistOutput);
+                // put motelist
+                this.moteList.put(motelistOutput.getSerial(), motelistOutput);
             }
             bri.close();
             
@@ -89,7 +108,7 @@ public class USBarbitrator {
      * @param output
      * @return 
      */
-    private MotelistRecord parseMotelistOutput(String output){
+    protected MotelistRecord parseMotelistOutput(String output){
         if (output==null) {
             log.error("Empty line in parseMotelistOutput");
             throw new NullPointerException("Null line");
@@ -118,7 +137,7 @@ public class USBarbitrator {
      * 
      * @return Mapping USB serial -> node file
      */
-    public Map<String, String> loadUdevRules() throws FileNotFoundException, IOException{
+    protected Map<String, String> loadUdevRules() throws FileNotFoundException, IOException{
         String udevRulesFilePath = App.getRunningInstance().getProps().getProperty("moteUdevRules");
         if (udevRulesFilePath==null || udevRulesFilePath.isEmpty()){
             log.warn("udev rules file path is empty, cannot detect alias nodes");
@@ -199,5 +218,29 @@ public class USBarbitrator {
         br.close();
         
         return resultMap;
+    }
+
+    public Map<String, MotelistRecord> getMoteList() {
+        return moteList;
+    }
+
+    public void setMoteList(Map<String, MotelistRecord> moteList) {
+        this.moteList = moteList;
+    }
+
+    public EntityManager getEm() {
+        return em;
+    }
+
+    public void setEm(EntityManager em) {
+        this.em = em;
+    }
+
+    public JdbcTemplate getTemplate() {
+        return template;
+    }
+
+    public void setTemplate(JdbcTemplate template) {
+        this.template = template;
     }
 }

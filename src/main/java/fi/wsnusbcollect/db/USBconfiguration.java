@@ -18,6 +18,7 @@ import javax.persistence.TemporalType;
  * Stores info about previous/current USB node configuration
  * @author ph4r05
  */
+@Entity
 public class USBconfiguration implements Serializable{
     private static final long serialVersionUID = 112312352;
     

@@ -42,6 +42,11 @@
             <name>SpringSource Maven Central-compatible Snapshot Repository</name>
             <url>http://maven.springframework.org/snapshot</url>
         </repository>
+        <repository>
+            <id>unknown-jars-temp-repo</id>
+            <name>A temporary repository created by NetBeans for libraries and jars it could not identify. Please replace the dependencies in this repository with correct ones and delete this repository.</name>
+            <url>file:${project.basedir}/lib</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -175,6 +180,12 @@
             <artifactId>hibernate-core</artifactId>
             <version>${org.hibernate.version}</version>
         </dependency>
+        
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-annotations</artifactId>
+            <version>3.5.6-Final</version>
+        </dependency>
 
         <dependency>
             <groupId>org.hibernate</groupId>
@@ -265,6 +276,12 @@
             <version>0.3.3</version>
         </dependency>
         
+        <!-- MySQL connector -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.18</version>
+        </dependency>
     </dependencies>
     <groupId>fi</groupId>
     <reporting>

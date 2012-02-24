@@ -13,6 +13,8 @@ import org.kohsuke.args4j.ExampleMode;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
  * Main run class for WSN USB Collect application
@@ -24,7 +26,10 @@ public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
     
     // main properties object
-    Properties props;
+    Properties props = null;
+    
+    // Spring application context - dependency injector
+    ApplicationContext appContext = null;
     
     // receives other command line parameters than options
     @Argument
@@ -110,7 +115,13 @@ public class App {
      * USBArbitrator
      */
     public void initDependencies(){
-        this.usbArbitrator = new USBarbitrator();
+        //this.usbArbitrator = new USBarbitrator();
+        // use application context to get initialized bean
+        
+        this.usbArbitrator = (USBarbitrator) appContext.getBean("USBarbitrator");
+        if (this.usbArbitrator == null){
+            log.error("Dependency injection failed on USB arbitrator bean");
+        }
         
         // here initialize database connection
     }
@@ -124,6 +135,9 @@ public class App {
      * @throws CmdLineException 
      */
     public void doMain(String[] args) throws IOException, CmdLineException {
+        // spring application context init
+        appContext = new ClassPathXmlApplicationContext("applicationContext.xml");
+        
         // load default properties
         props = new Properties();
         props.load(getClass().getResourceAsStream("/application.properties"));
@@ -311,5 +325,9 @@ public class App {
 
     public static App getRunningInstance() {
         return runningInstance;
+    }
+
+    public ApplicationContext getAppContext() {
+        return appContext;
     }
 }
