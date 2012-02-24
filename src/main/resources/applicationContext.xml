@@ -62,7 +62,7 @@
     <!-- EntityManagerFactory for JPA 2.0 from Spring -->
     <bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
         <property name="jpaVendorAdapter">
-            <bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter" p:showSql="true" p:generateDdl="true">
+            <bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter" p:showSql="false" p:generateDdl="true">
                 <property name="databasePlatform" value="${db.dialect}" />
             </bean>
         </property>

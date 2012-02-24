@@ -1,19 +1,25 @@
 package fi.wsnusbcollect.usb;
 
 import fi.wsnusbcollect.App;
+import fi.wsnusbcollect.db.USBdevice;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.String;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.persistence.TypedQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +34,7 @@ import org.springframework.stereotype.Repository;
 public class USBarbitrator {
     private static final Logger log = LoggerFactory.getLogger(USBarbitrator.class);
     private static final String UDEV_RULES_LINE_PATTERN = "^ATTRS\\{serial\\}\\s*==\\s*\\\"([0-9a-zA-Z_]+)\\\",\\s*NAME\\s*=\\s*\\\"([0-9a-zA-Z_]+)\\\".*";
+    private static final String NODE_ID_PATTERN = ".*?([0-9]+)$";
     
     @PersistenceContext
     private EntityManager em;
@@ -37,6 +44,67 @@ public class USBarbitrator {
     
     // serial->motelist record association
     private Map<String, MotelistRecord> moteList = null;
+
+    public Map<String, USBdevice> loadNodesFromDatabase(){
+        Map<String, USBdevice> result = new HashMap<String, USBdevice>();
+        
+        TypedQuery<USBdevice> tq = this.em.createQuery("SELECT ubd FROM USBdevice ubd", USBdevice.class);
+        List<USBdevice> resultList = tq.getResultList();
+        if (resultList.isEmpty()){
+            log.info("None nodes records in database");
+            return result;
+        }
+        
+        Iterator<USBdevice> iterator = resultList.iterator();
+        while(iterator.hasNext()){
+            USBdevice ubd = iterator.next();
+            result.put(ubd.getSerial(), ubd);
+        }
+        
+        return result;
+    }
+    
+    public void updateNodesDatabase(){
+        if (this.moteList==null || this.moteList.isEmpty()){
+            log.info("Cannot update node database - no local data");
+            return;
+        }
+        
+        // update nodes if applicable
+        // serial -> usbdevice
+        Map<String, USBdevice> savedNodes = this.loadNodesFromDatabase();
+        
+        Iterator<String> iterator = this.moteList.keySet().iterator();
+        while(iterator.hasNext()){
+            String nodeSerial = iterator.next();
+            MotelistRecord mr = this.moteList.get(nodeSerial);
+            log.info("Saving mote record: " + mr.toString());
+            
+            USBdevice ubd = new USBdevice();
+            if (savedNodes.containsKey(mr.getSerial())){
+                log.info("Updating old record");
+                ubd = savedNodes.get(mr.getSerial());
+            } else {
+                log.info("Inserting new record");
+            }
+
+            ubd.setBus(mr.getBus());
+            ubd.setDeviceAlias(mr.getDeviceAlias());
+            ubd.setDevicePath(mr.getDevicePath());
+            ubd.setLastModification(new Date());
+            ubd.setSerial(mr.getSerial());
+            ubd.setUsbPath(mr.getUsbPath());
+            
+            try {
+                ubd.setNodeId(Integer.parseInt(mr.getNodeId()));
+            } catch (Exception e){
+                
+            }
+            
+            // store to database
+            this.em.persist(ubd);
+        }
+    }
     
     /**
      * Detects connected nodes via command: motelist -usb -c
@@ -55,6 +123,8 @@ public class USBarbitrator {
                 log.debug("moteList map is nonempty, will be flushed with detect data");
             }
             
+            this.loadNodesFromDatabase();
+            
             this.moteList = new HashMap<String, MotelistRecord>();            
             String motelistCommand = App.getRunningInstance().getMotelistCommand() + " -usb -c";
             log.info("Will use motelist command: " + motelistCommand);
@@ -63,7 +133,7 @@ public class USBarbitrator {
             LinkedList<MotelistRecord> mlistRecords = new LinkedList<MotelistRecord>();
             // parse udev rules list to complete information - get mapping 
             // USB serial -> device path (created by udev)
-            Map<String, String> udevConfig = loadUdevRules();
+            Map<String, NodeConfigRecord> udevConfig = loadUdevRules();
             
             // execute motelist command
             Process p = Runtime.getRuntime().exec(motelistCommand);
@@ -81,10 +151,11 @@ public class USBarbitrator {
                 
                 // if udev device alias present, map it
                 if (udevConfig.containsKey(motelistOutput.getSerial())){
-                    motelistOutput.setDeviceAlias(udevConfig.get(motelistOutput.getSerial()));
+                    motelistOutput.setDeviceAlias(udevConfig.get(motelistOutput.getSerial()).getDevice());
+                    motelistOutput.setNodeId(udevConfig.get(motelistOutput.getSerial()).getNodeid());
                 }
                 
-                log.debug("MoteRecord: " + motelistOutput.toString());
+                log.info("MoteRecord: " + motelistOutput.toString());
                 
                 // add parsed node record to list for further processing
                 mlistRecords.add(motelistOutput);
@@ -95,6 +166,9 @@ public class USBarbitrator {
             
             // sunchronous call, wait for command completion
             p.waitFor();
+            
+            // update nodes database
+            this.updateNodesDatabase();
             
         } catch (IOException ex) {
             log.error("IOException error, try checking motelist command", ex);
@@ -137,22 +211,22 @@ public class USBarbitrator {
      * 
      * @return Mapping USB serial -> node file
      */
-    protected Map<String, String> loadUdevRules() throws FileNotFoundException, IOException{
+    protected Map<String, NodeConfigRecord> loadUdevRules() throws FileNotFoundException, IOException{
         String udevRulesFilePath = App.getRunningInstance().getProps().getProperty("moteUdevRules");
         if (udevRulesFilePath==null || udevRulesFilePath.isEmpty()){
             log.warn("udev rules file path is empty, cannot detect alias nodes");
-            return new HashMap<String, String>();
+            return new HashMap<String, NodeConfigRecord>();
         }
         
         // file exists & can read it?
         File udevRulesFile = new File(udevRulesFilePath);
         if (udevRulesFile.exists()==false || udevRulesFile.canRead()==false){
             log.warn("Udev file probably does not exist or cannot be read. File: " + udevRulesFilePath);
-            return new HashMap<String, String>();
+            return new HashMap<String, NodeConfigRecord>();
         }
         
         // init returning map
-        Map resultMap = new HashMap<String, String>();
+        Map resultMap = new HashMap<String, NodeConfigRecord>();
         
         log.debug("Loading udev configuration");
         
@@ -161,7 +235,8 @@ public class USBarbitrator {
         
         // we will need to parse config file, compile regex pattern
         Pattern linePattern = Pattern.compile(UDEV_RULES_LINE_PATTERN, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
-        
+        Pattern nodeNumberPattern = Pattern.compile(NODE_ID_PATTERN, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
+               
         String strLine;
         //Read File Line By Line
         while ((strLine = br.readLine()) != null) {
@@ -209,10 +284,20 @@ public class USBarbitrator {
                         + "please resolve this issue. Returning empty map. Ambiguation present.");
                 log.debug("First record: serial=" + serial + " device=" + resultMap.get(serial));
                 log.debug("Second record: serial=" + serial + " device=" + device);
-                return new HashMap<String, String>();
+                return new HashMap<String, NodeConfigRecord>();
             }
             
-            resultMap.put(serial, device);
+            NodeConfigRecord ncr = new NodeConfigRecord();
+            ncr.setDevice(device);
+            
+            // try to extract node id
+            Matcher mId = nodeNumberPattern.matcher(device);
+            if (mId.matches() && mId.group(1)!=null){
+                log.info("Node ID discovered: " + mId.group(1));
+                ncr.setNodeid(mId.group(1));
+            }
+            
+            resultMap.put(serial, ncr);
         }
         //Close the input stream
         br.close();
@@ -242,5 +327,26 @@ public class USBarbitrator {
 
     public void setTemplate(JdbcTemplate template) {
         this.template = template;
+    }
+    
+    private class NodeConfigRecord{
+        private String device;
+        private String nodeid;
+
+        public String getDevice() {
+            return device;
+        }
+
+        public void setDevice(String device) {
+            this.device = device;
+        }
+
+        public String getNodeid() {
+            return nodeid;
+        }
+
+        public void setNodeid(String nodeid) {
+            this.nodeid = nodeid;
+        }
     }
 }

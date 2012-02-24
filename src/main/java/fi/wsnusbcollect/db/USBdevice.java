@@ -51,6 +51,9 @@ public class USBdevice implements Serializable{
     // public device alias created by udev rules by mapping from devicePath
     private String deviceAlias;
     
+    // node id - should be fixed
+    private Integer nodeId;
+    
     // description of node - field returned by motelist command
     @Lob
     private String description;
@@ -135,6 +138,14 @@ public class USBdevice implements Serializable{
         this.USBConfiguration_id = USBConfiguration_id;
     }
 
+    public Integer getNodeId() {
+        return nodeId;
+    }
+
+    public void setNodeId(Integer nodeId) {
+        this.nodeId = nodeId;
+    }
+    
     @Override
     public boolean equals(Object obj) {
         if (obj == null) {

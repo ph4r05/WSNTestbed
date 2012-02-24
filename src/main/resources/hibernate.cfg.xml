@@ -7,6 +7,6 @@
     <property name="hibernate.connection.url">jdbc:mysql://89.29.122.86:3306/wsnusb</property>
     <property name="hibernate.connection.username">wsnusb</property>
     <property name="hibernate.connection.password">GpzHceWMUjE7RS4p</property>
-    <property name="hibernate.show_sql">true</property>
+    <property name="hibernate.show_sql">false</property>
   </session-factory>
 </hibernate-configuration>
