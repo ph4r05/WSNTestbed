@@ -18,6 +18,7 @@ import org.kohsuke.args4j.Option;
 import org.python.core.Py;
 import org.python.core.PyObject;
 import org.python.core.PySystemState;
+import org.python.core.ThreadState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -101,6 +102,9 @@ public class App {
     
     // interactive jython interface
     protected InteractiveConsole interp;
+    
+    // python shell does not exit on ctrl+d
+    private boolean shellNoExit=true;
 
     public static void main(String[] args) {
         log.info("Starting application");
@@ -132,10 +136,7 @@ public class App {
      * Initializes dependencies (instantiates components) for application
      * USBArbitrator
      */
-    public void initDependencies(){
-        //this.usbArbitrator = new USBarbitrator();
-        // use application context to get initialized bean
-        
+    public void initDependencies(){        
         // spring application context init
         appContext = new ClassPathXmlApplicationContext("applicationContext.xml");
         
@@ -231,7 +232,7 @@ public class App {
             
             // set Properties 
             if (System.getProperty("python.home") == null) {
-                System.setProperty("python.home", "/home/ph4r05"); 
+                System.setProperty("python.home", "~/"); 
             }
             
             // initialize python shell
@@ -254,11 +255,32 @@ public class App {
             // this instance
             interp.getSystemState().__setattr__("_jy_main", Py.java2py(this));
             
-            // enable autocomplete
-            interp.exec("import rlcompleter, readline");
-            interp.exec("readline.parse_and_bind('tab: complete')");
-            interp.interact();
+            // enable autocomplete, sigint handler by default
+            this.consoleHelper.prepareConsoleBeforeStart(interp);
             
+            while (this.shellNoExit){
+                log.info("Starting shell");
+                this.consoleHelper.consoleRestarted();
+                
+                try {                    
+                    interp.interact();                    
+                } catch (Error e) {
+                    // interrupted shell error
+                    interp.cleanup();
+                    interp.resetbuffer();
+                    
+                    System.out.println("Shell was interrupted...");
+                } catch (Throwable e){
+                    log.warn("Exception occured during jython interaction", e);
+                    interp.cleanup();
+                }
+                
+                System.out.println("If you want to exit shell, please call: sys._jy_main.exitShell()");
+                interp.cleanup();
+                interp.resetbuffer();
+            }
+            
+            log.info("Shel terminating");
             // next command is used to start telnet jython server
             // not properly implemented yet
             //JythonShellServer.run_server(7000, new HashMap());
@@ -391,5 +413,13 @@ public class App {
 
     public boolean isShell() {
         return shell;
+    }
+    
+    /**
+     * Exit shell
+     */
+    public void exitShell(){
+        this.shellNoExit=false;
+        this.interp.interrupt(this.consoleHelper.getTs());
     }
 }
