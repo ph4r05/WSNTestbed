@@ -46,6 +46,11 @@
             <name>A temporary repository created by NetBeans for libraries and jars it could not identify. Please replace the dependencies in this repository with correct ones and delete this repository.</name>
             <url>file:${project.basedir}/lib</url>
         </repository>
+        <repository>
+            <id>jline</id>
+            <name>JLine Project Repository</name>
+            <url>http://jline.sourceforge.net/m2repo</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -302,6 +307,25 @@
             <artifactId>mysql-connector-java</artifactId>
             <version>5.1.18</version>
         </dependency>
+
+        <!-- Jython for command line -->
+        <!--<dependency>
+            <groupId>org.python</groupId>
+            <artifactId>jython-standalone</artifactId>
+            <version>2.5.2</version>
+        </dependency>-->
+        
+        <dependency>
+            <groupId>org.python</groupId>
+            <artifactId>jython</artifactId>
+            <version>2.5.3b1</version>
+        </dependency>
+        
+         <!--<dependency>
+            <groupId>jline</groupId>
+            <artifactId>jline</artifactId>
+            <version>1.0</version>
+        </dependency>-->
 
         <!--<dependency>
             <groupId>net.sf.ehcache</groupId>

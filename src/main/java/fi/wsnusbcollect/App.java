@@ -1,9 +1,11 @@
 package fi.wsnusbcollect;
 
+import com.enigmacurry.JythonShellServer;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import org.kohsuke.args4j.Argument;
@@ -11,10 +13,15 @@ import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.ExampleMode;
 import org.kohsuke.args4j.Option;
+import org.python.core.Py;
+import org.python.core.PyObject;
+import org.python.core.PySystemState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.python.util.InteractiveConsole; 
+import org.python.util.JLineConsole;
 
 /**
  * Main run class for WSN USB Collect application
@@ -46,6 +53,9 @@ public class App {
     
     @Option(name = "--check-nodes-connection", usage = "checks whether node connection corresponds to DB settings and print warning if not")
     private boolean checkNodesConnection;
+    
+    @Option(name = "--shell", usage = "should drop to shell after init?")
+    private boolean shell=false;
     
     @Option(name = "-c", usage = "read configuration from this config file")
     private File configFile = null;
@@ -83,6 +93,8 @@ public class App {
     
     // USB arbitrator instance
     private USBarbitrator usbArbitrator = null;
+    
+    protected InteractiveConsole interp;
 
     public static void main(String[] args) {
         log.info("Starting application");
@@ -107,7 +119,7 @@ public class App {
             log.error("Generic exception occurred", ex);
         }
 
-        log.info("Everything OK, exiting");
+        //log.info("Everything OK, exiting");
     }
 
     /**
@@ -184,11 +196,11 @@ public class App {
             System.out.println("Config file set: " + configFile.getName());
         }
 
-        // access non-option arguments
-        System.out.println("other arguments are:");
-        for (String s : arguments) {
-            System.out.println(s);
-        }
+//        // access non-option arguments
+//        System.out.println("other arguments are:");
+//        for (String s : arguments) {
+//            System.out.println(s);
+//        }
         
         // parameters implications
         detectNodes=updateNodeDatabase || detectNodes || checkNodesConnection;
@@ -211,6 +223,40 @@ public class App {
                 log.info("Ending execution");
                 return;
             }
+        }
+        
+        // drop to shell?
+        if (shell){
+            log.info("Dropping to shell now...");
+            
+            // set Properties 
+            if (System.getProperty("python.home") == null) 
+                System.setProperty("python.home", "/home/ph4r05"); 
+            
+            PySystemState.initialize(PySystemState.getBaseProperties(), null, new String[0]);
+            
+            //org.python.util.JLineConsole
+            //System.setProperty("python.console", "org.python.util.InteractiveConsole");
+            //System.setProperty("python.console", "org.python.util.JLineConsole");
+            //System.setProperty("python.console", "");
+            
+            // no postProps, registry values used 
+            JLineConsole.initialize(System.getProperties(), 
+                    null,
+                    new String[0]);
+            
+//            InteractiveConsole.initialize(System.getProperties(), 
+//                    null,
+//                    new String[0]); 
+            
+            interp = new JLineConsole();
+            interp.getSystemState().__setattr__("_jy_interpreter", Py.java2py(interp));
+            // enable autocomplete
+            interp.exec("import rlcompleter, readline");
+            interp.exec("readline.parse_and_bind('tab: complete')");
+            interp.interact();
+            
+            //JythonShellServer.run_server(7000, new HashMap());
         }
     }
 
@@ -336,5 +382,9 @@ public class App {
 
     public ApplicationContext getAppContext() {
         return appContext;
+    }
+
+    public boolean isShell() {
+        return shell;
     }
 }
