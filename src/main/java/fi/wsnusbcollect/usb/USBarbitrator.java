@@ -8,13 +8,14 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.String;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.persistence.EntityManager;
@@ -25,12 +26,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * USB arbitrator class - manages connected nodes
  * @author ph4r05
  */
 @Repository
+@Transactional
 public class USBarbitrator {
     private static final Logger log = LoggerFactory.getLogger(USBarbitrator.class);
     private static final String UDEV_RULES_LINE_PATTERN = "^ATTRS\\{serial\\}\\s*==\\s*\\\"([0-9a-zA-Z_]+)\\\",\\s*NAME\\s*=\\s*\\\"([0-9a-zA-Z_]+)\\\".*";
@@ -45,6 +48,10 @@ public class USBarbitrator {
     // serial->motelist record association
     private Map<String, MotelistRecord> moteList = null;
 
+    /**
+     * Loads all nodes from database
+     * @return 
+     */
     public Map<String, USBdevice> loadNodesFromDatabase(){
         Map<String, USBdevice> result = new HashMap<String, USBdevice>();
         
@@ -64,9 +71,93 @@ public class USBarbitrator {
         return result;
     }
     
+    /**
+     * Checks whether node connection from database corresponds to real one
+     */
+    public void checkNodesConnection(){
+        if (this.moteList==null || this.moteList.isEmpty()){
+            log.error("Cannot check database - no local data");
+            return;
+        }
+        
+        // update nodes if applicable
+        // serial -> usbdevice
+        Map<String, USBdevice> savedNodes = this.loadNodesFromDatabase();
+        // will contain saved, but detected nodes
+        Set<String> dbNodesSet = new HashSet<String>(savedNodes.keySet());
+        
+        Iterator<String> iterator = this.moteList.keySet().iterator();
+        while(iterator.hasNext()){
+            String nodeSerial = iterator.next();
+            MotelistRecord mr = this.moteList.get(nodeSerial);
+            
+            if (savedNodes.containsKey(mr.getSerial())){
+                // record already exists, compare critical values here
+                log.debug("Record already exists");
+                
+                // delete from dbNodesSet - node is being checked, thus is connected
+                dbNodesSet.remove(mr.getSerial());
+                
+                // get node from map
+                USBdevice ubd = savedNodes.get(mr.getSerial());
+                
+                // was node id changed
+                Integer mrNodeId = mr.getNodeId() != null ? Integer.parseInt(mr.getNodeId()) : null;
+                if (mrNodeId!=null && mrNodeId.equals(ubd.getNodeId())==false){
+                    System.out.println("NodeID is different for node with serial: " + mr.getSerial()
+                            + "; Stored NodeID: " + ubd.getNodeId() + "; Current NodeID: " + mr.getNodeId());
+                }
+                
+                // check if device alias is changed, of yes then is probably changed udev rules file
+                if (mr.getDeviceAlias().equals(ubd.getDeviceAlias())==false){
+                    System.out.println("Node device alias was changed (probably modified udev rules)"
+                            + " for node serial: " + ubd.getSerial()
+                            + "; NodeID: " + ubd.getNodeId() );
+                }
+                
+                // check USB connection, changed?
+                if (mr.getUsbPath().equals(ubd.getUsbPath())==false){
+                    System.out.println("Node USB connection path changed for node serial: " + ubd.getSerial()
+                            + "; NodeID: " + ubd.getNodeId() 
+                            + "; Should be: " + ubd.getUsbPath()
+                            + "; But is: " + mr.getUsbPath());
+                }
+            } else {
+                // new node detected, announce this. Node should be inserted to database
+                log.info("New node detected: " + mr.toString());
+                // Print new node info on stdout
+                System.out.println("New node detected (not in DB): "
+                        + "USBpath: " + mr.getUsbPath()
+                        + "; NodeDev: " + mr.getDevicePath()
+                        + "; NodeAlias: " + mr.getDeviceAlias()
+                        + "; Serial: " + mr.getSerial()
+                        + "; Node ID: " + mr.getNodeId()
+                        + "; Description: " + mr.getDescription());
+            }
+        }
+        // process saved but not detected nodes
+        Iterator<String> iterator1 = dbNodesSet.iterator();
+        while(iterator1.hasNext()){
+            String serial = iterator1.next();
+            USBdevice ubd = savedNodes.get(serial);
+            
+            System.out.println("Saved node was not detected to be connected. "
+                    + " Node serial: " + ubd.getSerial()
+                    + "; NodeID: " + ubd.getNodeId() 
+                    + "; NodeDev: " + ubd.getDevicePath()
+                    + "; NodeAlias: " + ubd.getDeviceAlias()
+                    + "; Is it intentional? Please check it");
+        }
+        
+        System.out.println("Node connection check completed");
+    }
+    
+    /**
+     * Updates nodes database according to currently loaded notes
+     */
     public void updateNodesDatabase(){
         if (this.moteList==null || this.moteList.isEmpty()){
-            log.info("Cannot update node database - no local data");
+            log.error("Cannot update node database - no local data");
             return;
         }
         
@@ -86,6 +177,7 @@ public class USBarbitrator {
                 ubd = savedNodes.get(mr.getSerial());
             } else {
                 log.info("Inserting new record");
+                ubd.setUSBConfiguration_id(1L);
             }
 
             ubd.setBus(mr.getBus());
@@ -104,6 +196,7 @@ public class USBarbitrator {
             // store to database
             this.em.persist(ubd);
         }
+        this.em.flush();
     }
     
     /**
@@ -167,9 +260,15 @@ public class USBarbitrator {
             // sunchronous call, wait for command completion
             p.waitFor();
             
-            // update nodes database
-            this.updateNodesDatabase();
+            // check whether are nodes connected well
+            if (App.getRunningInstance().isCheckNodesConnection()){
+                this.checkNodesConnection();
+            }
             
+            // update nodes database, if needed
+            if (App.getRunningInstance().isUpdateNodeDatabase()){
+                this.updateNodesDatabase();
+            }
         } catch (IOException ex) {
             log.error("IOException error, try checking motelist command", ex);
         } catch (InterruptedException ex){

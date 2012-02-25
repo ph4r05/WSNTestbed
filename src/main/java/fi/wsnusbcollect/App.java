@@ -38,7 +38,7 @@ public class App {
     @Option(name = "--debug", usage = "enables debug output")
     private boolean debug;
     
-    @Option(name = "--detect-nodes", usage = "performs node detection")
+    @Option(name = "--detect-nodes", usage = "performs node detection, read-only operation")
     private boolean detectNodes;
     
     @Option(name = "--update-node-database", usage = "updates node connection database info, implies --detect-nodes option")
@@ -118,6 +118,9 @@ public class App {
         //this.usbArbitrator = new USBarbitrator();
         // use application context to get initialized bean
         
+        // spring application context init
+        appContext = new ClassPathXmlApplicationContext("applicationContext.xml");
+        
         this.usbArbitrator = (USBarbitrator) appContext.getBean("USBarbitrator");
         if (this.usbArbitrator == null){
             log.error("Dependency injection failed on USB arbitrator bean");
@@ -135,9 +138,6 @@ public class App {
      * @throws CmdLineException 
      */
     public void doMain(String[] args) throws IOException, CmdLineException {
-        // spring application context init
-        appContext = new ClassPathXmlApplicationContext("applicationContext.xml");
-        
         // load default properties
         props = new Properties();
         props.load(getClass().getResourceAsStream("/application.properties"));
@@ -191,7 +191,7 @@ public class App {
         }
         
         // parameters implications
-        detectNodes=updateNodeDatabase || detectNodes;
+        detectNodes=updateNodeDatabase || detectNodes || checkNodesConnection;
         
         // init dependencies here - arguments and properties loaded
         log.info("Initializing depencencies");
@@ -204,6 +204,13 @@ public class App {
         if (detectNodes){
             log.info("Detecting new nodes");
             usbArbitrator.detectConnectedNodes();
+            
+            // if update node database or check nodes connection were choosen
+            // perform just this single actions
+            if (updateNodeDatabase || checkNodesConnection){
+                log.info("Ending execution");
+                return;
+            }
         }
     }
 

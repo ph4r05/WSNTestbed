@@ -72,13 +72,6 @@
             <bean class="org.springframework.instrument.classloading.InstrumentationLoadTimeWeaver"/>
         </property>
         <property name="persistenceXmlLocation" value="classpath:/persistence.xml"/>
-        <!--
-        <property name="jpaProperties">
-            <value>
-                 hibernate.search.default.indexBase=${db.indexLocation}
-            </value>
-        </property>
-        -->
     </bean>
 
     <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
@@ -86,7 +79,5 @@
         <property name="dataSource" ref="dataSource"/>
     </bean>
     
-    <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitrator">
-        
-    </bean>
+    <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitrator"/>
 </beans>

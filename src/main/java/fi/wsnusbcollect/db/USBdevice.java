@@ -58,6 +58,9 @@ public class USBdevice implements Serializable{
     @Lob
     private String description;
     
+    // should this note be checked?
+    private boolean disabled=false;
+    
     // last modification of this record in database
     @Temporal(TemporalType.TIMESTAMP)
     private java.util.Date lastModification;
@@ -145,6 +148,14 @@ public class USBdevice implements Serializable{
     public void setNodeId(Integer nodeId) {
         this.nodeId = nodeId;
     }
+
+    public boolean isDisabled() {
+        return disabled;
+    }
+
+    public void setDisabled(boolean disabled) {
+        this.disabled = disabled;
+    }
     
     @Override
     public boolean equals(Object obj) {
@@ -174,6 +185,6 @@ public class USBdevice implements Serializable{
 
     @Override
     public String toString() {
-        return "USBdevice{" + "USBConfiguration_id=" + USBConfiguration_id + ", bus=" + bus + ", usbPath=" + usbPath + ", serial=" + serial + ", devicePath=" + devicePath + ", deviceAlias=" + deviceAlias + ", description=" + description + ", lastModification=" + lastModification + '}';
+        return "USBdevice{" + "USBConfiguration_id=" + USBConfiguration_id + ", bus=" + bus + ", usbPath=" + usbPath + ", serial=" + serial + ", devicePath=" + devicePath + ", deviceAlias=" + deviceAlias + ", nodeId=" + nodeId + ", description=" + description + ", disabled=" + disabled + ", lastModification=" + lastModification + '}';
     }
 }
