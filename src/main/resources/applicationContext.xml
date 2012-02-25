@@ -80,4 +80,5 @@
     </bean>
     
     <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitrator"/>
+    <bean id="consoleHelper" class="fi.wsnusbcollect.console.ConsoleHelper"/>
 </beans>

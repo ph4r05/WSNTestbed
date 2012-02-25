@@ -1,6 +1,7 @@
 package fi.wsnusbcollect;
 
 import com.enigmacurry.JythonShellServer;
+import fi.wsnusbcollect.console.ConsoleHelper;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.File;
 import java.io.IOException;
@@ -8,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.ConsoleHandler;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -94,6 +96,10 @@ public class App {
     // USB arbitrator instance
     private USBarbitrator usbArbitrator = null;
     
+    // ConsoleHandler for Jython interface
+    private ConsoleHelper consoleHelper = null;
+    
+    // interactive jython interface
     protected InteractiveConsole interp;
 
     public static void main(String[] args) {
@@ -138,7 +144,7 @@ public class App {
             log.error("Dependency injection failed on USB arbitrator bean");
         }
         
-        // here initialize database connection
+        this.consoleHelper = (ConsoleHelper) appContext.getBean(ConsoleHelper.class);
     }
     
     /**
@@ -195,12 +201,6 @@ public class App {
         if (configFile != null && (configFile instanceof File)) {
             System.out.println("Config file set: " + configFile.getName());
         }
-
-//        // access non-option arguments
-//        System.out.println("other arguments are:");
-//        for (String s : arguments) {
-//            System.out.println(s);
-//        }
         
         // parameters implications
         detectNodes=updateNodeDatabase || detectNodes || checkNodesConnection;
@@ -230,32 +230,37 @@ public class App {
             log.info("Dropping to shell now...");
             
             // set Properties 
-            if (System.getProperty("python.home") == null) 
+            if (System.getProperty("python.home") == null) {
                 System.setProperty("python.home", "/home/ph4r05"); 
+            }
             
+            // initialize python shell
             PySystemState.initialize(PySystemState.getBaseProperties(), null, new String[0]);
             
-            //org.python.util.JLineConsole
-            //System.setProperty("python.console", "org.python.util.InteractiveConsole");
-            //System.setProperty("python.console", "org.python.util.JLineConsole");
-            //System.setProperty("python.console", "");
-            
             // no postProps, registry values used 
-            JLineConsole.initialize(System.getProperties(), 
-                    null,
-                    new String[0]);
-            
-//            InteractiveConsole.initialize(System.getProperties(), 
-//                    null,
-//                    new String[0]); 
+            JLineConsole.initialize(System.getProperties(), null, new String[0]);
             
             interp = new JLineConsole();
+            // important line, set JLineConsole to internal python variable to be able to 
+            // acces console from python interface
             interp.getSystemState().__setattr__("_jy_interpreter", Py.java2py(interp));
+            
+            // usb arbitrator set
+            interp.getSystemState().__setattr__("_jy_usbartibtrator", Py.java2py(this.usbArbitrator));
+            
+            // console helper
+            interp.getSystemState().__setattr__("_jy_ch", Py.java2py(this.consoleHelper));
+            
+            // this instance
+            interp.getSystemState().__setattr__("_jy_main", Py.java2py(this));
+            
             // enable autocomplete
             interp.exec("import rlcompleter, readline");
             interp.exec("readline.parse_and_bind('tab: complete')");
             interp.interact();
             
+            // next command is used to start telnet jython server
+            // not properly implemented yet
             //JythonShellServer.run_server(7000, new HashMap());
         }
     }
