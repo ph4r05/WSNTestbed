@@ -178,8 +178,10 @@ public class USBarbitrator {
             } else {
                 log.info("Inserting new record");
                 ubd.setUSBConfiguration_id(1L);
+                ubd.setDescription(mr.getDescription());
             }
 
+            ubd.setDescription(mr.getDescription());            
             ubd.setBus(mr.getBus());
             ubd.setDeviceAlias(mr.getDeviceAlias());
             ubd.setDevicePath(mr.getDevicePath());
