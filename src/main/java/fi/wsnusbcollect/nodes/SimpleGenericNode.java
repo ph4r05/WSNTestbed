@@ -6,10 +6,6 @@
 package fi.wsnusbcollect.nodes;
 
 import fi.wsnusbcollect.nodeManager.CoordinateRecord;
-import fi.wsnusbcollect.nodes.GenericNode;
-import fi.wsnusbcollect.nodes.MobileNode;
-import fi.wsnusbcollect.nodes.NodePlatform;
-import fi.wsnusbcollect.nodes.NodePlatformGeneric;
 import java.util.HashMap;
 import java.util.Map;
 

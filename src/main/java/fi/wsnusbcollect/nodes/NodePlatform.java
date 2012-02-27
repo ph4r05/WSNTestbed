@@ -6,7 +6,7 @@
 package fi.wsnusbcollect.nodes;
 
 /**
- *
+ * Node platform interface
  * @author ph4r05
  */
 public interface NodePlatform {

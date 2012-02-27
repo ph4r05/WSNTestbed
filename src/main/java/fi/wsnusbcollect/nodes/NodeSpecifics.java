@@ -6,7 +6,7 @@
 package fi.wsnusbcollect.nodes;
 
 /**
- * Defines mote specific values
+ * Defines mote specific values (signal levels, power level, channels)
  * 
  * @author ph4r05
  */

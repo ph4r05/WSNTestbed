@@ -10,7 +10,8 @@ package fi.wsnusbcollect.nodes;
  * @author ph4r05
  */
 public class NodePlatformTelosb extends NodePlatformGeneric{
-
+    public static final int platformId = NodePlatformFactory.NODE_PLATFORM_TELOSB; 
+    
    /**
     * tx output power level
     */
@@ -39,7 +40,7 @@ public class NodePlatformTelosb extends NodePlatformGeneric{
      */
     @Override
     public int getPlatformId() {
-        return 1;
+        return NodePlatformTelosb.platformId;
     }
 
     @Override
