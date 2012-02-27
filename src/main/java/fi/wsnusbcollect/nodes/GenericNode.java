@@ -3,10 +3,10 @@ import fi.wsnusbcollect.nodeManager.CoordinateRecord;
 import java.io.Serializable;
 
 /**
- *
+ * Generic node wrapper 
  * @author ph4r05
  */
-public interface GenericNode extends Serializable, Cloneable{
+public interface GenericNode extends Serializable, Cloneable{    
     public int getNodeId();
 
     /**

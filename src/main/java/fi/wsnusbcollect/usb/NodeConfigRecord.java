@@ -5,10 +5,17 @@
 package fi.wsnusbcollect.usb;
 
 /**
+ * Holds information about specific node from database.
+ * Such node can be directly connected or not.
  *
+ * Not directly connected devices has almost 
+ * all fields empty, but strategically important are devicePath, deviceAlias. 
+ * If deviceAlias is empty, devicePath is used. If devicePath is empty, node is
+ * considered as not directly connected.
+ * 
  * @author ph4r05
  */
-public class MotelistRecord {
+public class NodeConfigRecord {
     private String bus;
     private String dev;
     private String usbPath;
@@ -17,6 +24,8 @@ public class MotelistRecord {
     private String deviceAlias;
     private String description;
     private String nodeId;
+    private String connectionString;
+    private int platformId;
 
     public String getBus() {
         return bus;
@@ -82,6 +91,22 @@ public class MotelistRecord {
         this.nodeId = nodeId;
     }
 
+    public String getConnectionString() {
+        return connectionString;
+    }
+
+    public void setConnectionString(String connectionString) {
+        this.connectionString = connectionString;
+    }
+
+    public int getPlatformId() {
+        return platformId;
+    }
+
+    public void setPlatformId(int platformId) {
+        this.platformId = platformId;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj == null) {
@@ -90,7 +115,7 @@ public class MotelistRecord {
         if (getClass() != obj.getClass()) {
             return false;
         }
-        final MotelistRecord other = (MotelistRecord) obj;
+        final NodeConfigRecord other = (NodeConfigRecord) obj;
         if ((this.serial == null) ? (other.serial != null) : !this.serial.equals(other.serial)) {
             return false;
         }
@@ -106,6 +131,6 @@ public class MotelistRecord {
 
     @Override
     public String toString() {
-        return "MotelistRecord{" + "bus=" + bus + ", dev=" + dev + ", usbPath=" + usbPath + ", serial=" + serial + ", devicePath=" + devicePath + ", deviceAlias=" + deviceAlias + ", description=" + description + ", nodeId=" + nodeId + '}';
+        return "NodeConfigRecord{" + "bus=" + bus + ", dev=" + dev + ", usbPath=" + usbPath + ", serial=" + serial + ", devicePath=" + devicePath + ", deviceAlias=" + deviceAlias + ", description=" + description + ", nodeId=" + nodeId + '}';
     }
 }

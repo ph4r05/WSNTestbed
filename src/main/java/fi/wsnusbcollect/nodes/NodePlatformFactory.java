@@ -5,6 +5,10 @@
 
 package fi.wsnusbcollect.nodes;
 
+import fi.wsnusbcollect.usb.NodeConfigRecord;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,12 +31,79 @@ public class NodePlatformFactory {
     public static final int NODE_PLATFORM_TMOTE = 4;
     public static final int NODE_PLATFORM_GENERIC = 0;
     
+    // all registered platforms here
+    private static Map<Integer, NodePlatform> platforms;
+    
+    /**
+     * Initializes node platform factory.
+     * Registers available platforms.
+     * 
+     * @problem: singleton pattern when not needed? Does it matter when testing or
+     * something?
+     * @extension: call somebody to init all platforms / add/remove platform runtime
+     */
+    public static void init(){
+        if (NodePlatformFactory.platforms != null){
+            // initialized, nothing to do
+            return;
+        }
+        
+        // init manually here (KISS)
+        NodePlatformFactory.platforms = new HashMap<Integer, NodePlatform>(8);
+        platforms.put(Integer.valueOf(NODE_PLATFORM_GENERIC), new NodePlatformGeneric());
+        platforms.put(Integer.valueOf(NODE_PLATFORM_IRIS), new NodePlatformIris());
+        platforms.put(Integer.valueOf(NODE_PLATFORM_MICAZ), new NodePlatformMicaZ());
+        platforms.put(Integer.valueOf(NODE_PLATFORM_TELOSB), new NodePlatformTelosb());
+        platforms.put(Integer.valueOf(NODE_PLATFORM_TMOTE), new NodePlatformTmoteSky());
+    }
+    
+    /**
+     * Returns node platform determined from device description string.
+     * Can be slow - regular expressions, pattern matching, should be used only 
+     * on application start (config reading, initialization).
+     * 
+     * @param description
+     * @return 
+     */
+    public static NodePlatform getPlatform(String description){
+        NodePlatformFactory.init();
+        // iterate over all registered platforms. If no matches, return generic
+        NodePlatform platform = null;
+        Iterator<Integer> iterator = platforms.keySet().iterator();
+        while(iterator.hasNext()){
+            Integer platformId = iterator.next();
+            platform = platforms.get(platformId);
+            
+            if (platform.isPlatformFromNodeDescription(description)){
+                break;
+            }
+        }
+        
+        if (platform==null){
+            // platform was not found, return generic
+            return new NodePlatformGeneric();
+        } else {
+            return platform;
+        }
+    }
+    
+    /**
+     * Returns node object initialized from NCR
+     * @param ncr
+     * @return u
+     */
+    public static NodePlatform getPlatform(NodeConfigRecord ncr){
+        return NodePlatformFactory.getPlatform(ncr.getPlatformId());
+    }
+    
     /**
      * Prepares specified platform node for given platformID
      * @param i
      * @return 
      */
     public static NodePlatform getPlatform(int i){
+        NodePlatformFactory.init();
+        
         NodePlatform platform = null;
         switch(i){
             case NODE_PLATFORM_TELOSB:

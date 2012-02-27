@@ -52,4 +52,18 @@ public class NodePlatformTelosb extends NodePlatformGeneric{
     public double[] getTxOutputPower() {
         return NodePlatformTelosb.powerLevel;
     }
+
+    @Override
+    public String getConnectionString(String device) {
+        return "serial@" + device + ":telosb";
+    }
+
+    @Override
+    public boolean isPlatformFromNodeDescription(String desc) {
+        if (desc==null){
+            throw new NullPointerException("Platform description is empty");
+        }
+        
+        return "XBOW Crossbow Telos Rev.B".equalsIgnoreCase(desc.trim());
+    }
 }

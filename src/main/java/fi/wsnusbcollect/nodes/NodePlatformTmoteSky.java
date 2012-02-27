@@ -52,4 +52,18 @@ public class NodePlatformTmoteSky extends NodePlatformGeneric{
     public double[] getTxOutputPower() {
         return NodePlatformTmoteSky.powerLevel;
     }
+    
+    @Override
+    public String getConnectionString(String device) {
+        return "serial@" + device + ":tmote";
+    }
+
+    @Override
+    public boolean isPlatformFromNodeDescription(String desc) {
+        if (desc==null){
+            throw new NullPointerException("Platform description is empty");
+        }
+        
+        return "Moteiv tmote sky".equalsIgnoreCase(desc.trim());
+    }
 }

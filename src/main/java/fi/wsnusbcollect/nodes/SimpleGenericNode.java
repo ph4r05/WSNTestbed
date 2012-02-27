@@ -11,7 +11,9 @@ import java.util.Map;
 
 /**
  * Node register holds information about every node in network. Central storage for
- * general purpose information. 
+ * general purpose information. This simple generic node represents single node
+ * in network. Implements GenericNode interface.
+ * 
  * @author ph4r05
  */
 public class SimpleGenericNode implements GenericNode {

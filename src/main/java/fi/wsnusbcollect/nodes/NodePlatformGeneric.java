@@ -5,11 +5,15 @@
 
 package fi.wsnusbcollect.nodes;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  *
  * @author ph4r05
  */
 public class NodePlatformGeneric implements NodePlatform {
+    private static final Logger log = LoggerFactory.getLogger(NodePlatformGeneric.class);
     public static final int platformId = NodePlatformFactory.NODE_PLATFORM_GENERIC;
     
     @Override
@@ -53,5 +57,30 @@ public class NodePlatformGeneric implements NodePlatform {
     public String toString() {
         return "NodePlatformGeneric{" + "PlatformId=" + this.getPlatformId() 
                 + "; Platform=" + this.getPlatform() + "}";
+    }
+
+    /**
+     * Try connect by generic way
+     * @param device
+     * @return 
+     */
+    @Override
+    public String getConnectionString(String device) {
+        log.warn("Determining connection string for generic node - please inspect, device: " + device);
+        return "serial@" + device;
+    }
+
+    /**
+     * Always return false - when determining node platform there can be more 
+     * specific platforms that matches. This should be returned manually on no match,
+     * thus cannot return always true. By default we should return false since
+     * this represents something generic.
+     * 
+     * @param desc
+     * @return 
+     */
+    @Override
+    public boolean isPlatformFromNodeDescription(String desc) {
+        return false;
     }
 }

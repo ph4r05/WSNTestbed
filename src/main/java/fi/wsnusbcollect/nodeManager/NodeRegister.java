@@ -21,12 +21,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-//import rssi_graph.WorkerBase;
 
 /**
  * Base register of all nodes.
  * Stores all generic information about each node.
  * 
+ * New responsibility added - initializing connected nodes
  * @author ph4r05
  */
 public class NodeRegister implements Serializable{

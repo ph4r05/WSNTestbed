@@ -61,6 +61,12 @@ public class USBdevice implements Serializable{
     // should this note be checked?
     private boolean disabled=false;
     
+    // @serial@{USB}:tmote
+    private String connectionString;
+    
+    // id of platform
+    private int platformId;
+    
     // last modification of this record in database
     @Temporal(TemporalType.TIMESTAMP)
     private java.util.Date lastModification;
@@ -155,6 +161,22 @@ public class USBdevice implements Serializable{
 
     public void setDisabled(boolean disabled) {
         this.disabled = disabled;
+    }
+
+    public String getConnectionString() {
+        return connectionString;
+    }
+
+    public void setConnectionString(String connectionString) {
+        this.connectionString = connectionString;
+    }
+
+    public int getPlatformId() {
+        return platformId;
+    }
+
+    public void setPlatformId(int platformId) {
+        this.platformId = platformId;
     }
     
     @Override

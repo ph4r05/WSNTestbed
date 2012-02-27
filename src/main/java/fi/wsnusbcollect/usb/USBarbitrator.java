@@ -2,6 +2,8 @@ package fi.wsnusbcollect.usb;
 
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.db.USBdevice;
+import fi.wsnusbcollect.nodes.NodePlatform;
+import fi.wsnusbcollect.nodes.NodePlatformFactory;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -46,7 +48,7 @@ public class USBarbitrator {
     private JdbcTemplate template;
     
     // serial->motelist record association
-    private Map<String, MotelistRecord> moteList = null;
+    private Map<String, NodeConfigRecord> moteList = null;
 
     /**
      * Loads all nodes from database
@@ -89,7 +91,7 @@ public class USBarbitrator {
         Iterator<String> iterator = this.moteList.keySet().iterator();
         while(iterator.hasNext()){
             String nodeSerial = iterator.next();
-            MotelistRecord mr = this.moteList.get(nodeSerial);
+            NodeConfigRecord mr = this.moteList.get(nodeSerial);
             
             if (savedNodes.containsKey(mr.getSerial())){
                 // record already exists, compare critical values here
@@ -168,7 +170,7 @@ public class USBarbitrator {
         Iterator<String> iterator = this.moteList.keySet().iterator();
         while(iterator.hasNext()){
             String nodeSerial = iterator.next();
-            MotelistRecord mr = this.moteList.get(nodeSerial);
+            NodeConfigRecord mr = this.moteList.get(nodeSerial);
             log.info("Saving mote record: " + mr.toString());
             
             USBdevice ubd = new USBdevice();
@@ -188,6 +190,8 @@ public class USBarbitrator {
             ubd.setLastModification(new Date());
             ubd.setSerial(mr.getSerial());
             ubd.setUsbPath(mr.getUsbPath());
+            ubd.setPlatformId(mr.getPlatformId());
+            ubd.setConnectionString(mr.getConnectionString());
             
             try {
                 ubd.setNodeId(Integer.parseInt(mr.getNodeId()));
@@ -199,6 +203,7 @@ public class USBarbitrator {
             this.em.persist(ubd);
         }
         this.em.flush();
+        System.out.println("Node database updated");
     }
     
     /**
@@ -220,15 +225,15 @@ public class USBarbitrator {
             
             this.loadNodesFromDatabase();
             
-            this.moteList = new HashMap<String, MotelistRecord>();            
+            this.moteList = new HashMap<String, NodeConfigRecord>();            
             String motelistCommand = App.getRunningInstance().getMotelistCommand() + " -usb -c";
             log.info("Will use motelist command: " + motelistCommand);
             
             // motelist records
-            LinkedList<MotelistRecord> mlistRecords = new LinkedList<MotelistRecord>();
+            LinkedList<NodeConfigRecord> mlistRecords = new LinkedList<NodeConfigRecord>();
             // parse udev rules list to complete information - get mapping 
             // USB serial -> device path (created by udev)
-            Map<String, NodeConfigRecord> udevConfig = loadUdevRules();
+            Map<String, NodeConfigRecordLocal> udevConfig = loadUdevRules();
             
             // execute motelist command
             Process p = Runtime.getRuntime().exec(motelistCommand);
@@ -242,12 +247,21 @@ public class USBarbitrator {
                  }
                 
                 // parse motelist output
-                MotelistRecord motelistOutput = this.parseMotelistOutput(line);
+                NodeConfigRecord motelistOutput = this.parseMotelistOutput(line);
                 
                 // if udev device alias present, map it
                 if (udevConfig.containsKey(motelistOutput.getSerial())){
                     motelistOutput.setDeviceAlias(udevConfig.get(motelistOutput.getSerial()).getDevice());
                     motelistOutput.setNodeId(udevConfig.get(motelistOutput.getSerial()).getNodeid());
+                    
+                    // now have device alias, if nonempty it has precedense to 
+                    // nodePath for connection string
+                    if (motelistOutput.getDeviceAlias()!=null 
+                            && motelistOutput.getDeviceAlias().isEmpty()==false){
+                        // need to get platform again :(
+                        NodePlatform platform = NodePlatformFactory.getPlatform(motelistOutput.getPlatformId());
+                        motelistOutput.setConnectionString(platform.getConnectionString(motelistOutput.getDeviceAlias()));
+                    }
                 }
                 
                 log.info("MoteRecord: " + motelistOutput.toString());
@@ -283,13 +297,13 @@ public class USBarbitrator {
      * @param output
      * @return 
      */
-    protected MotelistRecord parseMotelistOutput(String output){
+    protected NodeConfigRecord parseMotelistOutput(String output){
         if (output==null) {
             log.error("Empty line in parseMotelistOutput");
             throw new NullPointerException("Null line");
         }
         
-        MotelistRecord rec = new MotelistRecord();
+        NodeConfigRecord rec = new NodeConfigRecord();
         String[] split = output.split(",");
         if (split.length != 6){
             log.error("Motelist output is different from expected one, please inspect it: " + output);
@@ -302,6 +316,16 @@ public class USBarbitrator {
         rec.setSerial(split[3]);
         rec.setDevicePath(split[4]);
         rec.setDescription(split[5]);
+        
+        // determine platform ID here, violates abstraction, but now meets KISS
+        // principle. Problem: reasonable way how to convert description string
+        // to platform, now use platformFactory
+        NodePlatform platform = NodePlatformFactory.getPlatform(rec.getDescription());
+        rec.setPlatformId(platform.getPlatformId());
+        
+        // cannot determine connection string here correctly - need to wait for 
+        // device file alias from udev. now use simple node
+        rec.setConnectionString(platform.getConnectionString(rec.getDevicePath()));
         return rec;
     }
     
@@ -312,22 +336,22 @@ public class USBarbitrator {
      * 
      * @return Mapping USB serial -> node file
      */
-    protected Map<String, NodeConfigRecord> loadUdevRules() throws FileNotFoundException, IOException{
+    private Map<String, NodeConfigRecordLocal> loadUdevRules() throws FileNotFoundException, IOException{
         String udevRulesFilePath = App.getRunningInstance().getProps().getProperty("moteUdevRules");
         if (udevRulesFilePath==null || udevRulesFilePath.isEmpty()){
             log.warn("udev rules file path is empty, cannot detect alias nodes");
-            return new HashMap<String, NodeConfigRecord>();
+            return new HashMap<String, NodeConfigRecordLocal>();
         }
         
         // file exists & can read it?
         File udevRulesFile = new File(udevRulesFilePath);
         if (udevRulesFile.exists()==false || udevRulesFile.canRead()==false){
             log.warn("Udev file probably does not exist or cannot be read. File: " + udevRulesFilePath);
-            return new HashMap<String, NodeConfigRecord>();
+            return new HashMap<String, NodeConfigRecordLocal>();
         }
         
         // init returning map
-        Map resultMap = new HashMap<String, NodeConfigRecord>();
+        Map resultMap = new HashMap<String, NodeConfigRecordLocal>();
         
         log.debug("Loading udev configuration");
         
@@ -385,10 +409,10 @@ public class USBarbitrator {
                         + "please resolve this issue. Returning empty map. Ambiguation present.");
                 log.debug("First record: serial=" + serial + " device=" + resultMap.get(serial));
                 log.debug("Second record: serial=" + serial + " device=" + device);
-                return new HashMap<String, NodeConfigRecord>();
+                return new HashMap<String, NodeConfigRecordLocal>();
             }
             
-            NodeConfigRecord ncr = new NodeConfigRecord();
+            NodeConfigRecordLocal ncr = new NodeConfigRecordLocal();
             ncr.setDevice(device);
             
             // try to extract node id
@@ -406,11 +430,11 @@ public class USBarbitrator {
         return resultMap;
     }
 
-    public Map<String, MotelistRecord> getMoteList() {
+    public Map<String, NodeConfigRecord> getMoteList() {
         return moteList;
     }
 
-    public void setMoteList(Map<String, MotelistRecord> moteList) {
+    public void setMoteList(Map<String, NodeConfigRecord> moteList) {
         this.moteList = moteList;
     }
 
@@ -430,7 +454,7 @@ public class USBarbitrator {
         this.template = template;
     }
     
-    private class NodeConfigRecord{
+    private class NodeConfigRecordLocal{
         private String device;
         private String nodeid;
 

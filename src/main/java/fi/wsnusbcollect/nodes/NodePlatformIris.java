@@ -54,6 +54,13 @@ public class NodePlatformIris extends NodePlatformGeneric {
         return NodePlatformIris.powerLevel;
     }
 
+    @Override
+    public String getConnectionString(String device) {
+        return "serial@" + device + ":iris";
+    }
 
-    
+    @Override
+    public boolean isPlatformFromNodeDescription(String desc) {
+        return super.isPlatformFromNodeDescription(desc);
+    }
 }

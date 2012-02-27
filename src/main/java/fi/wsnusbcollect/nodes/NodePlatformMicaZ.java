@@ -52,4 +52,14 @@ public class NodePlatformMicaZ extends NodePlatformGeneric{
     public double[] getTxOutputPower() {
         return NodePlatformMicaZ.powerLevel;
     }
+    
+    @Override
+    public String getConnectionString(String device) {
+        return "serial@" + device + ":micaz";
+    }
+
+    @Override
+    public boolean isPlatformFromNodeDescription(String desc) {
+        return super.isPlatformFromNodeDescription(desc);
+    }    
 }

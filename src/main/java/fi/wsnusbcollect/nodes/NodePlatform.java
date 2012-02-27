@@ -15,4 +15,20 @@ public interface NodePlatform {
     
     public int getPlatformId();
     public String getPlatform();
+    
+    /**
+     * Returns connection string that can be used with Listener to connect directly 
+     * to specified device. Connection string is platform dependent.
+     * 
+     * @param device
+     * @return 
+     */
+    public String getConnectionString(String device);
+    
+    /**
+     * Returns whether node description returned via USB corresponds to this platform
+     * @param desc
+     * @return 
+     */
+    public boolean isPlatformFromNodeDescription(String desc);
 }
