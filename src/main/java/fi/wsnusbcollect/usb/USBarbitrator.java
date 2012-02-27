@@ -10,6 +10,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,12 +18,14 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
+import org.hibernate.ejb.criteria.expression.function.AggregationFunction.MAX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +35,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * USB arbitrator class - manages connected nodes
+ * 
+ * @extension:
+ * Spawn new thread for USBarbitrator which periodically (approx. each 5 seconds)
+ * checks connected nodes and notifies listener when something changed. Initialization
+ * data are passed from USBarbitrator. USBarbitrator has strategic important methods, 
+ * maybe this can be handled by USBarbitrator itself?
+ * 
+ * 
  * @author ph4r05
  */
 @Repository
@@ -104,7 +115,7 @@ public class USBarbitrator {
                 USBdevice ubd = savedNodes.get(mr.getSerial());
                 
                 // was node id changed
-                Integer mrNodeId = mr.getNodeId() != null ? Integer.parseInt(mr.getNodeId()) : null;
+                Integer mrNodeId = mr.getNodeId();
                 if (mrNodeId!=null && mrNodeId.equals(ubd.getNodeId())==false){
                     System.out.println("NodeID is different for node with serial: " + mr.getSerial()
                             + "; Stored NodeID: " + ubd.getNodeId() + "; Current NodeID: " + mr.getNodeId());
@@ -192,12 +203,7 @@ public class USBarbitrator {
             ubd.setUsbPath(mr.getUsbPath());
             ubd.setPlatformId(mr.getPlatformId());
             ubd.setConnectionString(mr.getConnectionString());
-            
-            try {
-                ubd.setNodeId(Integer.parseInt(mr.getNodeId()));
-            } catch (Exception e){
-                
-            }
+            ubd.setNodeId(mr.getNodeId());
             
             // store to database
             this.em.persist(ubd);
@@ -220,7 +226,7 @@ public class USBarbitrator {
             
             // if is map nonempty
             if (this.moteList!=null && this.moteList.isEmpty()==false){
-                log.debug("moteList map is nonempty, will be flushed with detect data");
+                log.debug("moteList map is nonempty, will be replaced with fresh data");
             }
             
             this.loadNodesFromDatabase();
@@ -419,9 +425,17 @@ public class USBarbitrator {
             Matcher mId = nodeNumberPattern.matcher(device);
             if (mId.matches() && mId.group(1)!=null){
                 log.info("Node ID discovered: " + mId.group(1));
-                ncr.setNodeid(mId.group(1));
+                String nodeIdString = mId.group(1);
+                
+                // to integer conversion
+                try {
+                    ncr.setNodeid(-1);
+                    ncr.setNodeid(Integer.parseInt(nodeIdString));
+                } catch (Exception e){
+                    log.error("Integer conversion error: " + nodeIdString);
+                }
             }
-            
+
             resultMap.put(serial, ncr);
         }
         //Close the input stream
@@ -430,6 +444,104 @@ public class USBarbitrator {
         return resultMap;
     }
 
+    /**
+     * Returns list of NodeConfigRecords for nodes to connect to from config strings
+     * of inclusion/exclusion.
+     * 
+     * @problem: includeString, excludeString are not strong enough to express all wanted situations easily
+     * @extension: for more sophisticated node filters can be used rsync filter syntax
+     * + means include, - means exclude. Records can be passed as list of filter lines
+     * List<NodeSelectorRecord> configLines
+     * 
+     * Filters: magic constant ALL means all nodes already detected, all next config records are ignored
+     *  node identifiers are comma separated
+     *  identifier beginning with # following only by decimal digits means node id.
+     *  identifier beginning with / means node device path - first aliases then nodePaths are searched
+     *  otherwise is identifier considered as serial number.
+     * 
+     * @param includeString
+     * @param excludeString
+     * @return 
+     */
+    public List<NodeConfigRecord> getNodes2connect(String includeString, String excludeString){
+        // include string parsing
+        if (includeString==null){
+            log.warn("Include string is empty, using all nodes");
+            includeString="ALL";
+        }
+        
+        if (excludeString==null){
+            // exclude string can be empty, set empty string, corresponds to NONE node exclude
+            excludeString="";
+        }
+        
+        // list to return
+        List<NodeConfigRecord> nodes2return = new LinkedList<NodeConfigRecord>();
+        
+        // split by comma
+        String[] includeSplit = includeString.split(",");
+        String[] excludeSplit = excludeString.split(",");
+        
+        ArrayList<String> includeArray = new ArrayList<String>(includeSplit.length);
+        ArrayList<String> excludeArray = new ArrayList<String>(excludeSplit.length);
+        
+        // trim each substring from spaces, remove empty lines
+        for(int i=0; i<includeSplit.length; i++){
+            String cur = includeSplit[i].trim();
+            if (cur.isEmpty()){
+                continue;
+            }
+            
+            includeArray.add(cur);
+        }
+        
+        // trim each substring from spaces, remove empty lines
+        for(int i=0; i<excludeSplit.length; i++){
+            String cur = excludeSplit[i].trim();
+            if (cur.isEmpty()){
+                continue;
+            }
+            
+            excludeArray.add(cur);
+        }
+        
+        // process first include, then exclude
+        Iterator<String> iterator = includeArray.iterator();
+        while(iterator.hasNext()){
+            String id = iterator.next();
+            
+            // begin with?
+            if (id.startsWith("/")){
+                // device string
+                // find by device string - complicated, linear search, no index built
+                throw new UnsupportedOperationException("Not implemented yet - resolution by node device path");
+            } else if (id.startsWith("#")){
+                // node id
+                // find by id - complicated, linear search, no index built
+                throw new UnsupportedOperationException("Not implemented yet - resolution by node id");
+            } else if (id.equals("ALL")){
+                // ALL nodes, add every node
+                Iterator<Entry<String, NodeConfigRecord>> itSet = this.moteList.entrySet().iterator();
+                while(itSet.hasNext()){
+                    Entry<String, NodeConfigRecord> entry = itSet.next();
+                    nodes2return.add(entry.getValue());
+                }
+            } else {
+                // node serial, quick mapping
+                if (this.moteList.containsKey(id)){
+                    nodes2return.add(this.moteList.get(id));
+                } else {
+                    // node does not exists
+                    log.warn("Node with serial: [" + id + "] was not found in list, "
+                            + "probably is not connected, ignoring");
+                }
+            }
+        }
+        
+        
+        return null;
+    }
+    
     public Map<String, NodeConfigRecord> getMoteList() {
         return moteList;
     }
@@ -454,9 +566,12 @@ public class USBarbitrator {
         this.template = template;
     }
     
+    /**
+     * Private helper class - holds info from parsing udev file
+     */
     private class NodeConfigRecordLocal{
         private String device;
-        private String nodeid;
+        private Integer nodeid;
 
         public String getDevice() {
             return device;
@@ -466,11 +581,11 @@ public class USBarbitrator {
             this.device = device;
         }
 
-        public String getNodeid() {
+        public Integer getNodeid() {
             return nodeid;
         }
 
-        public void setNodeid(String nodeid) {
+        public void setNodeid(Integer nodeid) {
             this.nodeid = nodeid;
         }
     }

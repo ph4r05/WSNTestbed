@@ -12,6 +12,7 @@ import fi.wsnusbcollect.nodes.NodePlatformFactory;
 import fi.wsnusbcollect.nodes.NodePlatform;
 import fi.wsnusbcollect.nodes.NodePlatformTelosb;
 import fi.wsnusbcollect.messages.MessageTypes;
+import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,6 +21,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -365,5 +367,29 @@ public class NodeRegister implements Serializable{
         // notify listeners
         this.changeNotify(null);
         return 0;
+    }
+    
+    /**
+     * New responsibility added to node register - initialize connected nodes.
+     * Can be used to automatically connect basestation node, if only one exists,
+     * or to connect to more directly connected nodes.
+     * 
+     * @problem: node freeze handling, node restart, reinit, reconnect
+     * @solution: this can be handled by specific ConnectedNode.
+     * 
+     * @problem: events such as new node connected, node disconnected handling
+     * @solution: register event listener for this, USB thread can spawn new thread
+     * to monitor USB device changes
+     * 
+     * @problem: runtime add/remove connected nodes, event trigered by this event
+     * @solution: 
+     * 
+     * @param props     properties that can affect connected nodes initialization
+     *                  from config file/arguments
+     * 
+     * @param nodes     
+     */
+    public void initConnectedNodes(Properties props, List<NodeConfigRecord> nodes){
+        
     }
 }

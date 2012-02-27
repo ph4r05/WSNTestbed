@@ -23,7 +23,7 @@ public class NodeConfigRecord {
     private String devicePath;
     private String deviceAlias;
     private String description;
-    private String nodeId;
+    private Integer nodeId;
     private String connectionString;
     private int platformId;
 
@@ -83,11 +83,11 @@ public class NodeConfigRecord {
         this.deviceAlias = deviceAlias;
     }
 
-    public String getNodeId() {
+    public Integer getNodeId() {
         return nodeId;
     }
 
-    public void setNodeId(String nodeId) {
+    public void setNodeId(Integer nodeId) {
         this.nodeId = nodeId;
     }
 

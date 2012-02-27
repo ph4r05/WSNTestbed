@@ -81,4 +81,8 @@
     
     <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitrator"/>
     <bean id="consoleHelper" class="fi.wsnusbcollect.console.ConsoleHelper"/>
+    
+    <!-- Experiment related -->
+    <bean id="experimentInit" class="fi.wsnusbcollect.experiment.experimentInitImpl"/>
+    <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.experimentCoordinatorImpl"/>
 </beans>
