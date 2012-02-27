@@ -24,6 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
  * Console helper class.
  * Should helps when working with shell. Common util methods, debugging output.
  * 
+ * Sometimes it throws uggly and long exception when program is interrupted. This
+ * exception comes from python code - if interrupted. If I place whole
+ * python code to try, except then no exception is returned.
+ * 
  * @author ph4r05
  */
 @Repository
