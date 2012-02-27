@@ -12,9 +12,9 @@ xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/x
     <properties>
       <property name="hibernate.cache.provider_class" value="org.hibernate.cache.NoCacheProvider"/>
       <property name="javax.persistence.jdbc.url" value="${db.properties}?useUnicode=true&amp;connectionCollation=utf8_general_ci&amp;characterSetResults=utf8&amp;autoReconnect=true&amp;characterEncoding=UTF-8"/>
-      <property name="javax.persistence.jdbc.password" value="GpzHceWMUjE7RS4p"/>
+      <property name="javax.persistence.jdbc.password" value="xyhCmFFTQqfmm7QP"/>
       <property name="javax.persistence.jdbc.driver" value="com.mysql.jdbc.Driver"/>
-      <property name="javax.persistence.jdbc.user" value="wsnusb"/>
+      <property name="javax.persistence.jdbc.user" value="xklinec"/>
       <property name="hibernate.search.default.indexBase" value="/tmp/test_index"/>
       <property name="hibernate.dialect" value="org.hibernate.dialect.MySQL5Dialect"/>
       <property name="hibernate.hbm2ddl.auto" value="update"/>
