@@ -59,10 +59,13 @@ public class USBarbitrator {
     private JdbcTemplate template;
     
     // serial->motelist record association
-    private Map<String, NodeConfigRecord> moteList = null;
+    // here is hidden multikey map for easy node searching by serial, nodeid, devpath
+    private NodeSearchMap moteList = null;
 
     /**
-     * Loads all nodes from database
+     * Loads all nodes from database and returns map of USBdevice objects
+     * indexed by serial number
+     * 
      * @return 
      */
     public Map<String, USBdevice> loadNodesFromDatabase(){
@@ -85,10 +88,18 @@ public class USBarbitrator {
     }
     
     /**
-     * Checks whether node connection from database corresponds to real one
+     * Check nodes connection to actualy loaded motelist
      */
     public void checkNodesConnection(){
-        if (this.moteList==null || this.moteList.isEmpty()){
+        this.checkNodesConnection(this.moteList);
+    }
+    
+    /**
+     * Checks whether node connection from database corresponds to real one
+     * defined in motelist
+     */
+    public void checkNodesConnection(Map<String, NodeConfigRecord> localmotelist){
+        if (localmotelist==null || localmotelist.isEmpty()){
             log.error("Cannot check database - no local data");
             return;
         }
@@ -99,10 +110,10 @@ public class USBarbitrator {
         // will contain saved, but detected nodes
         Set<String> dbNodesSet = new HashSet<String>(savedNodes.keySet());
         
-        Iterator<String> iterator = this.moteList.keySet().iterator();
+        Iterator<String> iterator = localmotelist.keySet().iterator();
         while(iterator.hasNext()){
             String nodeSerial = iterator.next();
-            NodeConfigRecord mr = this.moteList.get(nodeSerial);
+            NodeConfigRecord mr = localmotelist.get(nodeSerial);
             
             if (savedNodes.containsKey(mr.getSerial())){
                 // record already exists, compare critical values here
@@ -166,7 +177,8 @@ public class USBarbitrator {
     }
     
     /**
-     * Updates nodes database according to currently loaded notes
+     * Updates nodes database according to currently loaded notes.
+     * Updates from current working copy of moteList
      */
     public void updateNodesDatabase(){
         if (this.moteList==null || this.moteList.isEmpty()){
@@ -213,88 +225,102 @@ public class USBarbitrator {
     }
     
     /**
-     * Detects connected nodes via command: motelist -usb -c
-     * New detected nodes not present in database are stored. Database is updated
-     * when connection of nodes was changed
-     * 
+     * Performs real detection of connected nodes and returns answer as map, indexed
+     * by node serial id.
+     * @return 
      */
-    public void detectConnectedNodes(){
+    public Map<String, NodeConfigRecord> getConnectedNodes() {
+        Map<String, NodeConfigRecord> localmotelist = new HashMap<String, NodeConfigRecord>();
+        String motelistCommand = App.getRunningInstance().getMotelistCommand() + " -usb -c";
+        log.info("Will use motelist command: " + motelistCommand);
+
         try {
-            if (App.getRunningInstance().isDebug()){
-                log.info("Debugging mode enabled in USBarbitrator");
-            }
-            
-            // if is map nonempty
-            if (this.moteList!=null && this.moteList.isEmpty()==false){
-                log.debug("moteList map is nonempty, will be replaced with fresh data");
-            }
-            
-            this.loadNodesFromDatabase();
-            
-            this.moteList = new HashMap<String, NodeConfigRecord>();            
-            String motelistCommand = App.getRunningInstance().getMotelistCommand() + " -usb -c";
-            log.info("Will use motelist command: " + motelistCommand);
-            
             // motelist records
             LinkedList<NodeConfigRecord> mlistRecords = new LinkedList<NodeConfigRecord>();
             // parse udev rules list to complete information - get mapping 
             // USB serial -> device path (created by udev)
             Map<String, NodeConfigRecordLocal> udevConfig = loadUdevRules();
-            
+
             // execute motelist command
             Process p = Runtime.getRuntime().exec(motelistCommand);
             BufferedReader bri = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line = null;
-             while ((line = bri.readLine()) != null) {
-                 // process detected motes here                 
-                 if (line.startsWith("No devices found")){
-                     log.info("No devices was found, return null");
-                     break;
-                 }
-                
+            while ((line = bri.readLine()) != null) {
+                // process detected motes here                 
+                if (line.startsWith("No devices found")) {
+                    log.info("No devices was found, return null");
+                    break;
+                }
+
                 // parse motelist output
                 NodeConfigRecord motelistOutput = this.parseMotelistOutput(line);
-                
+
                 // if udev device alias present, map it
-                if (udevConfig.containsKey(motelistOutput.getSerial())){
+                if (udevConfig.containsKey(motelistOutput.getSerial())) {
                     motelistOutput.setDeviceAlias(udevConfig.get(motelistOutput.getSerial()).getDevice());
                     motelistOutput.setNodeId(udevConfig.get(motelistOutput.getSerial()).getNodeid());
-                    
+
                     // now have device alias, if nonempty it has precedense to 
                     // nodePath for connection string
-                    if (motelistOutput.getDeviceAlias()!=null 
-                            && motelistOutput.getDeviceAlias().isEmpty()==false){
+                    if (motelistOutput.getDeviceAlias() != null
+                            && motelistOutput.getDeviceAlias().isEmpty() == false) {
                         // need to get platform again :(
                         NodePlatform platform = NodePlatformFactory.getPlatform(motelistOutput.getPlatformId());
                         motelistOutput.setConnectionString(platform.getConnectionString(motelistOutput.getDeviceAlias()));
                     }
                 }
-                
+
                 log.info("MoteRecord: " + motelistOutput.toString());
-                
+
                 // add parsed node record to list for further processing
                 mlistRecords.add(motelistOutput);
                 // put motelist
-                this.moteList.put(motelistOutput.getSerial(), motelistOutput);
+                localmotelist.put(motelistOutput.getSerial(), motelistOutput);
             }
             bri.close();
-            
+
             // sunchronous call, wait for command completion
             p.waitFor();
-            
-            // check whether are nodes connected well
-            if (App.getRunningInstance().isCheckNodesConnection()){
-                this.checkNodesConnection();
-            }
-            
-            // update nodes database, if needed
-            if (App.getRunningInstance().isUpdateNodeDatabase()){
-                this.updateNodesDatabase();
-            }
         } catch (IOException ex) {
             log.error("IOException error, try checking motelist command", ex);
-        } catch (InterruptedException ex){
+        } catch (InterruptedException ex) {
             log.error("Motelist command was probably interrupted", ex);
+        }
+
+        return localmotelist;
+    }
+
+    /**
+     * Detects connected nodes via command: motelist -usb -c
+     * New detected nodes not present in database are stored. Database is updated
+     * when connection of nodes was changed
+     * 
+     */
+    public void detectConnectedNodes() {
+        if (App.getRunningInstance().isDebug()) {
+            log.info("Debugging mode enabled in USBarbitrator");
+        }
+
+        // if is map nonempty
+        if (this.moteList != null && this.moteList.isEmpty() == false) {
+            log.debug("moteList map is nonempty, will be replaced with fresh data");
+        }
+        
+        // perform detection
+        Map<String, NodeConfigRecord> connectedNodes = this.getConnectedNodes();
+        
+        // init new node search map and put all data from motelist map
+        this.moteList = new NodeSearchMap();
+        this.moteList.putAll(connectedNodes);
+
+        // check whether are nodes connected well
+        if (App.getRunningInstance().isCheckNodesConnection()) {
+            this.checkNodesConnection();
+        }
+
+        // update nodes database, if needed
+        if (App.getRunningInstance().isUpdateNodeDatabase()) {
+            this.updateNodesDatabase();
         }
     }
     
@@ -476,49 +502,91 @@ public class USBarbitrator {
         }
         
         // list to return
-        List<NodeConfigRecord> nodes2return = new LinkedList<NodeConfigRecord>();
-        
-        // split by comma
-        String[] includeSplit = includeString.split(",");
-        String[] excludeSplit = excludeString.split(",");
-        
-        ArrayList<String> includeArray = new ArrayList<String>(includeSplit.length);
-        ArrayList<String> excludeArray = new ArrayList<String>(excludeSplit.length);
-        
-        // trim each substring from spaces, remove empty lines
-        for(int i=0; i<includeSplit.length; i++){
-            String cur = includeSplit[i].trim();
-            if (cur.isEmpty()){
-                continue;
-            }
-            
-            includeArray.add(cur);
+        // first get include list and add to nodes2return
+        List<NodeConfigRecord> nodes2return = this.parseNodeSelectorString(includeString);
+        // get working copy of list - arrayList - fast accessing
+        List<NodeConfigRecord> nodes2return_work = new ArrayList<NodeConfigRecord>(nodes2return);        
+        // exclude nodes, will be removed from nodes2return
+        List<NodeConfigRecord> excludeNodes = this.parseNodeSelectorString(excludeString);
+        Iterator<NodeConfigRecord> iterator = excludeNodes.iterator();
+        while(iterator.hasNext()){
+            NodeConfigRecord curRec = iterator.next();
+            nodes2return_work.remove(curRec);
         }
         
+        return nodes2return_work;
+    }
+    
+    /**
+     * Parses node selector string and returns corresponding records for 
+     * currently connected nodes.
+     * 
+     * @param selector
+     * @return 
+     */
+    public List<NodeConfigRecord> parseNodeSelectorString(String selector){
+        // include string parsing
+        if (selector==null){
+            throw new NullPointerException("Node selector cannot be null");
+        }
+        
+        // trim first
+        selector = selector.trim();
+        
+        // list to return
+        List<NodeConfigRecord> nodes2return = new LinkedList<NodeConfigRecord>();
+        
+        // save energy here
+        if (selector.isEmpty()){
+            return nodes2return;
+        }
+        
+         // split by comma
+        String[] selectorSplit = selector.split(",");
+        ArrayList<String> selectorArray = new ArrayList<String>(selectorSplit.length);
+        
         // trim each substring from spaces, remove empty lines
-        for(int i=0; i<excludeSplit.length; i++){
-            String cur = excludeSplit[i].trim();
+        for(int i=0; i<selectorSplit.length; i++){
+            String cur = selectorSplit[i].trim();
             if (cur.isEmpty()){
                 continue;
             }
             
-            excludeArray.add(cur);
+            selectorArray.add(cur);
         }
         
         // process first include, then exclude
-        Iterator<String> iterator = includeArray.iterator();
+        Iterator<String> iterator = selectorArray.iterator();
         while(iterator.hasNext()){
             String id = iterator.next();
             
             // begin with?
             if (id.startsWith("/")){
                 // device string
-                // find by device string - complicated, linear search, no index built
-                throw new UnsupportedOperationException("Not implemented yet - resolution by node device path");
+                // find by device string - here use advantages o NodeSearchMap
+                if (this.moteList.containsKeyDevPath(id)){
+                    // contains
+                    nodes2return.add(this.moteList.getByDevPath(id));
+                } else {
+                    log.warn("Device path: " + id + " cannot be found among connected nodes");
+                }
             } else if (id.startsWith("#")){
                 // node id
-                // find by id - complicated, linear search, no index built
-                throw new UnsupportedOperationException("Not implemented yet - resolution by node id");
+                // need to parse string to integer
+                Integer nodeId = null;
+                try {
+                    nodeId = Integer.parseInt(id);
+                } catch(NumberFormatException e){
+                    log.error("Cannot convert nodeId string: [" + id + "] to integer", e);
+                }
+                
+                // find by id - here use advantages o NodeSearchMap
+                if (this.moteList.containsKeyNodeId(nodeId)){
+                    // contains
+                    nodes2return.add(this.moteList.getByNodeId(nodeId));
+                } else {
+                    log.warn("NodeId: " + nodeId + " cannot be found among connected nodes");
+                }
             } else if (id.equals("ALL")){
                 // ALL nodes, add every node
                 Iterator<Entry<String, NodeConfigRecord>> itSet = this.moteList.entrySet().iterator();
@@ -538,8 +606,7 @@ public class USBarbitrator {
             }
         }
         
-        
-        return null;
+        return nodes2return;
     }
     
     public Map<String, NodeConfigRecord> getMoteList() {
@@ -547,6 +614,10 @@ public class USBarbitrator {
     }
 
     public void setMoteList(Map<String, NodeConfigRecord> moteList) {
+        this.moteList = (NodeSearchMap) moteList;
+    }
+
+    public void setMoteList(NodeSearchMap moteList) {
         this.moteList = moteList;
     }
 
