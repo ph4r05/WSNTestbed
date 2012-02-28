@@ -76,7 +76,7 @@ public class NodeSearchMap implements Map<String, NodeConfigRecord>{
         }
         
         if (ncr.getDeviceAlias() != null && ncr.getDeviceAlias().isEmpty()==false){
-            this.devicePath2serial.put(ncr.getDeviceAlias(), ncr.getDeviceAlias());
+            this.devicePath2serial.put(ncr.getDeviceAlias(), ncr.getSerial());
         }
         
         return ncrReturn;
@@ -110,6 +110,7 @@ public class NodeSearchMap implements Map<String, NodeConfigRecord>{
      * Clears while structure
      * @return 
      */
+    @Override
     public void clear(){
         this.primaryMap.clear();
         this.nodeId2serial.clear();
@@ -120,6 +121,7 @@ public class NodeSearchMap implements Map<String, NodeConfigRecord>{
      * 
      * @return 
      */
+    @Override
     public boolean isEmpty(){
         return this.primaryMap.isEmpty();
     }

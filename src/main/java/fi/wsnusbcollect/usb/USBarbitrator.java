@@ -25,7 +25,6 @@ import java.util.regex.Pattern;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
-import org.hibernate.ejb.criteria.expression.function.AggregationFunction.MAX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -569,15 +568,18 @@ public class USBarbitrator {
                     nodes2return.add(this.moteList.getByDevPath(id));
                 } else {
                     log.warn("Device path: " + id + " cannot be found among connected nodes");
+                    continue;
                 }
             } else if (id.startsWith("#")){
                 // node id
                 // need to parse string to integer
+                String newId = id.substring(1);
                 Integer nodeId = null;
                 try {
-                    nodeId = Integer.parseInt(id);
+                    nodeId = Integer.parseInt(newId);
                 } catch(NumberFormatException e){
-                    log.error("Cannot convert nodeId string: [" + id + "] to integer", e);
+                    log.error("Cannot convert nodeId string: [" + newId + "] to integer", e);
+                    continue;
                 }
                 
                 // find by id - here use advantages o NodeSearchMap
