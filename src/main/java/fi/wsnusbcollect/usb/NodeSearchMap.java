@@ -4,7 +4,13 @@
  */
 package fi.wsnusbcollect.usb;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,17 +23,17 @@ import org.slf4j.LoggerFactory;
  * Not thread safe, need to synchronize correctly if needed...
  * @author ph4r05
  */
-public class NodeSearchMap {
+public class NodeSearchMap implements Map<String, NodeConfigRecord>{
     private static final Logger log = LoggerFactory.getLogger(NodeSearchMap.class);
     
     // primary hash map Serial -> node config
-    private HashMap<String, NodeConfigRecord> primaryMap;
+    private Map<String, NodeConfigRecord> primaryMap;
     
     // node id -> serial mapping
-    private HashMap<Integer, String> nodeId2serial;
+    private Map<Integer, String> nodeId2serial;
     
     // node device path -> serial
-    private HashMap<String, String> devicePath2serial;
+    private Map<String, String> devicePath2serial;
 
     /**
      * Initialization creates maps instances
@@ -101,6 +107,24 @@ public class NodeSearchMap {
     }
     
     /**
+     * Clears while structure
+     * @return 
+     */
+    public void clear(){
+        this.primaryMap.clear();
+        this.nodeId2serial.clear();
+        this.devicePath2serial.clear();
+    }
+    
+    /**
+     * 
+     * @return 
+     */
+    public boolean isEmpty(){
+        return this.primaryMap.isEmpty();
+    }
+    
+    /**
      * Serial
      * @param serial
      * @return 
@@ -117,6 +141,11 @@ public class NodeSearchMap {
         return this.devicePath2serial.containsKey(devicePath);
     }
     
+    /**
+     * Returns NodeConfigRecord for node by serial key
+     * @param serial
+     * @return 
+     */
     public NodeConfigRecord getBySerial(String serial){
         return this.primaryMap.get(serial);
     }
@@ -165,5 +194,92 @@ public class NodeSearchMap {
         }
         
         return this.primaryMap.get(serial);
+    }
+
+    @Override
+    public int size() {
+        return this.primaryMap.size();
+    }
+    
+    /**
+     * Returns UNMODIFIABLE primary map collection
+     * @return 
+     */
+    public Map<String, NodeConfigRecord> getPrimaryMap(){
+        return Collections.unmodifiableMap(primaryMap);
+    }
+
+    @Override
+    public boolean containsKey(Object key) {
+        return this.primaryMap.containsKey(key);
+    }
+
+    @Override
+    public boolean containsValue(Object value) {
+        return this.primaryMap.containsValue(value);
+    }
+
+    @Override
+    public NodeConfigRecord get(Object key) {
+        return this.primaryMap.get(key);
+    }
+
+    @Override
+    public NodeConfigRecord put(String key, NodeConfigRecord value) {
+        if (value==null){
+            throw new NullPointerException("Inserting null NodeConfigRecord is not permited");
+        }
+        
+        if (value.getSerial().equals(key)==false){
+            throw new IllegalArgumentException("It is not allowed for key to differ from serial number of node");
+        }
+        
+        return this.put(value);
+    }
+
+    @Override
+    public NodeConfigRecord remove(Object key) {
+        if (key==null || !(key instanceof String)){
+            throw new IllegalArgumentException("Argument key is invalid. Is empty or not instance of string");
+        }
+        
+        final String key2 = (String) key;
+        if (this.containsKey(key2)==false){
+            return null;
+        }
+        
+        NodeConfigRecord bySerial = this.getBySerial(key2);
+        this.removeBySerial(key2);
+        
+        return bySerial;
+    }
+
+    @Override
+    public void putAll(Map<? extends String, ? extends NodeConfigRecord> m) {
+        // just iterate over given map
+        if (m==null){
+            throw new IllegalArgumentException("Source map is null");
+        }
+        
+        Iterator<String> iterator = (Iterator<String>) m.keySet().iterator();
+        while(iterator.hasNext()){
+            String serialKey = iterator.next();
+            this.put(m.get(serialKey));
+        }
+    }
+
+    @Override
+    public Set<String> keySet() {
+        return this.primaryMap.keySet();
+    }
+
+    @Override
+    public Collection<NodeConfigRecord> values() {
+        return this.primaryMap.values();
+    }
+
+    @Override
+    public Set<Entry<String, NodeConfigRecord>> entrySet() {
+        return this.primaryMap.entrySet();
     }
 }
