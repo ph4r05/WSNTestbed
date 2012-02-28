@@ -8,6 +8,6 @@ package fi.wsnusbcollect.experiment;
  *
  * @author ph4r05
  */
-public class experimentCoordinatorImpl implements experimentCoordinator{
+public interface ExperimentCoordinator {
     
 }

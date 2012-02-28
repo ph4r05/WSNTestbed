@@ -4,6 +4,10 @@
  */
 package fi.wsnusbcollect.experiment;
 
+import fi.wsnusbcollect.usb.NodeConfigRecord;
+import java.util.List;
+import java.util.Properties;
+
 /**
  * Responsible for initializing environment for experiment.
  * Can use read config file, parameters/arguments, init node register, and so on
@@ -16,7 +20,7 @@ package fi.wsnusbcollect.experiment;
  * 
  * @author ph4r05
  */
-public interface experimentInit {    
+public interface ExperimentInit {    
     /**
      * Use to init this class before experiment start
      */
@@ -27,4 +31,11 @@ public interface experimentInit {
      * Should instruct node register to init connected nodes
      */
     public void initEnvironment();
+    
+    /**
+     * Initializes connected nodes
+     * @param props
+     * @param ncr 
+     */
+    public void initConnectedNodes(Properties props, List<NodeConfigRecord> ncr);
 }

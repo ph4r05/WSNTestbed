@@ -2,6 +2,9 @@ package fi.wsnusbcollect;
 
 import com.enigmacurry.JythonShellServer;
 import fi.wsnusbcollect.console.ConsoleHelper;
+import fi.wsnusbcollect.experiment.ExperimentCoordinator;
+import fi.wsnusbcollect.experiment.ExperimentInit;
+import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.File;
 import java.io.IOException;
@@ -45,7 +48,7 @@ public class App {
     @Argument
     private List<String> arguments = new ArrayList<String>(8);
     
-    @Option(name = "--debug", usage = "enables debug output")
+    @Option(name = "--debug", aliases = {"-d"}, usage = "enables debug output")
     private boolean debug;
     
     @Option(name = "--detect-nodes", usage = "performs node detection, read-only operation")
@@ -63,8 +66,8 @@ public class App {
     @Option(name = "-c", usage = "read configuration from this config file")
     private File configFile = null;
     
-    @Option(name = "--use-node-id", usage = "switches to NodeID identifier when identifying motes")
-    private boolean useNodeId;
+//    @Option(name = "--use-node-id", usage = "switches to NodeID identifier when identifying motes")
+//    private boolean useNodeId;
     
     @Option(name = "--motelist", usage = "sets path to motelist command")
     private String motelistCommand = null;
@@ -75,7 +78,7 @@ public class App {
     @Option(name = "--use-motes-from-file", usage = "newline separated list of motes serial numbers to use in experiment. If ALL present, all defined nodes will be used")
     private File useMotesFile = null;
     
-    @Option(name = "--ingore-motes", usage = "comma separated list of motes serial numbers to ignore in experiment.")
+    @Option(name = "--ignore-motes", usage = "comma separated list of motes serial numbers to ignore in experiment.")
     private String ignoreMotesString = null;
     
     @Option(name = "--ignore-motes-from-file", usage = "newline separated list of motes serial numbers to ignore in experiment.")
@@ -106,6 +109,9 @@ public class App {
     // python shell does not exit on ctrl+d
     private boolean shellNoExit=true;
 
+    private ExperimentCoordinator expCoord;
+    private ExperimentInit expInit;
+    
     public static void main(String[] args) {
         log.info("Starting application");
         try {
@@ -146,6 +152,10 @@ public class App {
         }
         
         this.consoleHelper = (ConsoleHelper) appContext.getBean(ConsoleHelper.class);
+        
+        this.expInit = (ExperimentInit) appContext.getBean("experimentInit");
+        this.expCoord = (ExperimentCoordinator) appContext.getBean("experimentCoordinator");
+        log.info("All dependencies initialized");
     }
     
     /**
@@ -207,6 +217,7 @@ public class App {
         detectNodes=updateNodeDatabase || detectNodes || checkNodesConnection;
         
         // init dependencies here - arguments and properties loaded
+        // application context loading
         log.info("Initializing depencencies");
         this.initDependencies();
         
@@ -220,71 +231,82 @@ public class App {
             
             // if update node database or check nodes connection were choosen
             // perform just this single actions
-            if (updateNodeDatabase || checkNodesConnection){
-                log.info("Ending execution");
+            if (updateNodeDatabase){
+                log.info("Ending execution.");
                 return;
             }
         }
         
+        // config file parsing, node selectors
+        List<NodeConfigRecord> nodes2connect = this.usbArbitrator.getNodes2connect(this.useMotesString, this.ignoreMotesString);
+        this.expInit.initConnectedNodes(null, nodes2connect);
+        
         // drop to shell?
         if (shell){
-            log.info("Dropping to shell now...");
-            
-            // set Properties 
-            if (System.getProperty("python.home") == null) {
-                System.setProperty("python.home", "~/"); 
-            }
-            
-            // initialize python shell
-            PySystemState.initialize(PySystemState.getBaseProperties(), null, new String[0]);
-            
-            // no postProps, registry values used 
-            JLineConsole.initialize(System.getProperties(), null, new String[0]);
-            
-            interp = new JLineConsole();
-            // important line, set JLineConsole to internal python variable to be able to 
-            // acces console from python interface
-            interp.getSystemState().__setattr__("_jy_interpreter", Py.java2py(interp));
-            
-            // usb arbitrator set
-            interp.getSystemState().__setattr__("_jy_usbartibtrator", Py.java2py(this.usbArbitrator));
-            
-            // console helper
-            interp.getSystemState().__setattr__("_jy_ch", Py.java2py(this.consoleHelper));
-            
-            // this instance
-            interp.getSystemState().__setattr__("_jy_main", Py.java2py(this));
-            
-            // enable autocomplete, sigint handler by default
-            this.consoleHelper.prepareConsoleBeforeStart(interp);
-            
-            while (this.shellNoExit){
-                log.info("Starting shell");
-                this.consoleHelper.consoleRestarted();
-                
-                try {                    
-                    interp.interact();                    
-                } catch (Error e) {
-                    // interrupted shell error
-                    interp.cleanup();
-                    interp.resetbuffer();
-                    
-                    System.out.println("Shell was interrupted...");
-                } catch (Throwable e){
-                    log.warn("Exception occured during jython interaction", e);
-                    interp.cleanup();
-                }
-                
-                System.out.println("If you want to exit shell, please call: sys._jy_main.exitShell()");
+            this.getShell();
+        }
+    }
+    
+    /**
+     * Method starts new initialized Jython shell for user
+     */
+    public void getShell(){
+        log.info("Dropping to shell now...");
+
+        // set Properties 
+        if (System.getProperty("python.home") == null) {
+            System.setProperty("python.home", "~/");
+        }
+
+        // initialize python shell
+        PySystemState.initialize(PySystemState.getBaseProperties(), null, new String[0]);
+
+        // no postProps, registry values used 
+        JLineConsole.initialize(System.getProperties(), null, new String[0]);
+
+        interp = new JLineConsole();
+        // important line, set JLineConsole to internal python variable to be able to 
+        // acces console from python interface
+        interp.getSystemState().__setattr__("_jy_interpreter", Py.java2py(interp));
+
+        // usb arbitrator set
+        interp.getSystemState().__setattr__("_jy_usbartibtrator", Py.java2py(this.usbArbitrator));
+
+        // console helper
+        interp.getSystemState().__setattr__("_jy_ch", Py.java2py(this.consoleHelper));
+
+        // this instance
+        interp.getSystemState().__setattr__("_jy_main", Py.java2py(this));
+
+        // enable autocomplete, sigint handler by default
+        this.consoleHelper.prepareConsoleBeforeStart(interp);
+
+        while (this.shellNoExit) {
+            log.info("Starting shell");
+            this.consoleHelper.consoleRestarted();
+
+            try {
+                interp.interact();
+            } catch (Error e) {
+                // interrupted shell error
                 interp.cleanup();
                 interp.resetbuffer();
+
+                System.out.println("Shell was interrupted...");
+            } catch (Throwable e) {
+                log.warn("Exception occured during jython interaction", e);
+                interp.cleanup();
             }
-            
-            log.info("Shel terminating");
-            // next command is used to start telnet jython server
-            // not properly implemented yet
-            //JythonShellServer.run_server(7000, new HashMap());
+
+            System.out.println("If you want to exit shell, please call: sys._jy_main.exitShell()");
+            interp.cleanup();
+            interp.resetbuffer();
         }
+
+        log.info("Shel terminating");
+        // next command is used to start telnet jython server
+        // not properly implemented yet
+        //JythonShellServer.run_server(7000, new HashMap());
     }
 
     public List<String> getArguments() {
@@ -391,13 +413,13 @@ public class App {
         this.useMotesString = useMotesString;
     }
 
-    public boolean isUseNodeId() {
-        return useNodeId;
-    }
-
-    public void setUseNodeId(boolean useNodeId) {
-        this.useNodeId = useNodeId;
-    }
+//    public boolean isUseNodeId() {
+//        return useNodeId;
+//    }
+//
+//    public void setUseNodeId(boolean useNodeId) {
+//        this.useNodeId = useNodeId;
+//    }
 
     public Properties getProps() {
         return props;

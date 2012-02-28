@@ -83,6 +83,6 @@
     <bean id="consoleHelper" class="fi.wsnusbcollect.console.ConsoleHelper"/>
     
     <!-- Experiment related -->
-    <bean id="experimentInit" class="fi.wsnusbcollect.experiment.experimentInitImpl"/>
-    <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.experimentCoordinatorImpl"/>
+    <bean id="experimentInit" class="fi.wsnusbcollect.experiment.ExperimentInitImpl"/>
+    <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl"/>
 </beans>

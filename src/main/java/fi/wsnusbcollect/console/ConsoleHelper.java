@@ -8,11 +8,8 @@ import fi.wsnusbcollect.App;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import org.python.core.Py;
-import org.python.core.PyObject;
-import org.python.core.PySystemState;
 import org.python.core.ThreadState;
 import org.python.util.InteractiveConsole;
-import org.python.util.JLineConsole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,9 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Console helper class.
- * Should helps when working with shell. Common util methods, debugging output.
+ * Should helps when working with Jython shell. Initialization, basic commands.
+ * Common util methods, debugging output.
  * 
- * Sometimes it throws uggly and long exception when program is interrupted. This
+ * Sometimes Jython shell throws ugly and long exception when program is interrupted. This
  * exception comes from python code - if interrupted. If I place whole
  * python code to try, except then no exception is returned.
  * 

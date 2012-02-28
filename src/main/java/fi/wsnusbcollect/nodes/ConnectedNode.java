@@ -7,6 +7,7 @@ package fi.wsnusbcollect.nodes;
 import fi.wsnusbcollect.nodeCom.MessageSender;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
+import net.tinyos.message.MoteIF;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +38,9 @@ public class ConnectedNode {
     // message listener bound to specified node
     private MyMessageListener msgListener;
 
+    // mote interface for specific node
+    private MoteIF moteIf;
+    
     /**
      * Proxy method to nodeObj. Throws nullpointer exception if nodeObj is null
      * @return 
