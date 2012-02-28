@@ -591,6 +591,10 @@ public class USBarbitrator {
                 }
             } else if (id.equals("ALL")){
                 // ALL nodes, add every node
+                if (this.moteList==null || this.moteList.isEmpty()){
+                    continue;
+                }
+                
                 Iterator<Entry<String, NodeConfigRecord>> itSet = this.moteList.entrySet().iterator();
                 while(itSet.hasNext()){
                     Entry<String, NodeConfigRecord> entry = itSet.next();
