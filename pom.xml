@@ -353,7 +353,10 @@
                 </configuration>
             </plugin>
             
-            
+            <!--
+                JAR plugin to include manifest, now disabled
+            -->
+            <!--
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -365,14 +368,15 @@
                         </manifest>
                     </archive>
                 </configuration>
-                <!-- nothing here -->
             </plugin>
-
+            -->
             
             <!--
                 Plugin to assemble final jar with all dependencies
                 To build this jar use command:
                 mvn assembly:single
+                
+                Not used now, problem with embedding resources such as XML schemas
             -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -387,12 +391,7 @@
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
                 </configuration>
-                
-                
-
             </plugin>
-
- 
         </plugins>
     </reporting>
     
@@ -438,7 +437,7 @@
                 </executions>
             </plugin>
             
-            <!-- export all dependencies as jars -->
+            <!-- export all dependencies as jars to specified directory -->
              <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
