@@ -148,6 +148,8 @@ public class MyMessageListener extends Thread implements MessageListener {
     
     /**
      * Register message listener
+     * If same listener (.equals()) is registered to same message type, request
+     * is ignored.
      */
     public synchronized void registerListener(net.tinyos.message.Message msg, net.tinyos.message.MessageListener listener){
         // null?
@@ -164,17 +166,15 @@ public class MyMessageListener extends Thread implements MessageListener {
             if (this.amType2Message.containsKey(amtype)==false){
                 this.amType2Message.put(amtype, msg);
                 
-                // register this in real, on real listening interface
+                // register this in real, on real listening interface for 
+                // this message type, myself as listener
                 this.gateway.registerListener(msg, this);
             }
-            
-            // first deregister to ensure that here is no duplicity
-            this.deregisterListener(msg, listener);
 
             // check if linked list exists
             if (this.messageListeners.containsKey(amtype)==false 
                     || this.messageListeners.get(amtype)==null){
-                // none such mapping yet created, create one
+                // none such mapping yet created, create new list of listeners
                 ConcurrentLinkedQueue<net.tinyos.message.MessageListener> queueListener = new ConcurrentLinkedQueue<MessageListener>();
                 this.messageListeners.put(amtype, queueListener);
             }
@@ -183,16 +183,23 @@ public class MyMessageListener extends Thread implements MessageListener {
             ConcurrentLinkedQueue<MessageListener> queueListeners = this.messageListeners.get(amtype);
 
             // check if is already in linked queue
-            if (queueListeners==null) return;
+            if (queueListeners==null){
+                // always have queue initialized
+                queueListeners = new ConcurrentLinkedQueue<MessageListener>();
+            }
+            
             Iterator<MessageListener> iterator = queueListeners.iterator();
             while(iterator.hasNext()){
                 MessageListener curMessageListener = iterator.next();
+                
+                // check if is null - remove it
                 if (curMessageListener==null){
                     iterator.remove();
+                    log.error("Null message listener found in queue, removing");
                     continue;
                 }
-
-                // equals? already set
+                
+                // equals? already set, not induce redundancy
                 if (curMessageListener.equals(listener)){
                     return;
                 }
@@ -273,12 +280,14 @@ public class MyMessageListener extends Thread implements MessageListener {
     }
     
     /**
-     * After gateway change is needed to register as listener
+     * After gateway change is needed to register as listener for all registered
+     * AMtypes. MyMessageListener is registered as listener to tinyos listener.
      */
     public synchronized void reregisterListeners(){
         if (this.amType2Message == null || this.amType2Message.isEmpty()) return;
         
         try{
+            // register to all registered amtypes to real interface
             Iterator<Integer> iterator = this.amType2Message.keySet().iterator();
             while(iterator.hasNext()){
                 Integer amtype = iterator.next();

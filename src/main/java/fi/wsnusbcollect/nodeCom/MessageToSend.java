@@ -19,6 +19,7 @@ import net.tinyos.message.Message;
 public class MessageToSend {
 
     public net.tinyos.message.Message sMsg;
+    // log string
     public String string;
     public int destination;
 
