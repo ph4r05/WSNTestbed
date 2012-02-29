@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
 import net.tinyos.message.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,6 +132,7 @@ public class MessageSender extends Thread {
         try {
             Thread.sleep(microsecs);
         } catch (InterruptedException ie) {
+            log.warn("Cannot sleep", ie);
         }
     }
     
@@ -142,7 +144,7 @@ public class MessageSender extends Thread {
         this.msgToSend = null;
         this.toNotify.clear();
         
-        System.err.println("MesageSender queues was flushed");
+        log.info("MesageSender queues was flushed");
     }
 
     /*
@@ -157,20 +159,27 @@ public class MessageSender extends Thread {
 
             // shutdown
             if (this.shutdown == true){
-                System.err.println("Message sender shutdown");
+                log.info("Message sender shutdown");
                 this.tasks.shutdown();
                 break;
             }
 
-            //  nulltest
-            if (queue==null) continue;
+            //  nulltest on queue itself - should not happen
+            if (queue==null){
+                log.warn("Queue is null, reinitializing. This should not happen, please check it.");
+                queue = new ConcurrentLinkedQueue<MessageToSend>();
+                
+                continue;
+            }
 
             // perform tick on DeliveryGuarantor
-            try{
-                this.messageDeliveryGuarantor.timerTick();
-             } catch(Exception e){
-                 e.printStackTrace(System.err);
-             }
+            if (this.messageDeliveryGuarantor!=null){
+                try{
+                    this.messageDeliveryGuarantor.timerTick();
+                 } catch(Exception e){
+                     log.error("Exception when calling message delivery guarantor tick", e);
+                 }
+            }
 
             // test queue to send
             synchronized(queue){
@@ -228,11 +237,16 @@ public class MessageSender extends Thread {
 
                     // store last sent messages
                     this.timeLastMessageSent = System.currentTimeMillis();
-
-                    Thread.sleep(SENT_SLEEP_TIME);
                 } catch (Exception e) {
-                    e.printStackTrace(System.err);
+                    log.error("Exception during message sending", e);
                 }
+            }
+            
+            // sleep now - give connected node some time
+            try {
+                Thread.sleep(SENT_SLEEP_TIME);
+            } catch (InterruptedException ex) {
+                log.error("Cannot sleep", ex);
             }
         }
     }
@@ -331,6 +345,7 @@ public class MessageSender extends Thread {
             try {
                 Thread.sleep(microsecs);
             } catch (InterruptedException ie) {
+                log.warn("Cannot sleep: ", ie);
             }
         }
 
@@ -343,9 +358,7 @@ public class MessageSender extends Thread {
          * @param severity
          */
         private void log(String s, int subtype, int code, int severity){
-            
-//            if (logger==null) return;
-//            logger.addLogEntry(s, 57, "MessageSenderNotifyWorker", subtype, code, severity);
+                log.info(s);
         }
 
         /**
@@ -426,9 +439,12 @@ public class MessageSender extends Thread {
     public synchronized void setGateway(MoteIF gateway) {
         this.gateway = gateway;
         this.reset();
-        this.messageDeliveryGuarantor.registerListeners();
         
-        System.err.println("Gateway changed for MessageSender");
+        if (this.messageDeliveryGuarantor!=null){
+            this.messageDeliveryGuarantor.registerListeners();
+        }
+        
+        log.info("Gateway changed for MessageSender, queues flushed");
     }
 
     public ConcurrentLinkedQueue<MessageToSend> getQueue() {

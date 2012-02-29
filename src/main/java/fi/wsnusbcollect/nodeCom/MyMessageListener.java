@@ -142,7 +142,7 @@ public class MyMessageListener extends Thread implements MessageListener {
         try {
             Thread.sleep(microsecs);
         } catch (InterruptedException ie) {
-            return;
+            log.warn("Cannot sleep", ie);
         }
     }
     
@@ -152,8 +152,8 @@ public class MyMessageListener extends Thread implements MessageListener {
     public synchronized void registerListener(net.tinyos.message.Message msg, net.tinyos.message.MessageListener listener){
         // null?
         if (msg==null || listener==null){
-            // @TODO: throw null pointer exception here
-            return;
+            log.error("Cannot register listener when message or listener is null");
+            throw new NullPointerException("Cannot register listener when message or listener is null");
         }
         
         try {
@@ -164,7 +164,7 @@ public class MyMessageListener extends Thread implements MessageListener {
             if (this.amType2Message.containsKey(amtype)==false){
                 this.amType2Message.put(amtype, msg);
                 
-                // register this in real
+                // register this in real, on real listening interface
                 this.gateway.registerListener(msg, this);
             }
             
@@ -204,7 +204,7 @@ public class MyMessageListener extends Thread implements MessageListener {
             // update map
             this.messageListeners.put(amtype, queueListeners);
         } catch (Exception e){
-            e.printStackTrace(System.err);
+            log.error("Exception occurred when registering message listener", e);
         }
     }
     
@@ -213,8 +213,8 @@ public class MyMessageListener extends Thread implements MessageListener {
      */
     public synchronized void deregisterListener(net.tinyos.message.Message msg, net.tinyos.message.MessageListener listener){
         if (msg==null || listener==null){
-            // @TODO: throw null pointer exception here
-            return;
+            log.error("Cannot register listener when message or listener is null");
+            throw new NullPointerException("Cannot register listener when message or listener is null");
         }
         
         try {
@@ -258,7 +258,7 @@ public class MyMessageListener extends Thread implements MessageListener {
             this.messageListeners.put(amtype, listenersList);
             
         } catch (Exception e){
-            e.printStackTrace(System.err);
+            log.error("Exception occurred when de-registering message listener", e);
         }
     }
 
@@ -269,13 +269,13 @@ public class MyMessageListener extends Thread implements MessageListener {
         this.queue.clear();
         this.msgReceived = null;
         
-        System.err.println("MesageListener queues was flushed");
+        log.info("MesageListener queues was flushed");
     }
     
     /**
      * After gateway change is needed to register as listener
      */
-    protected void reregisterListeners(){
+    public synchronized void reregisterListeners(){
         if (this.amType2Message == null || this.amType2Message.isEmpty()) return;
         
         try{
@@ -288,7 +288,7 @@ public class MyMessageListener extends Thread implements MessageListener {
                 this.gateway.registerListener(curMsg, this);
             }
         } catch(Exception e){
-            e.printStackTrace(System.err);
+            log.error("Exception when re-registering message listeners", e);
         }
     }
     
@@ -299,32 +299,45 @@ public class MyMessageListener extends Thread implements MessageListener {
     public void run() {
          // do in infitite loop
          while(true){
-            // yield for some time
+            // yield for some time, processor rest
             this.pause(250);
 
             // shutdown
             if (this.shutdown == true){
-                System.err.println("MyMessageReceiver shutting down.");
+                log.info("MyMessageReceiver shutting down.");
                 this.tasks.shutdown();
+                
                 break;
             }
 
-            //  nulltest
-            if (queue==null) continue;
+            //  nulltest on queue itself - should not happen
+            if (queue==null){
+                log.error("Queue is null - should not happen, queue is final, "
+                        + "initialized in constructor. Has to exit...");
+                this.tasks.shutdown();
+                
+                break;
+            }
             
-//            // test queue received
-//            synchronized(queue){
-//                if (this.queue.isEmpty()){
-//                    msgReceived=null;
-//                }
-//                else {
-//                    msgReceived=queue.remove();
-//                }
-//            }
-//
-//            // if message was null, continue to sleep
-//            if (msgReceived==null) continue;
-//            
+            // test queue received
+            synchronized(queue){
+                if (this.queue.isEmpty()){
+                    msgReceived=null;
+                }
+                else {
+                    msgReceived=queue.remove();
+                }
+            }
+
+            // if message was null, continue to sleep - this should not happen
+            if (msgReceived==null){
+                log.warn("Message removed from received queue was null, pathological situation.");
+                continue;
+            }
+            
+            // this code is probably useles since message arrived event notify 
+            // is performed by notify thread
+            
 //            try {
 //                // add message to tonotify queue if needed
 //                if (msgToSend.listener != null && msgToSend.listener.isEmpty()==false){
@@ -340,19 +353,9 @@ public class MyMessageListener extends Thread implements MessageListener {
 //
 //                Thread.sleep(SENT_SLEEP_TIME);
 //            } catch (Exception e) {
-//                e.printStackTrace();
+//                log.error("Exception occurred in message listener", e);
 //            }
         }
-    }
-
-    /**
-     * Return TRUE if is possible to add new message to send, FALSE otherwise
-     * (moteInterface may be NULL => cannot add message to send)
-     * 
-     * @return booleans
-     */
-    public boolean canAdd(){
-        return (this.getGateway()!=null);
     }
 
     /**
@@ -369,12 +372,6 @@ public class MyMessageListener extends Thread implements MessageListener {
         // blocking?
         if (this.dropingPackets) return;
         
-        // if here blocking is not enabled, push to queue
-        // can add to queue? If not, return false
-        if (this.canAdd()==false){
-            return;
-        }
-        
         // really add message to queue
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
         this.queue.add(msgReceiveed);
@@ -390,7 +387,8 @@ public class MyMessageListener extends Thread implements MessageListener {
 
     /**
      * Perform notifications to listeners
-     * Isolated from message sender not to block sending during event notification.
+     * Isolated from message sender, can be spawned multiple threads, but not recommended
+     * when not tested. can cause race conditions.
      */
     private class MessageNotifyWorker extends Thread implements Runnable {
         public MessageNotifyWorker() {
@@ -405,7 +403,7 @@ public class MyMessageListener extends Thread implements MessageListener {
             try {
                 Thread.sleep(mili);
             } catch (InterruptedException ie) {
-                
+                log.warn("Cannot sleep", ie);
             }
         }
 
@@ -430,7 +428,8 @@ public class MyMessageListener extends Thread implements MessageListener {
         public void run() {
             // new message to be notified
             MessageReceived tmpMessage = null;
-
+            log.info("Message notify worker started");
+            
             synchronized(this){
                 // do in infitite loop
                 while(true){
@@ -450,7 +449,8 @@ public class MyMessageListener extends Thread implements MessageListener {
                         if (queue.size() > MAX_QUEUE_SIZE_TO_RESET){
                             queue.clear();
                             
-                            System.err.println("Warning! Input queue has to be flushed out!");
+                            log.warn("Warning! Input queue had to be flushed out!"
+                                    + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET);
                             continue;
                         }
                         
@@ -471,7 +471,6 @@ public class MyMessageListener extends Thread implements MessageListener {
                     // check listener for existence
                     if (!(tmpMessage instanceof MessageReceived)){
                         log.error("Message is not instance of messageReceived");
-//                        this.log("Message is not instance of messageReceived", 1, 1, JPannelLoggerLogElement.SEVERITY_ERROR);
                         continue;
                     }
 
@@ -480,7 +479,6 @@ public class MyMessageListener extends Thread implements MessageListener {
                     if (msg == null){
                         // empty message, continue
                         log.error("Message is empty in envelope");
-//                        this.log("Message is empty in envelope", 1, 1, JPannelLoggerLogElement.SEVERITY_ERROR);
                         continue;
                     }
 
@@ -509,7 +507,6 @@ public class MyMessageListener extends Thread implements MessageListener {
                             curListener.messageReceived(tmpMessage.getI(), msg);
                         } catch (Exception e){
                             log.error("Exception during notifying listener", e);
-//                            this.log("Exception during notifying listener", 1, 1, JPannelLoggerLogElement.SEVERITY_ERROR);
                             continue;
                         }
                     }
@@ -544,7 +541,7 @@ public class MyMessageListener extends Thread implements MessageListener {
         
         // reset queues again
         this.reset();
-        System.err.println("Gateway changed for MessageListener");
+        log.info("Gateway changed for MessageListener");
     }
 
     public ConcurrentLinkedQueue<MessageReceived> getQueue() {
