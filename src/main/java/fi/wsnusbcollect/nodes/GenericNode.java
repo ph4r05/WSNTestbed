@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 /**
  * Generic node wrapper 
+ * Holds basic information about node
+ * 
  * @author ph4r05
  */
 public interface GenericNode extends Serializable, Cloneable{    

@@ -4,10 +4,19 @@
  */
 package fi.wsnusbcollect.nodes;
 
+import fi.wsnusbcollect.nodeCom.MessageReceived;
 import fi.wsnusbcollect.nodeCom.MessageSender;
+import fi.wsnusbcollect.nodeCom.MessageSentListener;
+import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import net.tinyos.message.Message;
+import net.tinyos.message.MessageListener;
 import net.tinyos.message.MoteIF;
+import net.tinyos.packet.BuildSource;
+import net.tinyos.packet.PhoenixSource;
+import net.tinyos.util.PrintStreamMessenger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +29,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @author ph4r05
  */
-public class ConnectedNode {
+public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     private static final Logger log = LoggerFactory.getLogger(ConnectedNode.class);
     
     // node object (contains node id, platform, position, readings, timers)
@@ -45,6 +54,7 @@ public class ConnectedNode {
      * Proxy method to nodeObj. Throws nullpointer exception if nodeObj is null
      * @return 
      */
+    @Override
     public int getNodeId(){
         if (this.nodeObj==null){
             throw new NullPointerException("Cannot determine node ID, nodeObj is null");
@@ -52,7 +62,246 @@ public class ConnectedNode {
         
         return this.nodeObj.getNodeId();
     }
+
+    /**
+     * Checks whether object contains non null required fields
+     * @return 
+     */
+    @Override
+    public boolean isCorrect() {
+        return this.nodeObj!=null;
+    }
+
+    /**
+     * Destructing 
+     * @throws Throwable 
+     */
+    @Override
+    protected void finalize() throws Throwable {
+        this.shutdown();
+        super.finalize();
+    }
     
+    /**
+     * Disconnects moteif
+     */
+    public void disconnect(){
+        // shutdown sender
+        if (this.msgSender!=null){
+            this.msgSender.setGateway(null);
+        }
+        
+        // shutdown listener
+        if (this.msgListener!=null){
+            this.msgListener.setGateway(null);
+        }
+        
+        // shutdown moteif
+        if (this.moteIf!=null){
+            this.moteIf.getSource().shutdown();
+            this.moteIf = null;
+        }
+    }
+    
+    /**
+     * disconnect + connect
+     */
+    public void reconnect(){
+        this.disconnect();
+        this.connectToNode();
+    }
+    
+    /**
+     * shutdown all threads spawned for this node
+     * sender, listener, mote interface listener
+     */
+    public void shutdown(){   
+        // shutdown sender
+        if (this.msgSender!=null){
+            this.msgSender.setShutdown(true);
+        }
+        
+        // shutdown listener
+        if (this.msgListener!=null){
+            this.msgListener.setShutdown(true);
+        }
+        
+        // shutdown moteif
+        if (this.moteIf!=null){
+            this.moteIf.getSource().shutdown();
+            this.moteIf = null;
+        }
+    }
+
+    /**
+     * Method delegated to message sender if exists
+     * @return 
+     */
+    @Override
+    public boolean canAddMessage2Send() {
+        if (this.msgSender==null){
+            log.info("Message sender is null => cannot add message to send");
+            return false;
+        }
+        return msgSender.canAdd();
+    }
+
+    @Override
+    public void addMessage2Send(MessageToSend msg) {
+        if (this.isMessageSenderFit()==false){
+            log.warn("Cannot send message to null message sender");
+            throw new NullPointerException("Cannot use null message sender");
+        }
+        msgSender.add(msg);
+    }
+
+    /**
+     * Connected node can send message to everyone if supports base station feature
+     * 
+     * @param target
+     * @param msg
+     * @param text
+     * @param listener
+     * @param listenerKey 
+     */
+    public void addMessage2Send(int target, Message msg, String text, MessageSentListener listener, String listenerKey) {
+        if (this.isMessageSenderFit()==false){
+            log.warn("Cannot send message to null message sender");
+            throw new NullPointerException("Cannot use null message sender");
+        }
+        msgSender.add(target, msg, text, listener, listenerKey);
+    }
+    
+    @Override
+    public void addMessage2Send(Message msg, String text, MessageSentListener listener, String listenerKey) {
+        if (this.isMessageSenderFit()==false){
+            log.warn("Cannot send message to null message sender");
+            throw new NullPointerException("Cannot use null message sender");
+        }
+        msgSender.add(this.getNodeId(), msg, text, listener, listenerKey);
+    }
+
+    /**
+     * Connected node can send message to everyone if supports base station feature
+     * 
+     * @param target
+     * @param msg
+     * @param text 
+     */
+    public void addMessage2Send(int target, Message msg, String text) {
+        if (this.isMessageSenderFit()==false){
+            log.warn("Cannot send message to null message sender");
+            throw new NullPointerException("Cannot use null message sender");
+        }
+        msgSender.add(target, msg, text);
+    }
+    
+    @Override
+    public void addMessage2Send(Message msg, String text){
+        if (this.isMessageSenderFit()==false){
+            log.warn("Cannot send message to null message sender");
+            throw new NullPointerException("Cannot use null message sender");
+        }
+        msgSender.add(this.getNodeId(), msg, text);
+    }
+
+    /**
+     * Call to msgListener.reset()
+     * @see MyMessageListener.reset();
+     */
+    public synchronized void resetMsgListener() {
+        msgListener.reset();
+    }
+
+    /**
+     * Delegates 
+     * @param msg
+     * @param listener 
+     */
+    public synchronized void registerMessageListener(Message msg, MessageListener listener) {
+        msgListener.registerListener(msg, listener);
+    }
+
+    public synchronized int getReceivedQueueLength() {
+        return msgListener.getQueueLength();
+    }
+
+    public ConcurrentLinkedQueue<MessageReceived> getReceivedQueue() {
+        return msgListener.getQueue();
+    }
+
+    public synchronized void deregisterMessageListener(Message msg, MessageListener listener) {
+        msgListener.deregisterListener(msg, listener);
+    }
+    
+    /**
+     * Connects to given source (by connection string) and if OK returns mote interface
+     * @param source
+     * @return 
+     */
+    public static MoteIF getConnectionToNode(String source){
+        PhoenixSource phoenix = BuildSource.makePhoenix(source, PrintStreamMessenger.err);
+        MoteIF moteInterface = null;
+        
+        // phoenix is not null, can create packet source and mote interface
+        if (phoenix != null) {
+            // loading phoenix
+            moteInterface = new MoteIF(phoenix);
+        }
+        
+        return moteInterface;
+    }
+    
+    /**
+     * Connects to node specified by connection string
+     * @param source
+     * @return 
+     */
+    public boolean connectToNode(String source){
+        MoteIF connectionToNode = ConnectedNode.getConnectionToNode(source);
+        if (connectionToNode==null){
+            log.warn("Cannot connect to device: " + source);
+            return false;
+        }
+        
+        this.setMoteIf(connectionToNode);
+        return true;
+    }
+    
+    /**
+     * Connect to node by config
+     * @return 
+     */
+    public boolean connectToNode(){
+        if (this.nodeConfig == null){
+            log.warn("Cannot connect to node without node config object");
+            return false;
+        }
+        
+        return this.connectToNode(this.nodeConfig.getConnectionString());
+    }
+    
+    
+    /**
+     * Returns flag determining whether is message listener ready for use
+     * @return 
+     */
+    public boolean isMessageListenerFit(){
+        return this.msgListener!=null;
+    }
+    
+    /**
+     * Returns flag determining whether is message sender ready for use
+     * @return 
+     */
+    public boolean isMessageSenderFit(){
+        return this.msgSender!=null;
+    }
+    
+    /**
+     * Returns original message listener for this node
+     * @return 
+     */
     public MyMessageListener getMsgListener() {
         return msgListener;
     }
@@ -61,6 +310,10 @@ public class ConnectedNode {
         this.msgListener = msgListener;
     }
 
+    /**
+     * Returns original message sender for this node
+     * @return 
+     */
     public MessageSender getMsgSender() {
         return msgSender;
     }
@@ -82,6 +335,88 @@ public class ConnectedNode {
     }
 
     public void setNodeObj(GenericNode nodeObj) {
+        if (this.nodeObj!=null 
+                && (this.msgListener!=null || this.msgSender!=null || this.moteIf!=null)){
+            // print warning message - inconsistency
+            // @decide: should be thrown exception?
+            log.warn("You should not set different node object here, if previous was"
+                    + "not null. It can cause inconsistency with msglistener/msgsender/moteif");
+        }
         this.nodeObj = nodeObj;
-    }    
+    }
+
+    public MoteIF getMoteIf() {
+        return moteIf;
+    }
+
+    /**
+     * Sets new mote interface, re-registers for msgsender, msglistener.
+     * This operation will flush all packet queues in specified objects.
+     * @param moteIf 
+     */
+    public void setMoteIf(MoteIF moteIf) {
+        this.moteIf = moteIf;
+        
+        // set new node for sender/listener if not null
+        if (this.msgListener!=null){
+            this.msgListener.setGateway(moteIf);
+        }
+        
+        if (this.msgSender!=null){
+            this.msgSender.setGateway(moteIf);
+        }
+        
+    }
+
+    @Override
+    public String toString() {
+        return "ConnectedNode{" + "nodeObj=" + nodeObj + ", nodeConfig=" + nodeConfig + ", msgSender=" + msgSender + ", msgListener=" + msgListener + ", moteIf=" + moteIf + '}';
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final ConnectedNode other = (ConnectedNode) obj;
+        if (this.nodeObj != other.nodeObj && (this.nodeObj == null || !this.nodeObj.equals(other.nodeObj))) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 3;
+        hash = 83 * hash + (this.nodeObj != null ? this.nodeObj.hashCode() : 0);
+        return hash;
+    }
+
+    @Override
+    public void close() {
+        this.shutdown();
+        this.moteIf=null;
+    }
+
+    /**
+     * Returns type of node handler - connected node
+     * @return 
+     */
+    @Override
+    public int getType() {
+        return AbstractNodeHandler.NODE_HANDLER_CONNECTED;
+    }
+
+    @Override
+    public boolean canListen() {
+        return this.moteIf!=null && this.msgListener!=null;
+    }
+
+    @Override
+    public boolean canSend() {
+        return this.moteIf!=null && this.msgSender!=null;
+    }
 }

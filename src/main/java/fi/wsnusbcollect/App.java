@@ -121,7 +121,8 @@ public class App {
             // do main on instance
             App.runningInstance = new App();
             App.runningInstance.doMain(args);
-
+            System.out.println("Exiting...");
+            
             // ending application
             // ... 
 
@@ -237,9 +238,13 @@ public class App {
             }
         }
         
-        // config file parsing, node selectors
+        // config file/arguments parsing, node selectors, get final set of nodes to connect to
         List<NodeConfigRecord> nodes2connect = this.usbArbitrator.getNodes2connect(this.useMotesString, this.ignoreMotesString);
         this.expInit.initConnectedNodes(null, nodes2connect);
+        // init, prepare for experiment
+        this.expInit.initEnvironment();
+        // pass controll to experiment coordinator
+        this.expCoord.work();
         
         // drop to shell?
         if (shell){
@@ -289,8 +294,10 @@ public class App {
                 interp.interact();
             } catch (Error e) {
                 // interrupted shell error
-                interp.cleanup();
-                interp.resetbuffer();
+                if (interp!=null){
+                    interp.cleanup();
+                    interp.resetbuffer();
+                }
 
                 System.out.println("Shell was interrupted...");
             } catch (Throwable e) {
@@ -299,8 +306,10 @@ public class App {
             }
 
             System.out.println("If you want to exit shell, please call: sys._jy_main.exitShell()");
-            interp.cleanup();
-            interp.resetbuffer();
+            if (interp!=null){
+                interp.cleanup();
+                interp.resetbuffer();
+            }
         }
 
         log.info("Shel terminating");
@@ -443,5 +452,6 @@ public class App {
     public void exitShell(){
         this.shellNoExit=false;
         this.interp.interrupt(this.consoleHelper.getTs());
+        this.interp = null;
     }
 }

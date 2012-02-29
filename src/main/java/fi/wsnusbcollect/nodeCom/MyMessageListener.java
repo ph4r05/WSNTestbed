@@ -286,6 +286,12 @@ public class MyMessageListener extends Thread implements MessageListener {
     public synchronized void reregisterListeners(){
         if (this.amType2Message == null || this.amType2Message.isEmpty()) return;
         
+        // if gateway is null - disconnected state
+        if (this.gateway==null){
+            log.info("Not registering listeners, gateway is empty - disconnected");
+            return;
+        }
+        
         try{
             // register to all registered amtypes to real interface
             Iterator<Integer> iterator = this.amType2Message.keySet().iterator();

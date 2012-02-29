@@ -9,5 +9,5 @@ package fi.wsnusbcollect.experiment;
  * @author ph4r05
  */
 public interface ExperimentCoordinator {
-    
+    public void work();
 }
