@@ -35,6 +35,9 @@ public class ExperimentInitImpl implements ExperimentInit {
     @Autowired
     protected NodeHandlerRegister nodeReg;
     
+    @Autowired
+    protected ExperimentCoordinatorImpl expCoordinator;
+    
     private int status=0;
     
     @PostConstruct
@@ -105,6 +108,14 @@ public class ExperimentInitImpl implements ExperimentInit {
             System.out.println("Initialized connected node: " + cn.toString());
         }
         
+        // register node coordinator as message listener
+        System.out.println("Register message listener for commands and pings");
+        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), expCoordinator);
+        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.PingMsg(), expCoordinator);
+        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingMsg(), expCoordinator);
+        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseMsg(), expCoordinator);
+        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseReportMsg(), expCoordinator);
+        
         System.out.println("Initialized");
         status=1;
     }
@@ -138,5 +149,13 @@ public class ExperimentInitImpl implements ExperimentInit {
 
     public void setNodeReg(NodeHandlerRegister nodeReg) {
         this.nodeReg = nodeReg;
-    }    
+    }
+
+    public ExperimentCoordinatorImpl getExpCoordinator() {
+        return expCoordinator;
+    }
+
+    public void setExpCoordinator(ExperimentCoordinatorImpl expCoordinator) {
+        this.expCoordinator = expCoordinator;
+    }
 }

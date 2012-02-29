@@ -9,6 +9,7 @@ import java.util.logging.Level;
 import javax.annotation.PostConstruct;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import net.tinyos.message.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *
  * @author ph4r05
  */
-public class ExperimentCoordinatorImpl implements ExperimentCoordinator{
+public class ExperimentCoordinatorImpl implements ExperimentCoordinator, net.tinyos.message.MessageListener{
     private static final Logger log = LoggerFactory.getLogger(ExperimentCoordinatorImpl.class);
     
     @PersistenceContext
@@ -45,9 +46,9 @@ public class ExperimentCoordinatorImpl implements ExperimentCoordinator{
             System.out.println(this.expInit.toString());
         }
         
-        System.out.println("Sleeping for a moment");
+        System.out.println("Sleeping for a moment - 5 seconds");
         try {
-            Thread.sleep(3000000L);
+            Thread.sleep(5000000L);
         } catch (InterruptedException ex) {
             log.error("Cannot sleep", ex);
         }
@@ -73,5 +74,20 @@ public class ExperimentCoordinatorImpl implements ExperimentCoordinator{
 
     public void setNodeReg(NodeHandlerRegister nodeReg) {
         this.nodeReg = nodeReg;
+    }
+
+    /**
+     * Message received event handler
+     * !!! WARNING:
+     * Please keep in mind that this method is executed by separate thread - 
+     *  - messageListener notifier. Take a caution to avoid race conditions and concurrency 
+     * probems.
+     * 
+     * @param i
+     * @param msg 
+     */
+    @Override
+    public synchronized void messageReceived(int i, Message msg) {
+        System.out.println("Message received: " + i);
     }
 }
