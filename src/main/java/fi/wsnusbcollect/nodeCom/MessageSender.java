@@ -408,8 +408,14 @@ public class MessageSender extends Thread {
                     while(listenerIt.hasNext()){
                         MessageSentListener curListener = listenerIt.next();
                         if (curListener == null) continue;
-
-                        curListener.messageSent(tmpMessage.getListenerKey(), tmpMessage.getsMsg(), tmpMessage.getDestination());
+                        
+                        // inner try block - if message sent throws exception, 
+                        // not to fail other notifications in list
+                        try {
+                            curListener.messageSent(tmpMessage.getListenerKey(), tmpMessage.getsMsg(), tmpMessage.getDestination());
+                        } catch(Exception e){
+                            log.error("Cannot notify listener, excaption thrown", e);
+                        }
                     }
                 } catch(Exception e){
                     log.error("Exception happened during message listener notification; Exception: " + e.toString(), e);

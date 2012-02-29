@@ -318,26 +318,25 @@ public class MyMessageListener extends Thread implements MessageListener {
                 
                 break;
             }
-            
-            // test queue received
-            synchronized(queue){
-                if (this.queue.isEmpty()){
-                    msgReceived=null;
-                }
-                else {
-                    msgReceived=queue.remove();
-                }
-            }
 
-            // if message was null, continue to sleep - this should not happen
-            if (msgReceived==null){
-                log.warn("Message removed from received queue was null, pathological situation.");
-                continue;
-            }
-            
             // this code is probably useles since message arrived event notify 
-            // is performed by notify thread
+            // is performed by notify thread            
             
+//            // test queue received
+//            synchronized(queue){
+//                if (this.queue.isEmpty()){
+//                    msgReceived=null;
+//                }
+//                else {
+//                    msgReceived=queue.remove();
+//                }
+//            }
+//
+//            // if message was null, continue to sleep - this should not happen
+//            if (msgReceived==null){
+//                continue;
+//            }
+//                
 //            try {
 //                // add message to tonotify queue if needed
 //                if (msgToSend.listener != null && msgToSend.listener.isEmpty()==false){
@@ -470,7 +469,7 @@ public class MyMessageListener extends Thread implements MessageListener {
                     
                     // check listener for existence
                     if (!(tmpMessage instanceof MessageReceived)){
-                        log.error("Message is not instance of messageReceived");
+                        log.error("Message is not instance of messageReceived - please inspect it");
                         continue;
                     }
 
@@ -478,7 +477,7 @@ public class MyMessageListener extends Thread implements MessageListener {
                     Message msg = tmpMessage.getMsg();
                     if (msg == null){
                         // empty message, continue
-                        log.error("Message is empty in envelope");
+                        log.error("Message is empty in envelope", tmpMessage);
                         continue;
                     }
 
@@ -486,22 +485,31 @@ public class MyMessageListener extends Thread implements MessageListener {
 
                     // is this message registered to anybody?
                     if (messageListeners.containsKey(amtype)==false){
-                        // registered to no one, continue
+                        // registered to no one, continue - why not 
+                        // registered message arrived? Weird
+                        log.warn("Message arrived but no message listener "
+                                + "registered to it - how it could arrive? "
+                                + "AMtype: " + amtype);
                         continue;
                     }
                     
+                    // get list of listeners interested in receiving messages of
+                    // this AMtype
                     ConcurrentLinkedQueue<MessageListener> listenersList = messageListeners.get(amtype);
                     if (listenersList==null || listenersList.isEmpty()){
-                        // list is null || empty
+                        // list is null || empty, cannot forward to anyone
                         continue;
                     }
                     
+                    // iterate over listeners list and notify each listener 
+                    // in serial manner
                     Iterator<MessageListener> iterator = listenersList.iterator();
                     while(iterator.hasNext()){
                         MessageListener curListener = iterator.next();
                         if (curListener==null) continue;
                         
-                        // notify this listener
+                        // notify this listener,, separate try block - exception
+                        // can be thrown, this exception affects only one listener
                         try{
                             // notify here
                             curListener.messageReceived(tmpMessage.getI(), msg);
