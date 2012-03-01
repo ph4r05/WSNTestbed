@@ -125,11 +125,21 @@ public class MessageSender extends Thread {
     }
 
     /**
+     * Performs shutdown
+     */
+    public synchronized void shutdown(){
+        this.shutdown = true;
+        this.reset();
+        this.tasks.shutdown();
+    }
+    
+    /**
      * Pausing thread
      * @param microsecs
      */
     private void pause(int microsecs) {
         try {
+            Thread.yield();
             Thread.sleep(microsecs);
         } catch (InterruptedException ie) {
             log.warn("Cannot sleep", ie);
@@ -160,8 +170,9 @@ public class MessageSender extends Thread {
             // shutdown
             if (this.shutdown == true){
                 log.info("Message sender shutdown");
+                
                 this.tasks.shutdown();
-                break;
+                return;
             }
 
             //  nulltest on queue itself - should not happen
@@ -258,7 +269,7 @@ public class MessageSender extends Thread {
      * @return booleans
      */
     public boolean canAdd(){
-        return (this.getGateway()!=null);
+        return (this.getGateway()!=null && this.shutdown==false);
     }
 
     /**
@@ -343,6 +354,7 @@ public class MessageSender extends Thread {
          */
         private void pause(int microsecs) {
             try {
+                Thread.yield();
                 Thread.sleep(microsecs);
             } catch (InterruptedException ie) {
                 log.warn("Cannot sleep: ", ie);
@@ -370,9 +382,15 @@ public class MessageSender extends Thread {
 
             // do in infitite loop
             while(true){
+                // shutting down
+                if (shutdown){
+                    log.info("MessageSenderNotifyWorker shutdown");
+                    return;
+                }
+                
                 // yield for some time
                 this.pause(150);
-
+                
                 //  nulltest
                 if (toNotify==null) continue;
 

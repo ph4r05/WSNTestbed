@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.ConsoleHandler;
+import java.util.logging.Level;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -121,7 +122,6 @@ public class App {
             // do main on instance
             App.runningInstance = new App();
             App.runningInstance.doMain(args);
-            System.out.println("Exiting...");
             
             // ending application
             // ... 
@@ -135,8 +135,18 @@ public class App {
         } catch (Exception ex) {
             log.error("Generic exception occurred", ex);
         }
-
-        //log.info("Everything OK, exiting");
+        
+        System.out.println("Exiting...");
+        log.info("Everything OK, exiting");
+        try {
+            Thread.yield();
+            Thread.sleep(500);
+        } catch (InterruptedException ex) {
+            log.warn("Cannot sleep", ex);
+        }
+        
+        // exit
+        System.exit(0);
     }
 
     /**

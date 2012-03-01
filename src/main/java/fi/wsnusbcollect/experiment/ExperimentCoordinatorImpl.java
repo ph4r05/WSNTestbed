@@ -41,21 +41,20 @@ public class ExperimentCoordinatorImpl implements ExperimentCoordinator, net.tin
 
     @Override
     public void work() {
-        System.out.println("ExpINIT: " + ((this.expInit == null) ? "null" : " not null!"));
         if (this.expInit!=null){
             System.out.println(this.expInit.toString());
         }
         
         System.out.println("Sleeping for a moment - 5 seconds");
         try {
-            Thread.sleep(5000000L);
+            Thread.sleep(5000L);
         } catch (InterruptedException ex) {
             log.error("Cannot sleep", ex);
         }
         
         // shutdown all registered nodes...
         System.out.println("Shutting down all registered nodes");
-        this.nodeReg.shutdownAll();        
+        this.nodeReg.shutdownAll();
         
         System.out.println("Exiting... Returning controll to main application...");
     }

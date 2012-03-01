@@ -49,6 +49,25 @@ public class NodeHandlerRegister implements Map<Integer, NodeHandler> {
     }
     
     /**
+     * Starts all nodes required
+     */
+    public void startAll(){
+        Iterator<Integer> iterator = this.primaryMap.keySet().iterator();
+        while(iterator.hasNext()){
+            Integer nodeid = iterator.next();
+            NodeHandler nh = this.primaryMap.get(nodeid);
+            
+            // connected and correct
+            if (this.isConnectedNode(nh)==false || nh.isCorrect()==false) {
+                continue;
+            }
+            
+            final ConnectedNode cn = (ConnectedNode) nh;
+            cn.start();
+        }
+    }
+    
+    /**
      * Returns whether given node id is connected node
      * @param nodeid
      * @return 

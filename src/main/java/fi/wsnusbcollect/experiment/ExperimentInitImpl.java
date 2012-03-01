@@ -103,10 +103,14 @@ public class ExperimentInitImpl implements ExperimentInit {
             cn.setMsgSender(sender);
             
             // add to map
-            //this.nodeReg.p
+            this.nodeReg.put(cn);
             
             System.out.println("Initialized connected node: " + cn.toString());
         }
+        
+        // starting all threads
+        System.out.println("Starting all threads");
+        this.nodeReg.startAll();
         
         // register node coordinator as message listener
         System.out.println("Register message listener for commands and pings");

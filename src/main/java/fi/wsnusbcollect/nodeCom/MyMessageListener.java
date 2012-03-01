@@ -140,10 +140,21 @@ public class MyMessageListener extends Thread implements MessageListener {
      */
     private void pause(int microsecs) {
         try {
+            Thread.yield();
             Thread.sleep(microsecs);
         } catch (InterruptedException ie) {
             log.warn("Cannot sleep", ie);
         }
+    }
+    
+    /**
+     * Performs shutdown
+     */
+    public synchronized void shutdown(){
+        this.reset();
+        this.dropingPackets=true;
+        this.shutdown=true;
+        this.tasks.shutdown();
     }
     
     /**
@@ -322,7 +333,7 @@ public class MyMessageListener extends Thread implements MessageListener {
                 log.info("MyMessageReceiver shutting down.");
                 this.tasks.shutdown();
                 
-                break;
+                return;
             }
 
             //  nulltest on queue itself - should not happen
@@ -415,6 +426,7 @@ public class MyMessageListener extends Thread implements MessageListener {
          */
         private void pause(int mili) {
             try {
+                Thread.yield();
                 Thread.sleep(mili);
             } catch (InterruptedException ie) {
                 log.warn("Cannot sleep", ie);
@@ -447,6 +459,12 @@ public class MyMessageListener extends Thread implements MessageListener {
             synchronized(this){
                 // do in infitite loop
                 while(true){
+                    // shutting down
+                    if (shutdown) {
+                        log.info("MessageNotifyWorker shutdown");
+                        return;
+                    }
+                    
                     // yield for some time iff is queue empty
                     if (queue==null || queue.isEmpty()){
                         this.pause(10);

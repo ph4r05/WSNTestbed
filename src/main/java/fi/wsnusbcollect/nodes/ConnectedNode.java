@@ -11,6 +11,7 @@ import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.logging.Level;
 import net.tinyos.message.Message;
 import net.tinyos.message.MessageListener;
 import net.tinyos.message.MoteIF;
@@ -115,21 +116,45 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
      * shutdown all threads spawned for this node
      * sender, listener, mote interface listener
      */
+    @Override
     public void shutdown(){   
         // shutdown sender
-        if (this.msgSender!=null){
-            this.msgSender.setShutdown(true);
+        log.debug("Shutting down node: " + this.getNodeId());
+        
+        if (this.msgSender!=null && this.msgSender.isAlive()){
+            this.msgSender.shutdown();
+            log.info("MsgSender interrupted");
         }
         
         // shutdown listener
-        if (this.msgListener!=null){
-            this.msgListener.setShutdown(true);
+        if (this.msgListener!=null && this.msgListener.isAlive()){
+            this.msgListener.shutdown();
+            log.info("MsgListener interrupted");
         }
         
         // shutdown moteif
         if (this.moteIf!=null){
             this.moteIf.getSource().shutdown();
             this.moteIf = null;
+        }
+        
+        log.info("NodeID: " + this.getNodeId() + " shutted down");
+    }
+    
+    /**
+     * Starts messagelistener, msgsender threads
+     */
+    public synchronized void start(){
+        // shutdown sender
+        if (this.msgListener!=null && this.msgListener.isAlive()==false){
+            this.msgListener.start();
+            log.info("MsgListener thread started for NodeID: " + this.getNodeId());
+        }
+        
+        // shutdown listener
+        if (this.msgSender!=null && this.msgSender.isAlive()==false){
+            this.msgSender.start();
+            log.info("MsgSender thread started for NodeID: " + this.getNodeId());
         }
     }
 
@@ -138,7 +163,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
      * @return 
      */
     @Override
-    public boolean canAddMessage2Send() {
+    public synchronized boolean canAddMessage2Send() {
         if (this.msgSender==null){
             log.info("Message sender is null => cannot add message to send");
             return false;
@@ -147,7 +172,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     }
 
     @Override
-    public void addMessage2Send(MessageToSend msg) {
+    public synchronized void addMessage2Send(MessageToSend msg) {
         if (this.isMessageSenderFit()==false){
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
@@ -164,7 +189,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
      * @param listener
      * @param listenerKey 
      */
-    public void addMessage2Send(int target, Message msg, String text, MessageSentListener listener, String listenerKey) {
+    public synchronized void addMessage2Send(int target, Message msg, String text, MessageSentListener listener, String listenerKey) {
         if (this.isMessageSenderFit()==false){
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
@@ -173,7 +198,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     }
     
     @Override
-    public void addMessage2Send(Message msg, String text, MessageSentListener listener, String listenerKey) {
+    public synchronized void addMessage2Send(Message msg, String text, MessageSentListener listener, String listenerKey) {
         if (this.isMessageSenderFit()==false){
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
@@ -188,7 +213,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
      * @param msg
      * @param text 
      */
-    public void addMessage2Send(int target, Message msg, String text) {
+    public synchronized void addMessage2Send(int target, Message msg, String text) {
         if (this.isMessageSenderFit()==false){
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
@@ -197,7 +222,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     }
     
     @Override
-    public void addMessage2Send(Message msg, String text){
+    public synchronized void addMessage2Send(Message msg, String text){
         if (this.isMessageSenderFit()==false){
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
