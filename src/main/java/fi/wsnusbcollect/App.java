@@ -55,6 +55,9 @@ public class App {
     @Option(name = "--detect-nodes", usage = "performs node detection, read-only operation")
     private boolean detectNodes;
     
+    @Option(name = "--show-binding", usage = "returns database binding for connected nodes")
+    private boolean showBinding;
+    
     @Option(name = "--update-node-database", usage = "updates node connection database info, implies --detect-nodes option")
     private boolean updateNodeDatabase;
     
@@ -225,7 +228,7 @@ public class App {
         }
         
         // parameters implications
-        detectNodes=updateNodeDatabase || detectNodes || checkNodesConnection;
+        detectNodes=updateNodeDatabase || detectNodes || checkNodesConnection || showBinding;
         
         // init dependencies here - arguments and properties loaded
         // application context loading
@@ -463,5 +466,9 @@ public class App {
         this.shellNoExit=false;
         this.interp.interrupt(this.consoleHelper.getTs());
         this.interp = null;
+    }
+
+    public boolean isShowBinding() {
+        return showBinding;
     }
 }

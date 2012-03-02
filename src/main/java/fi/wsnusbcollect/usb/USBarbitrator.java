@@ -321,6 +321,11 @@ public class USBarbitrator {
         if (App.getRunningInstance().isUpdateNodeDatabase()) {
             this.updateNodesDatabase();
         }
+        
+        // show loaded data
+        if (App.getRunningInstance().isShowBinding()){
+            this.showBinding();
+        }
     }
     
     /**
@@ -613,6 +618,28 @@ public class USBarbitrator {
         }
         
         return nodes2return;
+    }
+    
+    /**
+     * Dumps information about currently loaded node binding to stdout
+     */
+    public void showBinding(){
+        System.out.println("Dumping output: ");
+        
+        Iterator<String> iterator = this.moteList.keySet().iterator();
+        while(iterator.hasNext()){
+            String serial = iterator.next();
+            NodeConfigRecord ncr = this.moteList.get(serial);
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("Node serial: ").append(ncr.getSerial())
+                    .append(";\t NodeID: ").append(ncr.getNodeId())
+                    .append(";\t Dev: ").append(ncr.getDevicePath())
+                    .append(";\t Alias: ").append(ncr.getDeviceAlias())
+                    .append(";\t Description").append(ncr.getDescription())
+                    .append(";\t USB: ").append(ncr.getUsbPath());
+            System.out.println(sb.toString());
+        }
     }
     
     public Map<String, NodeConfigRecord> getMoteList() {

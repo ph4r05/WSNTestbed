@@ -4,6 +4,9 @@
  */
 package fi.wsnusbcollect.experiment;
 
+import fi.wsnusbcollect.App;
+import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import java.util.logging.Level;
 import javax.annotation.PostConstruct;
@@ -34,20 +37,29 @@ public class ExperimentCoordinatorImpl implements ExperimentCoordinator, net.tin
     @Autowired
     protected NodeHandlerRegister nodeReg;
     
+    protected boolean running=true;
+    
     @PostConstruct
     public void initClass() {
         log.info("Class initialized");
     }
 
     @Override
-    public void work() {
-        if (this.expInit!=null){
-            System.out.println(this.expInit.toString());
+    public void work() {    
+        // spawn new thread shell
+        // here would be appropriate to suspend experiment until is manually 
+        // started from shell
+        if (App.getRunningInstance().isShell()){
+            System.out.println("Shell will be started in separate thread "
+                    + "from execution thread. \nYou can reach this thread by"
+                    + "sys._jy_expCo and call appropriate methods");
         }
         
-        System.out.println("Sleeping for a moment - 5 seconds");
+        System.out.println("Sleeping in infinite cycle...");
         try {
-            Thread.sleep(5000L);
+            while(running){
+                Thread.sleep(10L);
+            }
         } catch (InterruptedException ex) {
             log.error("Cannot sleep", ex);
         }
@@ -80,7 +92,7 @@ public class ExperimentCoordinatorImpl implements ExperimentCoordinator, net.tin
      * !!! WARNING:
      * Please keep in mind that this method is executed by separate thread - 
      *  - messageListener notifier. Take a caution to avoid race conditions and concurrency 
-     * probems.
+     * problems.
      * 
      * @param i
      * @param msg 
@@ -88,5 +100,29 @@ public class ExperimentCoordinatorImpl implements ExperimentCoordinator, net.tin
     @Override
     public synchronized void messageReceived(int i, Message msg) {
         System.out.println("Message received: " + i);
+        log.info("Message received: " + i);
+        
+        // command message?
+        if (CommandMsg.class.isInstance(msg)){
+            // Command message
+            final CommandMsg cMsg = (CommandMsg) msg;
+            System.out.println("Command message: " + cMsg.toString());
+            log.info("Command message: " + cMsg.toString());
+        }
+        
+        // report message?
+        if (MultiPingResponseReportMsg.class.isInstance(msg)){
+            final MultiPingResponseReportMsg cMsg = (MultiPingResponseReportMsg) msg;
+            System.out.println("Report message: " + cMsg.toString());
+            log.info("Report message: " + cMsg.toString());
+        }
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
+
+    public synchronized void setRunning(boolean running) {
+        this.running = running;
     }
 }
