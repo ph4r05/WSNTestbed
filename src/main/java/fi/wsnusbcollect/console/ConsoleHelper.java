@@ -53,6 +53,10 @@ public class ConsoleHelper {
                         + "def exitNow():\n"
                         + " sys._jy_console.exitShell()\n";
     
+    public final static String UNSUSPENDROUTINE = "import sys\n"
+                        + "def unsuspend():\n"
+                        + " sys._jy_expCoord.unsuspend()\n";
+    
     // python based sighandler. Useful when needed to stop execution of frozen script
     // For details you can see: http://bugs.jython.org/issue1313
     public final static String SIGHANDLER = 
@@ -94,6 +98,7 @@ public class ConsoleHelper {
         
         // register exit routine
         interp.exec(EXITROUTINE);
+        interp.exec(UNSUSPENDROUTINE);
         
         // set custom SIGINT handler
         interp.exec(SIGHANDLER);
