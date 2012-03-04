@@ -213,6 +213,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         return suspended;
     }
 
+    @Override
     public synchronized void unsuspend(){
         this.suspended=false;
     }
