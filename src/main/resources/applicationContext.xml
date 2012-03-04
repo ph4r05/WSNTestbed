@@ -81,6 +81,7 @@
     
     <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitrator"/>
     <bean id="consoleHelper" class="fi.wsnusbcollect.console.ConsoleHelper"/>
+    <bean id="console" class="fi.wsnusbcollect.console.Console"/>
     <bean id="nodeHandlerRegister" class="fi.wsnusbcollect.nodeManager.NodeHandlerRegister"/>
     
     <!-- Experiment related -->

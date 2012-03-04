@@ -8,6 +8,8 @@ package fi.wsnusbcollect.experiment;
  *
  * @author ph4r05
  */
-public interface ExperimentCoordinator {
+public interface ExperimentCoordinator extends Runnable{
+    public void start();
+    public void interrupt();
     public void work();
 }

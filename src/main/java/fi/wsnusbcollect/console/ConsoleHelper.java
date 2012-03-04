@@ -49,6 +49,10 @@ public class ConsoleHelper {
     public final static String AUTOCOMPLETE = "import rlcompleter, readline\n" + 
                         "readline.parse_and_bind('tab: complete')";
     
+    public final static String EXITROUTINE = "import sys\n"
+                        + "def exitNow():\n"
+                        + " sys._jy_console.exitShell()\n";
+    
     // python based sighandler. Useful when needed to stop execution of frozen script
     // For details you can see: http://bugs.jython.org/issue1313
     public final static String SIGHANDLER = 
@@ -87,6 +91,9 @@ public class ConsoleHelper {
         
         // enable autocomplete by default:)
         interp.exec(AUTOCOMPLETE);
+        
+        // register exit routine
+        interp.exec(EXITROUTINE);
         
         // set custom SIGINT handler
         interp.exec(SIGHANDLER);

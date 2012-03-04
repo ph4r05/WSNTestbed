@@ -4,6 +4,7 @@
  */
 package fi.wsnusbcollect.experiment;
 
+import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.nodeCom.MessageSender;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
@@ -38,6 +39,9 @@ public class ExperimentInitImpl implements ExperimentInit {
     @Autowired
     protected ExperimentCoordinatorImpl expCoordinator;
     
+    @Autowired
+    protected Console console;
+    
     private int status=0;
     
     @PostConstruct
@@ -49,6 +53,8 @@ public class ExperimentInitImpl implements ExperimentInit {
     @Override
     public void initEnvironment() {
         log.info("Environment initialized");
+        
+        // here can init shell console
     }
 
     /**
@@ -112,14 +118,6 @@ public class ExperimentInitImpl implements ExperimentInit {
         System.out.println("Starting all threads");
         this.nodeReg.startAll();
         
-        // register node coordinator as message listener
-        System.out.println("Register message listener for commands and pings");
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), expCoordinator);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.PingMsg(), expCoordinator);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingMsg(), expCoordinator);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseMsg(), expCoordinator);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseReportMsg(), expCoordinator);
-        
         System.out.println("Initialized");
         status=1;
     }
@@ -161,5 +159,9 @@ public class ExperimentInitImpl implements ExperimentInit {
 
     public void setExpCoordinator(ExperimentCoordinatorImpl expCoordinator) {
         this.expCoordinator = expCoordinator;
+    }
+
+    public void setConsole(Console console) {
+        this.console = console;
     }
 }

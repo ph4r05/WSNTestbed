@@ -1,6 +1,6 @@
 package fi.wsnusbcollect;
 
-import com.enigmacurry.JythonShellServer;
+import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.console.ConsoleHelper;
 import fi.wsnusbcollect.experiment.ExperimentCoordinator;
 import fi.wsnusbcollect.experiment.ExperimentInit;
@@ -9,26 +9,17 @@ import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.ExampleMode;
 import org.kohsuke.args4j.Option;
-import org.python.core.Py;
-import org.python.core.PyObject;
-import org.python.core.PySystemState;
-import org.python.core.ThreadState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
-import org.python.util.InteractiveConsole; 
-import org.python.util.JLineConsole;
 
 /**
  * Main run class for WSN USB Collect application
@@ -66,6 +57,9 @@ public class App {
     
     @Option(name = "--shell", usage = "should drop to shell after init?")
     private boolean shell=false;
+    
+    @Option(name = "--start-suspended", usage = "experiment coordinator starts for command from shell")
+    private boolean startSuspended=false;
     
     @Option(name = "-c", usage = "read configuration from this config file")
     private File configFile = null;
@@ -107,11 +101,8 @@ public class App {
     // ConsoleHandler for Jython interface
     private ConsoleHelper consoleHelper = null;
     
-    // interactive jython interface
-    protected InteractiveConsole interp;
-    
-    // python shell does not exit on ctrl+d
-    private boolean shellNoExit=true;
+    // Console
+    private Console console = null;
 
     private ExperimentCoordinator expCoord;
     private ExperimentInit expInit;
@@ -166,6 +157,7 @@ public class App {
         }
         
         this.consoleHelper = (ConsoleHelper) appContext.getBean(ConsoleHelper.class);
+        this.console = (Console) appContext.getBean(Console.class);
         
         this.expInit = (ExperimentInit) appContext.getBean("experimentInit");
         this.expCoord = (ExperimentCoordinator) appContext.getBean("experimentCoordinator");
@@ -251,86 +243,25 @@ public class App {
             }
         }
         
+        // prepare shell
+        if (shell){
+            this.console.prepareShell();
+        }
+        
         // config file/arguments parsing, node selectors, get final set of nodes to connect to
         List<NodeConfigRecord> nodes2connect = this.usbArbitrator.getNodes2connect(this.useMotesString, this.ignoreMotesString);
         this.expInit.initConnectedNodes(null, nodes2connect);
         // init, prepare for experiment
         this.expInit.initEnvironment();
-        // pass controll to experiment coordinator
+        // pass controll to experiment coordinator, spawn new thread/blocking run
         this.expCoord.work();
         
         // drop to shell?
         if (shell){
-            this.getShell();
+            this.console.getShell();
         }
     }
     
-    /**
-     * Method starts new initialized Jython shell for user
-     */
-    public void getShell(){
-        log.info("Dropping to shell now...");
-
-        // set Properties 
-        if (System.getProperty("python.home") == null) {
-            System.setProperty("python.home", "~/");
-        }
-
-        // initialize python shell
-        PySystemState.initialize(PySystemState.getBaseProperties(), null, new String[0]);
-
-        // no postProps, registry values used 
-        JLineConsole.initialize(System.getProperties(), null, new String[0]);
-
-        interp = new JLineConsole();
-        // important line, set JLineConsole to internal python variable to be able to 
-        // acces console from python interface
-        interp.getSystemState().__setattr__("_jy_interpreter", Py.java2py(interp));
-
-        // usb arbitrator set
-        interp.getSystemState().__setattr__("_jy_usbartibtrator", Py.java2py(this.usbArbitrator));
-
-        // console helper
-        interp.getSystemState().__setattr__("_jy_ch", Py.java2py(this.consoleHelper));
-
-        // this instance
-        interp.getSystemState().__setattr__("_jy_main", Py.java2py(this));
-
-        // enable autocomplete, sigint handler by default
-        this.consoleHelper.prepareConsoleBeforeStart(interp);
-
-        while (this.shellNoExit) {
-            log.info("Starting shell");
-            this.consoleHelper.consoleRestarted();
-
-            try {
-                interp.interact();
-            } catch (Error e) {
-                // interrupted shell error
-                if (interp!=null){
-                    interp.cleanup();
-                    interp.resetbuffer();
-                }
-
-                System.out.println("Shell was interrupted...");
-            } catch (Throwable e) {
-                log.warn("Exception occured during jython interaction", e);
-                interp.cleanup();
-            }
-
-            System.out.println("If you want to exit shell, please call: sys._jy_main.exitShell()");
-            if (interp!=null){
-                interp.cleanup();
-                interp.resetbuffer();
-            }
-        }
-
-        log.info("Shel terminating");
-        // next command is used to start telnet jython server
-        // not properly implemented yet
-        //JythonShellServer.run_server(7000, new HashMap());
-    }
-
     public List<String> getArguments() {
         return arguments;
     }
@@ -458,17 +389,16 @@ public class App {
     public boolean isShell() {
         return shell;
     }
-    
-    /**
-     * Exit shell
-     */
-    public void exitShell(){
-        this.shellNoExit=false;
-        this.interp.interrupt(this.consoleHelper.getTs());
-        this.interp = null;
-    }
 
     public boolean isShowBinding() {
         return showBinding;
+    }
+
+    public boolean isStartSuspended() {
+        return startSuspended;
+    }
+
+    public void setStartSuspended(boolean startSuspended) {
+        this.startSuspended = startSuspended;
     }
 }
