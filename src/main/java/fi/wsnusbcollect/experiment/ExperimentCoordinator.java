@@ -9,7 +9,9 @@ package fi.wsnusbcollect.experiment;
  * @author ph4r05
  */
 public interface ExperimentCoordinator extends Runnable{
-    public void start();
     public void interrupt();
     public void work();
+    
+    // start suspended?
+    public void unsuspend();
 }
