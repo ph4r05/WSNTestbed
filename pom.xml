@@ -17,7 +17,8 @@
         <spring.security.version>3.1.0.RELEASE</spring.security.version>
         <spring-faces.version>2.3.0.BUILD-SNAPSHOT</spring-faces.version>
         <org.slf4j.version>1.5.11</org.slf4j.version>
-        <org.hibernate.version>3.6.8.Final</org.hibernate.version>
+        <!--<org.hibernate.version>3.6.8.Final</org.hibernate.version>-->
+        <org.hibernate.version>4.1.0.Final</org.hibernate.version>
     </properties>
 
     <repositories>
@@ -113,6 +114,13 @@
             <artifactId>spring-aop</artifactId>
             <version>${org.springframework.version}</version>
         </dependency>
+        
+          <!-- AOP dependency -->
+        <dependency>
+            <groupId>cglib</groupId>
+            <artifactId>cglib</artifactId>
+            <version>2.2</version>
+        </dependency>
 
 		<!-- Application Context (depends on spring-core, spring-expression, spring-aop, 
 			spring-beans) This is the central artifact for Spring's Dependency Injection 
@@ -206,12 +214,19 @@
 		<version></version>
 	</dependency>-->
         
-        
-        <dependency>
+        <!-- only use with hibernate 3 -->
+        <!--<dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-annotations</artifactId>
             <version>3.5.6-Final</version>
+        </dependency>-->
+        
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-c3p0</artifactId>
+            <version>${org.hibernate.version}</version>
         </dependency>
+        
         <!--
         <dependency>
             <groupId>org.hibernate</groupId>
@@ -219,17 +234,20 @@
             <version>${org.hibernate.version}</version>
         </dependency>
         -->
+        
+        <!-- only use with hibernate 3 -->
+        <!--
         <dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-jbosscache</artifactId>
-            <version>${org.hibernate.version}</version>
+            <version>3.6.10.Final</version>
             <exclusions>
                 <exclusion>
                     <groupId>commons-logging</groupId>
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
+        </dependency>-->
         
         <dependency>
             <groupId>org.hibernate</groupId>
@@ -305,7 +323,7 @@
         <dependency>
             <groupId>org.ini4j</groupId>
             <artifactId>ini4j</artifactId>
-            <version>0.3.3</version>
+            <version>0.5.2</version>
         </dependency>
         
         <!-- MySQL connector -->
