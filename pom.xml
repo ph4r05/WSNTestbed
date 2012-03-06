@@ -147,12 +147,13 @@
         
      
      
-        
+        <!--
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
             <version>${org.springframework.version}</version>
         </dependency>
+        -->
 
 		<!-- Transaction Management Abstraction (depends on spring-core, spring-beans, 
 			spring-aop, spring-context) Define this if you use Spring Transactions or 
@@ -183,11 +184,13 @@
 		<!-- Object-to-XML Mapping (OXM) abstraction and integration with JAXB, 
 			JiBX, Castor, XStream, and XML Beans. (depends on spring-core, spring-beans, 
 			spring-context) Define this if you need OXM (org.springframework.oxm.*) -->
+        <!--
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-oxm</artifactId>
             <version>${org.springframework.version}</version>
         </dependency>
+        -->
 
 		<!-- Support for testing Spring applications with tools such as JUnit and 
 			TestNG This artifact is generally always defined with a 'test' scope for 
