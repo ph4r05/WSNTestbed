@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class MultiPingMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 8;
+    public static final int DEFAULT_MESSAGE_SIZE = 11;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 12;
 
-    /** Create a new MultiPingMsg of size 8. */
+    /** Create a new MultiPingMsg of size 11. */
     public MultiPingMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -101,6 +101,15 @@ public class MultiPingMsg extends net.tinyos.message.Message {
       try {
         s += "  [delay=0x"+Long.toHexString(get_delay())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [size=0x"+Long.toHexString(get_size())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [counterStrategySuccess=0x"+Long.toHexString(get_counterStrategySuccess())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [timerStrategyPeriodic=0x"+Long.toHexString(get_timerStrategyPeriodic())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       return s;
     }
 
@@ -108,16 +117,16 @@ public class MultiPingMsg extends net.tinyos.message.Message {
 
     /////////////////////////////////////////////////////////
     // Accessor methods for field: counter
-    //   Field type: int, unsigned
+    //   Field type: int, signed
     //   Offset (bits): 0
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
     /**
-     * Return whether the field 'counter' is signed (false).
+     * Return whether the field 'counter' is signed (true).
      */
     public static boolean isSigned_counter() {
-        return false;
+        return true;
     }
 
     /**
@@ -171,16 +180,16 @@ public class MultiPingMsg extends net.tinyos.message.Message {
 
     /////////////////////////////////////////////////////////
     // Accessor methods for field: txpower
-    //   Field type: short, unsigned
+    //   Field type: short, signed
     //   Offset (bits): 16
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
     /**
-     * Return whether the field 'txpower' is signed (false).
+     * Return whether the field 'txpower' is signed (true).
      */
     public static boolean isSigned_txpower() {
-        return false;
+        return true;
     }
 
     /**
@@ -234,16 +243,16 @@ public class MultiPingMsg extends net.tinyos.message.Message {
 
     /////////////////////////////////////////////////////////
     // Accessor methods for field: channel
-    //   Field type: short, unsigned
+    //   Field type: short, signed
     //   Offset (bits): 24
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
     /**
-     * Return whether the field 'channel' is signed (false).
+     * Return whether the field 'channel' is signed (true).
      */
     public static boolean isSigned_channel() {
-        return false;
+        return true;
     }
 
     /**
@@ -297,16 +306,16 @@ public class MultiPingMsg extends net.tinyos.message.Message {
 
     /////////////////////////////////////////////////////////
     // Accessor methods for field: packets
-    //   Field type: int, unsigned
+    //   Field type: int, signed
     //   Offset (bits): 32
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
     /**
-     * Return whether the field 'packets' is signed (false).
+     * Return whether the field 'packets' is signed (true).
      */
     public static boolean isSigned_packets() {
-        return false;
+        return true;
     }
 
     /**
@@ -360,16 +369,16 @@ public class MultiPingMsg extends net.tinyos.message.Message {
 
     /////////////////////////////////////////////////////////
     // Accessor methods for field: delay
-    //   Field type: int, unsigned
+    //   Field type: int, signed
     //   Offset (bits): 48
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
     /**
-     * Return whether the field 'delay' is signed (false).
+     * Return whether the field 'delay' is signed (true).
      */
     public static boolean isSigned_delay() {
-        return false;
+        return true;
     }
 
     /**
@@ -419,6 +428,195 @@ public class MultiPingMsg extends net.tinyos.message.Message {
      */
     public static int sizeBits_delay() {
         return 16;
+    }
+
+    /////////////////////////////////////////////////////////
+    // Accessor methods for field: size
+    //   Field type: short, signed
+    //   Offset (bits): 64
+    //   Size (bits): 8
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'size' is signed (true).
+     */
+    public static boolean isSigned_size() {
+        return true;
+    }
+
+    /**
+     * Return whether the field 'size' is an array (false).
+     */
+    public static boolean isArray_size() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'size'
+     */
+    public static int offset_size() {
+        return (64 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'size'
+     */
+    public static int offsetBits_size() {
+        return 64;
+    }
+
+    /**
+     * Return the value (as a short) of the field 'size'
+     */
+    public short get_size() {
+        return (short)getUIntBEElement(offsetBits_size(), 8);
+    }
+
+    /**
+     * Set the value of the field 'size'
+     */
+    public void set_size(short value) {
+        setUIntBEElement(offsetBits_size(), 8, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'size'
+     */
+    public static int size_size() {
+        return (8 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'size'
+     */
+    public static int sizeBits_size() {
+        return 8;
+    }
+
+    /////////////////////////////////////////////////////////
+    // Accessor methods for field: counterStrategySuccess
+    //   Field type: byte, signed
+    //   Offset (bits): 72
+    //   Size (bits): 8
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'counterStrategySuccess' is signed (true).
+     */
+    public static boolean isSigned_counterStrategySuccess() {
+        return true;
+    }
+
+    /**
+     * Return whether the field 'counterStrategySuccess' is an array (false).
+     */
+    public static boolean isArray_counterStrategySuccess() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'counterStrategySuccess'
+     */
+    public static int offset_counterStrategySuccess() {
+        return (72 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'counterStrategySuccess'
+     */
+    public static int offsetBits_counterStrategySuccess() {
+        return 72;
+    }
+
+    /**
+     * Return the value (as a byte) of the field 'counterStrategySuccess'
+     */
+    public byte get_counterStrategySuccess() {
+        return (byte)getSIntBEElement(offsetBits_counterStrategySuccess(), 8);
+    }
+
+    /**
+     * Set the value of the field 'counterStrategySuccess'
+     */
+    public void set_counterStrategySuccess(byte value) {
+        setSIntBEElement(offsetBits_counterStrategySuccess(), 8, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'counterStrategySuccess'
+     */
+    public static int size_counterStrategySuccess() {
+        return (8 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'counterStrategySuccess'
+     */
+    public static int sizeBits_counterStrategySuccess() {
+        return 8;
+    }
+
+    /////////////////////////////////////////////////////////
+    // Accessor methods for field: timerStrategyPeriodic
+    //   Field type: byte, signed
+    //   Offset (bits): 80
+    //   Size (bits): 8
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'timerStrategyPeriodic' is signed (true).
+     */
+    public static boolean isSigned_timerStrategyPeriodic() {
+        return true;
+    }
+
+    /**
+     * Return whether the field 'timerStrategyPeriodic' is an array (false).
+     */
+    public static boolean isArray_timerStrategyPeriodic() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'timerStrategyPeriodic'
+     */
+    public static int offset_timerStrategyPeriodic() {
+        return (80 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'timerStrategyPeriodic'
+     */
+    public static int offsetBits_timerStrategyPeriodic() {
+        return 80;
+    }
+
+    /**
+     * Return the value (as a byte) of the field 'timerStrategyPeriodic'
+     */
+    public byte get_timerStrategyPeriodic() {
+        return (byte)getSIntBEElement(offsetBits_timerStrategyPeriodic(), 8);
+    }
+
+    /**
+     * Set the value of the field 'timerStrategyPeriodic'
+     */
+    public void set_timerStrategyPeriodic(byte value) {
+        setSIntBEElement(offsetBits_timerStrategyPeriodic(), 8, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'timerStrategyPeriodic'
+     */
+    public static int size_timerStrategyPeriodic() {
+        return (8 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'timerStrategyPeriodic'
+     */
+    public static int sizeBits_timerStrategyPeriodic() {
+        return 8;
     }
 
 }

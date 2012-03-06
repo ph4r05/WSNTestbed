@@ -13,6 +13,7 @@ import net.tinyos.message.Message;
  */
 public class MessageReceived {
     private int i;
+    private long timeReceivedMili;
     private net.tinyos.message.Message msg;
 
     public MessageReceived(int i, Message msg) {
@@ -60,5 +61,13 @@ public class MessageReceived {
 
     public void setMsg(Message msg) {
         this.msg = msg;
+    }
+
+    public long getTimeReceivedMili() {
+        return timeReceivedMili;
+    }
+
+    public void setTimeReceivedMili(long timeReceivedMili) {
+        this.timeReceivedMili = timeReceivedMili;
     }
 }

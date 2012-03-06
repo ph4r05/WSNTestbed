@@ -3,14 +3,21 @@ package fi.wsnusbcollect;
 import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.console.ConsoleHelper;
 import fi.wsnusbcollect.experiment.ExperimentCoordinator;
+import fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl;
 import fi.wsnusbcollect.experiment.ExperimentInit;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Level;
+import org.ini4j.Ini;
+import org.ini4j.Wini;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -103,9 +110,13 @@ public class App {
     
     // Console
     private Console console = null;
-
-    private ExperimentCoordinator expCoord;
+    
+    // experiment objects
+    private ExperimentCoordinatorImpl expCoord;
     private ExperimentInit expInit;
+    
+    // parsed config file
+    protected Wini ini;
     
     public static void main(String[] args) {
         log.info("Starting application");
@@ -151,16 +162,18 @@ public class App {
         // spring application context init
         appContext = new ClassPathXmlApplicationContext("applicationContext.xml");
         
-        this.usbArbitrator = (USBarbitrator) appContext.getBean("USBarbitrator");
+        this.usbArbitrator = appContext.getBean("USBarbitrator", USBarbitrator.class);
         if (this.usbArbitrator == null){
             log.error("Dependency injection failed on USB arbitrator bean");
+            throw new IllegalStateException("Dependency injection is not working");
         }
         
-        this.consoleHelper = (ConsoleHelper) appContext.getBean(ConsoleHelper.class);
-        this.console = (Console) appContext.getBean(Console.class);
+        this.consoleHelper = appContext.getBean("consoleHelper", ConsoleHelper.class);
+        this.console = appContext.getBean("console", Console.class);
+        this.expInit = appContext.getBean("experimentInit", ExperimentInit.class);
+        this.expCoord = appContext.getBean("experimentCoordinator", ExperimentCoordinatorImpl.class);
         
-        this.expInit = (ExperimentInit) appContext.getBean("experimentInit");
-        this.expCoord = (ExperimentCoordinator) appContext.getBean("experimentCoordinator");
+        // reconnect between
         log.info("All dependencies initialized");
     }
     
@@ -230,6 +243,11 @@ public class App {
         // main logic starting
         log.info("Arguments parsed, can start logic");
         
+        // read config file if applicable
+        if (this.configFile!=null){
+            this.readConfig();
+        }
+        
         // new nodes detection - discovery USB connected nodes and update database
         if (detectNodes){
             log.info("Detecting new nodes");
@@ -248,9 +266,8 @@ public class App {
             this.console.prepareShell();
         }
         
-        // config file/arguments parsing, node selectors, get final set of nodes to connect to
-        List<NodeConfigRecord> nodes2connect = this.usbArbitrator.getNodes2connect(this.useMotesString, this.ignoreMotesString);
-        this.expInit.initConnectedNodes(null, nodes2connect);
+        // initialize experiment init class
+        this.expInit.initClass();
         // init, prepare for experiment
         this.expInit.initEnvironment();
         // pass controll to experiment coordinator, spawn new thread/blocking run
@@ -259,6 +276,29 @@ public class App {
         // drop to shell?
         if (shell){
             this.console.getShell();
+        }
+    }
+    
+    /**
+     * Reads config file to internal ini object
+     */
+    public void readConfig(){
+        BufferedReader in = null;
+        try {
+            in = new BufferedReader(new FileReader(this.configFile));
+            this.ini = new Wini(in);
+        } catch (FileNotFoundException ex) {
+            log.error("Config file not found");
+        } catch (IOException ex){
+            log.error("Config file not found");
+        }
+        
+        finally {
+            try {
+                in.close();
+            } catch (IOException ex) {
+                log.error("Problem with closing config file");
+            }
         }
     }
     
@@ -400,5 +440,17 @@ public class App {
 
     public void setStartSuspended(boolean startSuspended) {
         this.startSuspended = startSuspended;
+    }
+
+    public Wini getIni() {
+        return ini;
+    }
+
+    public ExperimentCoordinatorImpl getExpCoord() {
+        return expCoord;
+    }
+
+    public ExperimentInit getExpInit() {
+        return expInit;
     }
 }

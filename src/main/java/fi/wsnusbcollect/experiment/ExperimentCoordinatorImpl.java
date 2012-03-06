@@ -7,9 +7,15 @@ package fi.wsnusbcollect.experiment;
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.MessageTypes;
+import fi.wsnusbcollect.messages.MultiPingMsg;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
+import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.messages.RssiMsg;
+import fi.wsnusbcollect.nodeCom.MessageListener;
+import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
+import fi.wsnusbcollect.nodes.NodeHandler;
 import java.util.logging.Level;
 import javax.annotation.PostConstruct;
 import javax.persistence.EntityManager;
@@ -19,12 +25,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
 
 /**
  *
  * @author ph4r05
  */
-public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoordinator, net.tinyos.message.MessageListener{
+@Repository
+public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoordinator, MessageListener{
     private static final Logger log = LoggerFactory.getLogger(ExperimentCoordinatorImpl.class);
     
     @PersistenceContext
@@ -33,7 +41,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     @Autowired
     private JdbcTemplate template;
     
-    @Autowired
+    //@Autowired
     protected ExperimentInit expInit;
     
     @Autowired
@@ -47,6 +55,11 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     protected boolean suspended=true;
     
     private Message lastMsg;
+    
+    /**
+     * Miliseconds when unsuspended/started
+     */
+    private Long miliStart;
 
     public ExperimentCoordinatorImpl(String name) {
         super(name);
@@ -58,6 +71,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
 
     @PostConstruct
     public void initClass() {
+        //this.expInit = App.getRunningInstance().get
         log.info("Class initialized");
     }
 
@@ -86,6 +100,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             this.startSuspended();
         }
         
+        // main
         this.main();
     }
 
@@ -107,11 +122,15 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
     
     public void main() {  
+        this.miliStart = System.currentTimeMillis();
+        log.info("Experiment started, miliseconds start: " + miliStart);
+        
         // register node coordinator as message listener
         System.out.println("Register message listener for commands and pings");
         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);
         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.PingMsg(), this);
         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.RssiMsg(), this);
+        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.NoiseFloorReadingMsg(), this);
         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingMsg(), this);
         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseMsg(), this);
         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseReportMsg(), this);
@@ -161,12 +180,13 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * @param msg 
      */
     @Override
-    public synchronized void messageReceived(int i, Message msg) {
+    public synchronized void messageReceived(int i, Message msg, long mili) {
         //System.out.println("Message received: " + i);
         log.info("Message received: " + i + "; type: " + msg.amType()
                 + "; dataLen: " + msg.dataLength() 
                 + "; hdest: " + msg.getSerialPacket().get_header_dest()
-                + "; hsrc: " + msg.getSerialPacket().get_header_src());
+                + "; hsrc: " + msg.getSerialPacket().get_header_src() 
+                + "; mili: " + mili);
         
         // command message?
         if (CommandMsg.class.isInstance(msg)){
@@ -190,9 +210,102 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             log.info("RSSI message: " + rMsg.toString());
         }
         
+        // noise floor message
+        if (NoiseFloorReadingMsg.class.isInstance(msg)){
+            final NoiseFloorReadingMsg nMsg = (NoiseFloorReadingMsg) msg;
+            log.info("NoiseFloorMessage: " + nMsg.toString());
+        }
+        
         this.lastMsg = msg;
     }
+    
+    @Override
+    public synchronized void messageReceived(int i, Message msg) {
+        this.messageReceived(i, msg, 0);
+    }
+    
+    /**
+     * Sends multi ping request to specified node
+     * @param nodeId
+     * @param txpower
+     * @param channel
+     * @param packets
+     * @param delay
+     * @param size
+     * @param counterStrategySuccess
+     * @param timerStrategyPeriodic 
+     */
+    public synchronized void sendMultiPingRequest(int nodeId, int txpower,
+            int channel, int packets, int delay, int size, 
+            boolean counterStrategySuccess, boolean timerStrategyPeriodic){
 
+	MultiPingMsg msg = new MultiPingMsg();
+        msg.set_channel((short)channel);
+        msg.set_counter(0);
+        msg.set_counterStrategySuccess((byte) (counterStrategySuccess ? 1:0));
+        msg.set_delay(delay);
+        msg.set_packets(packets);
+        msg.set_size((short)size);
+        msg.set_timerStrategyPeriodic((byte) (timerStrategyPeriodic ? 1:0));
+        msg.set_txpower((short)txpower);
+        
+        this.sendMessageToNode(msg, nodeId);
+    }
+    
+    /**
+     * Send reset message
+     * @param nodeId 
+     */
+    public synchronized void sendReset(int nodeId){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_RESET);
+        
+        this.sendMessageToNode(msg, nodeId);
+    }
+    
+    /**
+     * Set noise floor reading packet to node
+     * @param nodeId
+     * @param delay 
+     */
+    public synchronized void sendNoiseFloorReading(int nodeId, int delay){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_SETNOISEFLOORREADING);
+        msg.set_command_data(delay);
+        
+        this.sendMessageToNode(msg, nodeId);
+    }
+    
+    /**
+     * Send selected defined packet to node.
+     * Another methods may build custom command packet, it is then passed to this method
+     * which sends it to all selected nodes
+     * 
+     * @param CommandMsg payload    data packet to send. Is CommandMessage
+     */    
+    public synchronized void sendMessageToNode(Message payload, int nodeId){
+        try {           
+            Integer nId = Integer.valueOf(nodeId);
+            // get node from node register
+            if (this.nodeReg.containsKey(nId)==false){
+                log.error("Cannot send message to node " + nId + "; No such node found in register");
+                return;
+            }
+            
+            NodeHandler nh = this.nodeReg.get(nId);
+            if (nh.canAddMessage2Send()==false){
+                log.error("From some reason message cannot be sent to this node currently, please try again later. NodeId: " + nId);
+                return;
+            }
+            
+            // add to send queue
+            log.info("CmdMessage to send for node: " + nId + "; Command: " + payload);
+            nh.addMessage2Send(payload, null);
+        }  catch (Exception ex) {
+            log.error("Cannot send CmdMessage to nodeId: " + nodeId, ex);
+        }
+    }
+    
     public boolean isRunning() {
         return running;
     }

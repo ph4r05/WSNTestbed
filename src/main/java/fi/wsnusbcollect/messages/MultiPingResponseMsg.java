@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class MultiPingResponseMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 4;
+    public static final int DEFAULT_MESSAGE_SIZE = 2;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 13;
 
-    /** Create a new MultiPingResponseMsg of size 4. */
+    /** Create a new MultiPingResponseMsg of size 2. */
     public MultiPingResponseMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -90,7 +90,6 @@ public class MultiPingResponseMsg extends net.tinyos.message.Message {
         s += "  [counter=0x"+Long.toHexString(get_counter())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [rssi=0x"+Long.toHexString(get_rssi())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       return s;
     }
@@ -99,16 +98,16 @@ public class MultiPingResponseMsg extends net.tinyos.message.Message {
 
     /////////////////////////////////////////////////////////
     // Accessor methods for field: counter
-    //   Field type: int, signed
+    //   Field type: int, unsigned
     //   Offset (bits): 0
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
     /**
-     * Return whether the field 'counter' is signed (true).
+     * Return whether the field 'counter' is signed (false).
      */
     public static boolean isSigned_counter() {
-        return true;
+        return false;
     }
 
     /**
@@ -161,66 +160,131 @@ public class MultiPingResponseMsg extends net.tinyos.message.Message {
     }
 
     /////////////////////////////////////////////////////////
-    // Accessor methods for field: rssi
-    //   Field type: short, signed
+    // Accessor methods for field: data
+    //   Field type: short[], unsigned
     //   Offset (bits): 16
-    //   Size (bits): 16
+    //   Size of each element (bits): 8
     /////////////////////////////////////////////////////////
 
     /**
-     * Return whether the field 'rssi' is signed (true).
+     * Return whether the field 'data' is signed (false).
      */
-    public static boolean isSigned_rssi() {
-        return true;
-    }
-
-    /**
-     * Return whether the field 'rssi' is an array (false).
-     */
-    public static boolean isArray_rssi() {
+    public static boolean isSigned_data() {
         return false;
     }
 
     /**
-     * Return the offset (in bytes) of the field 'rssi'
+     * Return whether the field 'data' is an array (true).
      */
-    public static int offset_rssi() {
-        return (16 / 8);
+    public static boolean isArray_data() {
+        return true;
     }
 
     /**
-     * Return the offset (in bits) of the field 'rssi'
+     * Return the offset (in bytes) of the field 'data'
      */
-    public static int offsetBits_rssi() {
-        return 16;
+    public static int offset_data(int index1) {
+        int offset = 16;
+        if (index1 < 0) throw new ArrayIndexOutOfBoundsException();
+        offset += 0 + index1 * 8;
+        return (offset / 8);
     }
 
     /**
-     * Return the value (as a short) of the field 'rssi'
+     * Return the offset (in bits) of the field 'data'
      */
-    public short get_rssi() {
-        return (short)getSIntBEElement(offsetBits_rssi(), 16);
+    public static int offsetBits_data(int index1) {
+        int offset = 16;
+        if (index1 < 0) throw new ArrayIndexOutOfBoundsException();
+        offset += 0 + index1 * 8;
+        return offset;
     }
 
     /**
-     * Set the value of the field 'rssi'
+     * Return the entire array 'data' as a short[]
      */
-    public void set_rssi(short value) {
-        setSIntBEElement(offsetBits_rssi(), 16, value);
+    public short[] get_data() {
+        throw new IllegalArgumentException("Cannot get field as array - unknown size");
     }
 
     /**
-     * Return the size, in bytes, of the field 'rssi'
+     * Set the contents of the array 'data' from the given short[]
      */
-    public static int size_rssi() {
-        return (16 / 8);
+    public void set_data(short[] value) {
+        for (int index0 = 0; index0 < value.length; index0++) {
+            setElement_data(index0, value[index0]);
+        }
     }
 
     /**
-     * Return the size, in bits, of the field 'rssi'
+     * Return an element (as a short) of the array 'data'
      */
-    public static int sizeBits_rssi() {
-        return 16;
+    public short getElement_data(int index1) {
+        return (short)getUIntBEElement(offsetBits_data(index1), 8);
+    }
+
+    /**
+     * Set an element of the array 'data'
+     */
+    public void setElement_data(int index1, short value) {
+        setUIntBEElement(offsetBits_data(index1), 8, value);
+    }
+
+    /**
+     * Return the size, in bytes, of each element of the array 'data'
+     */
+    public static int elementSize_data() {
+        return (8 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of each element of the array 'data'
+     */
+    public static int elementSizeBits_data() {
+        return 8;
+    }
+
+    /**
+     * Return the number of dimensions in the array 'data'
+     */
+    public static int numDimensions_data() {
+        return 1;
+    }
+
+    /**
+     * Return the number of elements in the array 'data'
+     * for the given dimension.
+     */
+    public static int numElements_data(int dimension) {
+      int array_dims[] = { 0,  };
+        if (dimension < 0 || dimension >= 1) throw new ArrayIndexOutOfBoundsException();
+        if (array_dims[dimension] == 0) throw new IllegalArgumentException("Array dimension "+dimension+" has unknown size");
+        return array_dims[dimension];
+    }
+
+    /**
+     * Fill in the array 'data' with a String
+     */
+    public void setString_data(String s) { 
+         int len = s.length();
+         int i;
+         for (i = 0; i < len; i++) {
+             setElement_data(i, (short)s.charAt(i));
+         }
+         setElement_data(i, (short)0); //null terminate
+    }
+
+    /**
+     * Read the array 'data' as a String
+     */
+    public String getString_data() { 
+         char carr[] = new char[net.tinyos.message.Message.MAX_CONVERTED_STRING_LENGTH];
+         int i;
+         for (i = 0; i < carr.length; i++) {
+             if ((char)getElement_data(i) == (char)0) break;
+             carr[i] = (char)getElement_data(i);
+         }
+         return new String(carr,0,i);
     }
 
 }

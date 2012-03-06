@@ -4,6 +4,7 @@
  */
 package fi.wsnusbcollect.nodeManager;
 
+import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.nodes.AbstractNodeHandler;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.NodeHandler;
@@ -89,7 +90,7 @@ public class NodeHandlerRegister implements Map<Integer, NodeHandler> {
      * Registers message listener for all connected nodes
      * @return 
      */
-    public boolean registerMessageListener(net.tinyos.message.Message msg, net.tinyos.message.MessageListener listener){
+    public boolean registerMessageListener(net.tinyos.message.Message msg, MessageListener listener){
         Iterator<Integer> iterator = this.connectedNodes.iterator();
         while(iterator.hasNext()){
             Integer nodeid = iterator.next();

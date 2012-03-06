@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 27;
+    public static final int DEFAULT_MESSAGE_SIZE = 24;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 16;
 
-    /** Create a new MultiPingResponseReportMsg of size 27. */
+    /** Create a new MultiPingResponseReportMsg of size 24. */
     public MultiPingResponseReportMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -94,22 +94,29 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [nodeid=";
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 3; i++) {
           s += "0x"+Long.toHexString(getElement_nodeid(i) & 0xffff)+" ";
         }
         s += "]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [nodecounter=";
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 3; i++) {
           s += "0x"+Long.toHexString(getElement_nodecounter(i) & 0xffff)+" ";
         }
         s += "]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [rssi=";
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 3; i++) {
           s += "0x"+Long.toHexString(getElement_rssi(i) & 0xffff)+" ";
+        }
+        s += "]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [len=";
+        for (int i = 0; i < 3; i++) {
+          s += "0x"+Long.toHexString(getElement_len(i) & 0xff)+" ";
         }
         s += "]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
@@ -270,7 +277,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      */
     public static int offset_nodeid(int index1) {
         int offset = 24;
-        if (index1 < 0 || index1 >= 4) throw new ArrayIndexOutOfBoundsException();
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return (offset / 8);
     }
@@ -280,7 +287,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      */
     public static int offsetBits_nodeid(int index1) {
         int offset = 24;
-        if (index1 < 0 || index1 >= 4) throw new ArrayIndexOutOfBoundsException();
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return offset;
     }
@@ -289,7 +296,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the entire array 'nodeid' as a int[]
      */
     public int[] get_nodeid() {
-        int[] tmp = new int[4];
+        int[] tmp = new int[3];
         for (int index0 = 0; index0 < numElements_nodeid(0); index0++) {
             tmp[index0] = getElement_nodeid(index0);
         }
@@ -323,14 +330,14 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the total size, in bytes, of the array 'nodeid'
      */
     public static int totalSize_nodeid() {
-        return (64 / 8);
+        return (48 / 8);
     }
 
     /**
      * Return the total size, in bits, of the array 'nodeid'
      */
     public static int totalSizeBits_nodeid() {
-        return 64;
+        return 48;
     }
 
     /**
@@ -358,7 +365,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the number of elements in the array 'nodeid'
      */
     public static int numElements_nodeid() {
-        return 4;
+        return 3;
     }
 
     /**
@@ -366,7 +373,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * for the given dimension.
      */
     public static int numElements_nodeid(int dimension) {
-      int array_dims[] = { 4,  };
+      int array_dims[] = { 3,  };
         if (dimension < 0 || dimension >= 1) throw new ArrayIndexOutOfBoundsException();
         if (array_dims[dimension] == 0) throw new IllegalArgumentException("Array dimension "+dimension+" has unknown size");
         return array_dims[dimension];
@@ -375,7 +382,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: nodecounter
     //   Field type: int[], signed
-    //   Offset (bits): 88
+    //   Offset (bits): 72
     //   Size of each element (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -397,8 +404,8 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'nodecounter'
      */
     public static int offset_nodecounter(int index1) {
-        int offset = 88;
-        if (index1 < 0 || index1 >= 4) throw new ArrayIndexOutOfBoundsException();
+        int offset = 72;
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return (offset / 8);
     }
@@ -407,8 +414,8 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bits) of the field 'nodecounter'
      */
     public static int offsetBits_nodecounter(int index1) {
-        int offset = 88;
-        if (index1 < 0 || index1 >= 4) throw new ArrayIndexOutOfBoundsException();
+        int offset = 72;
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return offset;
     }
@@ -417,7 +424,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the entire array 'nodecounter' as a int[]
      */
     public int[] get_nodecounter() {
-        int[] tmp = new int[4];
+        int[] tmp = new int[3];
         for (int index0 = 0; index0 < numElements_nodecounter(0); index0++) {
             tmp[index0] = getElement_nodecounter(index0);
         }
@@ -451,14 +458,14 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the total size, in bytes, of the array 'nodecounter'
      */
     public static int totalSize_nodecounter() {
-        return (64 / 8);
+        return (48 / 8);
     }
 
     /**
      * Return the total size, in bits, of the array 'nodecounter'
      */
     public static int totalSizeBits_nodecounter() {
-        return 64;
+        return 48;
     }
 
     /**
@@ -486,7 +493,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the number of elements in the array 'nodecounter'
      */
     public static int numElements_nodecounter() {
-        return 4;
+        return 3;
     }
 
     /**
@@ -494,7 +501,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * for the given dimension.
      */
     public static int numElements_nodecounter(int dimension) {
-      int array_dims[] = { 4,  };
+      int array_dims[] = { 3,  };
         if (dimension < 0 || dimension >= 1) throw new ArrayIndexOutOfBoundsException();
         if (array_dims[dimension] == 0) throw new IllegalArgumentException("Array dimension "+dimension+" has unknown size");
         return array_dims[dimension];
@@ -503,7 +510,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: rssi
     //   Field type: short[], signed
-    //   Offset (bits): 152
+    //   Offset (bits): 120
     //   Size of each element (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -525,8 +532,8 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'rssi'
      */
     public static int offset_rssi(int index1) {
-        int offset = 152;
-        if (index1 < 0 || index1 >= 4) throw new ArrayIndexOutOfBoundsException();
+        int offset = 120;
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return (offset / 8);
     }
@@ -535,8 +542,8 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bits) of the field 'rssi'
      */
     public static int offsetBits_rssi(int index1) {
-        int offset = 152;
-        if (index1 < 0 || index1 >= 4) throw new ArrayIndexOutOfBoundsException();
+        int offset = 120;
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return offset;
     }
@@ -545,7 +552,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the entire array 'rssi' as a short[]
      */
     public short[] get_rssi() {
-        short[] tmp = new short[4];
+        short[] tmp = new short[3];
         for (int index0 = 0; index0 < numElements_rssi(0); index0++) {
             tmp[index0] = getElement_rssi(index0);
         }
@@ -579,14 +586,14 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the total size, in bytes, of the array 'rssi'
      */
     public static int totalSize_rssi() {
-        return (64 / 8);
+        return (48 / 8);
     }
 
     /**
      * Return the total size, in bits, of the array 'rssi'
      */
     public static int totalSizeBits_rssi() {
-        return 64;
+        return 48;
     }
 
     /**
@@ -614,7 +621,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the number of elements in the array 'rssi'
      */
     public static int numElements_rssi() {
-        return 4;
+        return 3;
     }
 
     /**
@@ -622,10 +629,163 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * for the given dimension.
      */
     public static int numElements_rssi(int dimension) {
-      int array_dims[] = { 4,  };
+      int array_dims[] = { 3,  };
         if (dimension < 0 || dimension >= 1) throw new ArrayIndexOutOfBoundsException();
         if (array_dims[dimension] == 0) throw new IllegalArgumentException("Array dimension "+dimension+" has unknown size");
         return array_dims[dimension];
+    }
+
+    /////////////////////////////////////////////////////////
+    // Accessor methods for field: len
+    //   Field type: byte[], signed
+    //   Offset (bits): 168
+    //   Size of each element (bits): 8
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'len' is signed (true).
+     */
+    public static boolean isSigned_len() {
+        return true;
+    }
+
+    /**
+     * Return whether the field 'len' is an array (true).
+     */
+    public static boolean isArray_len() {
+        return true;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'len'
+     */
+    public static int offset_len(int index1) {
+        int offset = 168;
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
+        offset += 0 + index1 * 8;
+        return (offset / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'len'
+     */
+    public static int offsetBits_len(int index1) {
+        int offset = 168;
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
+        offset += 0 + index1 * 8;
+        return offset;
+    }
+
+    /**
+     * Return the entire array 'len' as a byte[]
+     */
+    public byte[] get_len() {
+        byte[] tmp = new byte[3];
+        for (int index0 = 0; index0 < numElements_len(0); index0++) {
+            tmp[index0] = getElement_len(index0);
+        }
+        return tmp;
+    }
+
+    /**
+     * Set the contents of the array 'len' from the given byte[]
+     */
+    public void set_len(byte[] value) {
+        for (int index0 = 0; index0 < value.length; index0++) {
+            setElement_len(index0, value[index0]);
+        }
+    }
+
+    /**
+     * Return an element (as a byte) of the array 'len'
+     */
+    public byte getElement_len(int index1) {
+        return (byte)getSIntBEElement(offsetBits_len(index1), 8);
+    }
+
+    /**
+     * Set an element of the array 'len'
+     */
+    public void setElement_len(int index1, byte value) {
+        setSIntBEElement(offsetBits_len(index1), 8, value);
+    }
+
+    /**
+     * Return the total size, in bytes, of the array 'len'
+     */
+    public static int totalSize_len() {
+        return (24 / 8);
+    }
+
+    /**
+     * Return the total size, in bits, of the array 'len'
+     */
+    public static int totalSizeBits_len() {
+        return 24;
+    }
+
+    /**
+     * Return the size, in bytes, of each element of the array 'len'
+     */
+    public static int elementSize_len() {
+        return (8 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of each element of the array 'len'
+     */
+    public static int elementSizeBits_len() {
+        return 8;
+    }
+
+    /**
+     * Return the number of dimensions in the array 'len'
+     */
+    public static int numDimensions_len() {
+        return 1;
+    }
+
+    /**
+     * Return the number of elements in the array 'len'
+     */
+    public static int numElements_len() {
+        return 3;
+    }
+
+    /**
+     * Return the number of elements in the array 'len'
+     * for the given dimension.
+     */
+    public static int numElements_len(int dimension) {
+      int array_dims[] = { 3,  };
+        if (dimension < 0 || dimension >= 1) throw new ArrayIndexOutOfBoundsException();
+        if (array_dims[dimension] == 0) throw new IllegalArgumentException("Array dimension "+dimension+" has unknown size");
+        return array_dims[dimension];
+    }
+
+    /**
+     * Fill in the array 'len' with a String
+     */
+    public void setString_len(String s) { 
+         int len = s.length();
+         int i;
+         for (i = 0; i < len; i++) {
+             setElement_len(i, (byte)s.charAt(i));
+         }
+         setElement_len(i, (byte)0); //null terminate
+    }
+
+    /**
+     * Read the array 'len' as a String
+     */
+    public String getString_len() { 
+         char carr[] = new char[Math.min(net.tinyos.message.Message.MAX_CONVERTED_STRING_LENGTH,3)];
+         int i;
+         for (i = 0; i < carr.length; i++) {
+             if ((char)getElement_len(i) == (char)0) break;
+             carr[i] = (char)getElement_len(i);
+         }
+         return new String(carr,0,i);
     }
 
 }

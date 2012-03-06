@@ -4,6 +4,7 @@
  */
 package fi.wsnusbcollect.nodes;
 
+import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.nodeCom.MessageReceived;
 import fi.wsnusbcollect.nodeCom.MessageSender;
 import fi.wsnusbcollect.nodeCom.MessageSentListener;
@@ -13,7 +14,6 @@ import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import net.tinyos.message.Message;
-import net.tinyos.message.MessageListener;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
 import net.tinyos.packet.PhoenixSource;

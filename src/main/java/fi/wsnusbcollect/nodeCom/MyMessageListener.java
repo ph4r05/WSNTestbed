@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.tinyos.message.Message;
-import net.tinyos.message.MessageListener;
 import net.tinyos.message.MoteIF;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * @since  23-20-2011
  * @author ph4r05
  */
-public class MyMessageListener extends Thread implements MessageListener {
+public class MyMessageListener extends Thread implements net.tinyos.message.MessageListener {
     private static final Logger log = LoggerFactory.getLogger(MessageSender.class);
     
     /**
@@ -162,7 +161,7 @@ public class MyMessageListener extends Thread implements MessageListener {
      * If same listener (.equals()) is registered to same message type, request
      * is ignored.
      */
-    public synchronized void registerListener(net.tinyos.message.Message msg, net.tinyos.message.MessageListener listener){
+    public synchronized void registerListener(net.tinyos.message.Message msg, MessageListener listener){
         // null?
         if (msg==null || listener==null){
             log.error("Cannot register listener when message or listener is null");
@@ -186,7 +185,7 @@ public class MyMessageListener extends Thread implements MessageListener {
             if (this.messageListeners.containsKey(amtype)==false 
                     || this.messageListeners.get(amtype)==null){
                 // none such mapping yet created, create new list of listeners
-                ConcurrentLinkedQueue<net.tinyos.message.MessageListener> queueListener = new ConcurrentLinkedQueue<MessageListener>();
+                ConcurrentLinkedQueue<MessageListener> queueListener = new ConcurrentLinkedQueue<MessageListener>();
                 this.messageListeners.put(amtype, queueListener);
             }
 
@@ -399,6 +398,7 @@ public class MyMessageListener extends Thread implements MessageListener {
         
         // really add message to queue
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
+        msgReceiveed.setTimeReceivedMili(System.currentTimeMillis());
         this.queue.add(msgReceiveed);
     }
 
@@ -545,7 +545,7 @@ public class MyMessageListener extends Thread implements MessageListener {
                         // can be thrown, this exception affects only one listener
                         try{
                             // notify here
-                            curListener.messageReceived(tmpMessage.getI(), msg);
+                            curListener.messageReceived(tmpMessage.getI(), msg, tmpMessage.getTimeReceivedMili());
                         } catch (Exception e){
                             log.error("Exception during notifying listener", e);
                             continue;

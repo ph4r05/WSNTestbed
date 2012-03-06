@@ -6,8 +6,10 @@ package fi.wsnusbcollect.console;
 
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.experiment.ExperimentCoordinator;
+import fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl;
 import fi.wsnusbcollect.experiment.ExperimentInit;
 import fi.wsnusbcollect.usb.USBarbitrator;
+import javax.annotation.Resource;
 import org.python.core.Py;
 import org.python.core.PySystemState;
 import org.python.util.InteractiveConsole;
@@ -29,14 +31,14 @@ public class Console {
     @Autowired
     private USBarbitrator usbArbitrator = null;
     
-    @Autowired
-    private ExperimentCoordinator expCoord;
+    @Resource(name="experimentCoordinator")
+    private ExperimentCoordinatorImpl expCoord;
     
-    @Autowired
+    @Resource(name="experimentInit")
     private ExperimentInit expInit;    
 
     // interactive jython interface
-    protected InteractiveConsole interp;
+    protected JLineConsole interp;
     
     // python shell does not exit on ctrl+d
     private boolean shellNoExit=true;    
@@ -98,7 +100,6 @@ public class Console {
      * Method starts new initialized Jython shell for user
      */
     public void getShell(){
-        
         while (this.shellNoExit) {
             log.info("Starting shell");
             this.consoleHelper.consoleRestarted();
@@ -127,7 +128,7 @@ public class Console {
                 }
             }
         }
-
+        
         log.info("Shel terminating");
         // next command is used to start telnet jython server
         // not properly implemented yet
@@ -151,11 +152,11 @@ public class Console {
         this.consoleHelper = consoleHelper;
     }
 
-    public InteractiveConsole getInterp() {
+    public JLineConsole getInterp() {
         return interp;
     }
 
-    public void setInterp(InteractiveConsole interp) {
+    public void setInterp(JLineConsole interp) {
         this.interp = interp;
     }
 
@@ -179,7 +180,7 @@ public class Console {
         return expCoord;
     }
 
-    public void setExpCoord(ExperimentCoordinator expCoord) {
+    public void setExpCoord(ExperimentCoordinatorImpl expCoord) {
         this.expCoord = expCoord;
     }
 
