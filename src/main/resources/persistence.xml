@@ -16,6 +16,17 @@ xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/x
       <property name="javax.persistence.jdbc.user" value="xklinec"/>
       <property name="hibernate.dialect" value="org.hibernate.dialect.MySQL5Dialect"/>
       <property name="hibernate.hbm2ddl.auto" value="update"/>
+      <property name="c3p0.acquire_increment" value="2" />
+    <property name="hibernate.c3p0.idle_test_period" value="10" /> <!-- seconds --> 
+    <property name="hibernate.c3p0.max_size" value="150" />
+    <property name="hibernate.c3p0.max_statements" value="0" />
+    <property name="hibernate.c3p0.min_size" value="25" />
+    <property name="hibernate.c3p0.timeout" value="10" />
+    <property name="hibernate.c3p0.initialPoolSize" value="30" />
+    <property name="hibernate.c3p0.minPoolSize" value="30" />
+    <property name="hibernate.c3p0.maxPoolSize" value="150" />
+    <property name="hibernate.c3p0.timeout" value="10" />
+    
     </properties>
   </persistence-unit>
 </persistence>

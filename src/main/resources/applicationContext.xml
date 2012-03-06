@@ -45,14 +45,29 @@
     </bean>        
         
     <!-- 
-        Data sources
+        Data source - local, single connection data source JDBC
     --> 
+    <!--
     <bean id="dataSource"
           class="org.springframework.jdbc.datasource.DriverManagerDataSource"
           p:driverClassName="${db.driver}"
           p:url="${db.url}"
           p:username="${db.user}"
-          p:password="${db.password}" />
+          p:password="${db.password}">       
+    </bean>
+    -->
+    
+    <!-- Connection pool -->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+      <property name="driverClass"><value>${db.driver}</value></property>
+      <property name="jdbcUrl"><value>${db.url}</value></property>
+      <property name="user"><value>${db.user}</value></property>
+      <property name="password"><value>${db.password}</value></property>
+      <property name="acquireIncrement"><value>2</value></property>
+      <property name="maxPoolSize"><value>150</value></property>
+      <property name="minPoolSize"><value>30</value></property>
+      <property name="initialPoolSize"><value>30</value></property>
+    </bean>
           
     <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate" >
         <!-- setter for data source -->
@@ -73,6 +88,33 @@
         </property>
         <property name="persistenceXmlLocation" value="classpath:/persistence.xml"/>
     </bean>
+    
+    <!--
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate.LocalSessionFactoryBean">
+        <property name="mappingResources" ref="hibernateMappingList" />
+        <property name="hibernateProperties">
+            <props>
+                <prop key="hibernate.dialect">${db.dialect}</prop>
+                <prop key="transaction.factory_class">
+                    net.sf.hibernate.transaction.JDBCTransactionFactory
+                </prop>
+                <prop key="hibernate.transaction.factory_class">
+                    net.sf.hibernate.transaction.JDBCTransactionFactory
+                </prop>
+                <prop key="hibernate.show_sql">false</prop>
+                <prop key="hibernate.cglib.use_reflection_optimizer">false</prop>
+                <prop key="hibernate.jdbc.batch_size">0</prop>
+
+                <prop key="hibernate.c3p0.min_size">2</prop>
+                <prop key="hibernate.c3p0.max_size">5</prop>
+                <prop key="hibernate.c3p0.timeout">600</prop>
+                <prop key="hibernate.c3p0.max_statements">0</prop>
+                <prop key="hibernate.c3p0.idle_test_period">300</prop>
+                <prop key="hibernate.c3p0.acquire_increment">1</prop>
+          </props>
+        </property>
+    </bean>
+    -->
 
     <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
         <property name="entityManagerFactory" ref="entityManagerFactory"/>
@@ -85,6 +127,8 @@
     <bean id="nodeHandlerRegister" class="fi.wsnusbcollect.nodeManager.NodeHandlerRegister"/>
     
     <!-- Experiment related -->
+    <bean id="experimentParameters" class="fi.wsnusbcollect.experiment.ExperimentParameters"/>
     <bean id="experimentInit" class="fi.wsnusbcollect.experiment.ExperimentInitImpl"/>
     <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl"/>
+    <bean id="experimentData2DB" class="fi.wsnusbcollect.experiment.ExperimentData2DB" scope="prototype"  />
 </beans>

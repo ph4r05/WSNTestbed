@@ -4,9 +4,9 @@
   <session-factory>
     <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
     <property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
-    <property name="hibernate.connection.url">jdbc:mysql://89.29.122.86:3306/wsnusb</property>
-    <property name="hibernate.connection.username">wsnusb</property>
-    <property name="hibernate.connection.password">GpzHceWMUjE7RS4p</property>
+    <property name="hibernate.connection.url">jdbc:mysql://127.0.0.1:3306/xklinec?useUnicode=true&connectionCollation=utf8_general_ci&characterSetResults=utf8&autoReconnect=true&characterEncoding=UTF-8</property>
+    <property name="hibernate.connection.username">xklinec</property>
+    <property name="hibernate.connection.password">xyhCmFFTQqfmm7QP</property>
     <property name="hibernate.show_sql">false</property>
   </session-factory>
 </hibernate-configuration>
