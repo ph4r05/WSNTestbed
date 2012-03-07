@@ -18,6 +18,7 @@ import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import fi.wsnusbcollect.nodes.NodeHandler;
 import java.util.logging.Level;
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import net.tinyos.message.Message;
@@ -42,7 +43,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     private JdbcTemplate template;
     
     //@Autowired
-    protected ExperimentInit expInit;
+    //@Resource(name="experimentInit")
+    protected ExperimentInitImpl expInit;
     
     @Autowired
     protected NodeHandlerRegister nodeReg;
@@ -71,7 +73,6 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
 
     @PostConstruct
     public void initClass() {
-        //this.expInit = App.getRunningInstance().get
         log.info("Class initialized");
     }
 
@@ -86,6 +87,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     // without shell it is not necessary
     @Override
     public void work() {
+        this.expInit = (ExperimentInitImpl) App.getRunningInstance().getExpInit();
+        
         if (App.getRunningInstance().isShell()){
             this.start();
         } else {
@@ -123,6 +126,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     
     public void main() {  
         this.miliStart = System.currentTimeMillis();
+        this.expInit.updateExperimentStart(miliStart);
         log.info("Experiment started, miliseconds start: " + miliStart);
         
         // register node coordinator as message listener
@@ -157,7 +161,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         return expInit;
     }
 
-    public void setExpInit(ExperimentInit expInit) {
+    public void setExpInit(ExperimentInitImpl expInit) {
         this.expInit = expInit;
     }
 

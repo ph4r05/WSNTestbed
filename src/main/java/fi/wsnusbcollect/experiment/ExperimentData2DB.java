@@ -15,12 +15,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  *
  * @author ph4r05
  */
 @Repository
+//@Transactional
 public class ExperimentData2DB extends Thread implements MessageListener{
     private static final Logger log = LoggerFactory.getLogger(ExperimentData2DB.class);
     

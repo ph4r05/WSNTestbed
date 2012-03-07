@@ -38,4 +38,6 @@ public interface ExperimentInit {
      * @param ncr 
      */
     public void initConnectedNodes(Properties props, List<NodeConfigRecord> ncr);
+    
+    public void updateExperimentStart(long mili);
 }

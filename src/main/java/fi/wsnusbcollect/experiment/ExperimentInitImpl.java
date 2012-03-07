@@ -18,6 +18,8 @@ import fi.wsnusbcollect.nodes.NodePlatformFactory;
 import fi.wsnusbcollect.nodes.SimpleGenericNode;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
@@ -34,12 +36,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  *
  * @author ph4r05
  */
 @Repository
+@Transactional
 public class ExperimentInitImpl implements ExperimentInit {
     private static final Logger log = LoggerFactory.getLogger(ExperimentInit.class);
 
@@ -80,7 +84,6 @@ public class ExperimentInitImpl implements ExperimentInit {
         
     }
     
-    @PostConstruct
     @Override
     public void initClass() {
         log.info("Class initialized");
@@ -93,6 +96,7 @@ public class ExperimentInitImpl implements ExperimentInit {
         
         // stores metadata about experiment
         expMeta = new ExperimentMetadata();
+        expMeta.setDatestart(new Date());
         
         // owner of experiment, determine from system
         String username = System.getProperty("user.name");
@@ -111,7 +115,7 @@ public class ExperimentInitImpl implements ExperimentInit {
             }
             
             // store config file as raw
-            expMeta.setConfigFile(this.config.toString());
+            expMeta.setConfigFile(App.getRunningInstance().getConfigFileContents());
             
             // get metadata section from ini file
             Ini.Section metadata = this.config.get("experimentMetadata");
@@ -165,10 +169,47 @@ public class ExperimentInitImpl implements ExperimentInit {
         
         // init connected nodes - builds handler and connecto to them
         this.initConnectedNodes(null, nodes2connect);
+        //write information about directly connected nodes and its configuration (nodes2connect)
+        ArrayList<String> nodeList = new ArrayList<String>(nodes2connect.size());
+        Iterator<NodeConfigRecord> ncrIt = nodes2connect.iterator();
+        while(ncrIt.hasNext()){
+            NodeConfigRecord ncr = ncrIt.next();
+            nodeList.add(ncr.getSerial());
+        }
+        
+        expMeta.setConnectedNodesUsed(nodeList);
+        
+        // persist meta
+        this.em.persist(expMeta);
+        this.em.flush();
+    }
+    
+    /**
+     * Updates real experiment start in miliseconds - in configuration
+     * @param mili 
+     */
+    @Override
+    public void updateExperimentStart(long mili){
+        if (this.expMeta==null){
+            throw new NullPointerException("Current experiment metadata is null");
+        }
+        
+        // attached?
+        if (this.em.contains(this.expMeta)){
+            this.expMeta.setMiliStart(mili);
+        } else {
+            log.info("Entity is not managed");
+            this.expMeta = this.em.merge(this.expMeta);
+            this.expMeta.setMiliStart(mili);
+            this.em.persist(this.expMeta);
+        }
+        
+        this.em.flush();
     }
 
     /**
      * Stores experiment configuration to database
+     * @deprecated 
      */
     public void storeConfig(){
         // store experiment metadata to database

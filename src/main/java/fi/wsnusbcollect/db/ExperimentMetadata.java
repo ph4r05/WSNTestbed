@@ -5,7 +5,10 @@
 package fi.wsnusbcollect.db;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -54,6 +57,9 @@ public class ExperimentMetadata implements Serializable {
     
     @Lob
     private String configFile;
+    
+    @ElementCollection
+    private List<String> connectedNodesUsed = new ArrayList<String>();
 
     public Date getDatestart() {
         return datestart;
@@ -141,5 +147,13 @@ public class ExperimentMetadata implements Serializable {
 
     public void setMiliStart(Long miliStart) {
         this.miliStart = miliStart;
+    }
+
+    public List<String> getConnectedNodesUsed() {
+        return connectedNodesUsed;
+    }
+
+    public void setConnectedNodesUsed(List<String> connectedNodesUsed) {
+        this.connectedNodesUsed = connectedNodesUsed;
     }
 }

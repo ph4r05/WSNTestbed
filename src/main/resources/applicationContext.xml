@@ -131,4 +131,5 @@
     <bean id="experimentInit" class="fi.wsnusbcollect.experiment.ExperimentInitImpl"/>
     <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl"/>
     <bean id="experimentData2DB" class="fi.wsnusbcollect.experiment.ExperimentData2DB" scope="prototype"  />
+    <aop:aspectj-autoproxy proxy-target-class="true"/>
 </beans>

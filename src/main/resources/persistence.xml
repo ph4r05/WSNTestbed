@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<persistence version="2.0" 
-xmlns="http://java.sun.com/xml/ns/persistence" 
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd">
+<persistence version="2.0" xmlns="http://java.sun.com/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd">
   <persistence-unit name="cards_management_PU" transaction-type="RESOURCE_LOCAL">
     <provider>org.hibernate.ejb.HibernatePersistence</provider>
     <class>fi.wsnusbcollect.db.USBdevice</class>
     <class>fi.wsnusbcollect.db.USBconfiguration</class>
+    <class>fi.wsnusbcollect.db.ExperimentDataAliveCheck</class>
+    <class>fi.wsnusbcollect.db.ExperimentDataNoise</class>
+    <class>fi.wsnusbcollect.db.ExperimentDataParameters</class>
+    <class>fi.wsnusbcollect.db.ExperimentDataRSSI</class>
+    <class>fi.wsnusbcollect.db.ExperimentMetadata</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="hibernate.cache.provider_class" value="org.hibernate.cache.NoCacheProvider"/>
@@ -16,17 +18,18 @@ xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/x
       <property name="javax.persistence.jdbc.user" value="xklinec"/>
       <property name="hibernate.dialect" value="org.hibernate.dialect.MySQL5Dialect"/>
       <property name="hibernate.hbm2ddl.auto" value="update"/>
-      <property name="c3p0.acquire_increment" value="2" />
-    <property name="hibernate.c3p0.idle_test_period" value="10" /> <!-- seconds --> 
-    <property name="hibernate.c3p0.max_size" value="150" />
-    <property name="hibernate.c3p0.max_statements" value="0" />
-    <property name="hibernate.c3p0.min_size" value="25" />
-    <property name="hibernate.c3p0.timeout" value="10" />
-    <property name="hibernate.c3p0.initialPoolSize" value="30" />
-    <property name="hibernate.c3p0.minPoolSize" value="30" />
-    <property name="hibernate.c3p0.maxPoolSize" value="150" />
-    <property name="hibernate.c3p0.timeout" value="10" />
-    
+      <property name="c3p0.acquire_increment" value="2">1</property>
+      <property name="hibernate.c3p0.idle_test_period" value="10">100</property>
+      <!-- seconds -->
+      <property name="hibernate.c3p0.max_size" value="150">100</property>
+      <property name="hibernate.c3p0.max_statements" value="0">0</property>
+      <property name="hibernate.c3p0.min_size" value="25">10</property>
+      <property name="hibernate.c3p0.timeout" value="10">100</property>
+      <property name="hibernate.c3p0.initialPoolSize" value="30">10</property>
+      <property name="hibernate.c3p0.minPoolSize" value="30">10</property>
+      <property name="hibernate.c3p0.maxPoolSize" value="150">10</property>
+      <property name="hibernate.c3p0.timeout" value="10">10</property>
+      <property name="hibernate.c3p0.timeout">10</property>
     </properties>
   </persistence-unit>
 </persistence>

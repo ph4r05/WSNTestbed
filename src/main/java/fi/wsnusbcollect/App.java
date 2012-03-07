@@ -2,21 +2,20 @@ package fi.wsnusbcollect;
 
 import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.console.ConsoleHelper;
-import fi.wsnusbcollect.experiment.ExperimentCoordinator;
 import fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl;
 import fi.wsnusbcollect.experiment.ExperimentInit;
-import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
-import org.ini4j.Ini;
 import org.ini4j.Wini;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
@@ -117,6 +116,7 @@ public class App {
     
     // parsed config file
     protected Wini ini;
+    protected String configFileContents;
     
     public static void main(String[] args) {
         log.info("Starting application");
@@ -280,9 +280,28 @@ public class App {
     }
     
     /**
-     * Reads config file to internal ini object
+     * Reads config file to internal ini object and to string object
      */
     public void readConfig(){
+        try {
+            FileInputStream fstream = new FileInputStream(this.configFile);
+            DataInputStream in = new DataInputStream(fstream);
+            BufferedReader br = new BufferedReader(new InputStreamReader(in));
+            StringBuilder sb = new StringBuilder();
+            String strLine;
+            //Read File Line By Line
+            while ((strLine = br.readLine()) != null) {
+                // Print the content on the console
+                sb.append(strLine).append("\n");
+            }
+            //Close the input stream
+            in.close();
+            this.configFileContents = sb.toString();
+        } catch (Exception e) {//Catch exception if any
+            System.err.println("Error: " + e.getMessage());
+        }
+          
+        
         BufferedReader in = null;
         try {
             in = new BufferedReader(new FileReader(this.configFile));
@@ -452,5 +471,9 @@ public class App {
 
     public ExperimentInit getExpInit() {
         return expInit;
+    }
+
+    public String getConfigFileContents() {
+        return configFileContents;
     }
 }
