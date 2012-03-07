@@ -11,6 +11,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Lob;
+import javax.persistence.ManyToOne;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
@@ -31,7 +32,8 @@ public class USBdevice implements Serializable{
     // configuration ID, 
     // TODO: link to USBconfiguration record, for now only integer
     @Id
-    private Long USBConfiguration_id;
+    @ManyToOne
+    private USBconfiguration usbconfig;
     
     // USB bus identification connected to
     private String bus;
@@ -139,12 +141,12 @@ public class USBdevice implements Serializable{
         this.lastModification = lastModification;
     }
 
-    public Long getUSBConfiguration_id() {
-        return USBConfiguration_id;
+    public USBconfiguration getUsbconfig() {
+        return usbconfig;
     }
 
-    public void setUSBConfiguration_id(Long USBConfiguration_id) {
-        this.USBConfiguration_id = USBConfiguration_id;
+    public void setUsbconfig(USBconfiguration usbconfig) {
+        this.usbconfig = usbconfig;
     }
 
     public Integer getNodeId() {
@@ -178,7 +180,7 @@ public class USBdevice implements Serializable{
     public void setPlatformId(int platformId) {
         this.platformId = platformId;
     }
-    
+
     @Override
     public boolean equals(Object obj) {
         if (obj == null) {
@@ -188,7 +190,7 @@ public class USBdevice implements Serializable{
             return false;
         }
         final USBdevice other = (USBdevice) obj;
-        if (this.USBConfiguration_id != other.USBConfiguration_id && (this.USBConfiguration_id == null || !this.USBConfiguration_id.equals(other.USBConfiguration_id))) {
+        if (this.usbconfig != other.usbconfig && (this.usbconfig == null || !this.usbconfig.equals(other.usbconfig))) {
             return false;
         }
         if ((this.serial == null) ? (other.serial != null) : !this.serial.equals(other.serial)) {
@@ -199,14 +201,14 @@ public class USBdevice implements Serializable{
 
     @Override
     public int hashCode() {
-        int hash = 7;
-        hash = 79 * hash + (this.USBConfiguration_id != null ? this.USBConfiguration_id.hashCode() : 0);
-        hash = 79 * hash + (this.serial != null ? this.serial.hashCode() : 0);
+        int hash = 3;
+        hash = 67 * hash + (this.usbconfig != null ? this.usbconfig.hashCode() : 0);
+        hash = 67 * hash + (this.serial != null ? this.serial.hashCode() : 0);
         return hash;
     }
 
     @Override
     public String toString() {
-        return "USBdevice{" + "USBConfiguration_id=" + USBConfiguration_id + ", bus=" + bus + ", usbPath=" + usbPath + ", serial=" + serial + ", devicePath=" + devicePath + ", deviceAlias=" + deviceAlias + ", nodeId=" + nodeId + ", description=" + description + ", disabled=" + disabled + ", lastModification=" + lastModification + '}';
+        return "USBdevice{" + "usbconfig=" + usbconfig + ", bus=" + bus + ", usbPath=" + usbPath + ", serial=" + serial + ", devicePath=" + devicePath + ", deviceAlias=" + deviceAlias + ", nodeId=" + nodeId + ", description=" + description + ", disabled=" + disabled + ", connectionString=" + connectionString + ", platformId=" + platformId + ", lastModification=" + lastModification + '}';
     }
 }

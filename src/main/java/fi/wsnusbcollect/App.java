@@ -248,11 +248,15 @@ public class App {
             this.readConfig();
         }
         
+        // experiment starting, detect nodes, check if same by default
+        log.info("Detecting new nodes");
+        usbArbitrator.detectConnectedNodes();
+        // check active configuration by default vs. database
+        // in previous call database could be updated, if specified by parameter
+        usbArbitrator.checkActiveConfiguration();
+
         // new nodes detection - discovery USB connected nodes and update database
         if (detectNodes){
-            log.info("Detecting new nodes");
-            usbArbitrator.detectConnectedNodes();
-            
             // if update node database or check nodes connection were choosen
             // perform just this single actions
             if (updateNodeDatabase){

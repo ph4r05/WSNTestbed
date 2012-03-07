@@ -7,7 +7,10 @@ package fi.wsnusbcollect.experiment;
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.db.ExperimentMetadata;
+import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
+import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeCom.MessageSender;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
@@ -97,6 +100,9 @@ public class ExperimentInitImpl implements ExperimentInit {
         // stores metadata about experiment
         expMeta = new ExperimentMetadata();
         expMeta.setDatestart(new Date());
+        // get usb configuration
+        USBconfiguration currentConfiguration = this.usbArbitrator.getCurrentConfiguration();
+        expMeta.setNodeConfiguration(currentConfiguration);
         
         // owner of experiment, determine from system
         String username = System.getProperty("user.name");
@@ -177,6 +183,7 @@ public class ExperimentInitImpl implements ExperimentInit {
             nodeList.add(ncr.getSerial());
         }
         
+        // set connected nodes as list
         expMeta.setConnectedNodesUsed(nodeList);
         
         // persist meta
@@ -269,7 +276,7 @@ public class ExperimentInitImpl implements ExperimentInit {
             
             // message listener
             MyMessageListener listener = new MyMessageListener(connectToNode);
-            listener.setDropingPackets(false);
+            listener.setDropingPackets(true);
             
             // message sender
             MessageSender sender = new MessageSender(connectToNode);
@@ -281,6 +288,8 @@ public class ExperimentInitImpl implements ExperimentInit {
             ExperimentData2DB dbForNode = App.getRunningInstance().getAppContext().getBean("experimentData2DB", ExperimentData2DB.class);
             log.info("DB for node is running: " + dbForNode.isRunning());
             cn.registerMessageListener(new CommandMsg(), dbForNode);
+            cn.registerMessageListener(new NoiseFloorReadingMsg(), dbForNode);
+            cn.registerMessageListener(new MultiPingResponseReportMsg(), dbForNode);
             
             // add to map
             this.nodeReg.put(cn);

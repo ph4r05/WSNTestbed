@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class MultiPingMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 11;
+    public static final int DEFAULT_MESSAGE_SIZE = 13;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 12;
 
-    /** Create a new MultiPingMsg of size 11. */
+    /** Create a new MultiPingMsg of size 13. */
     public MultiPingMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -87,6 +87,9 @@ public class MultiPingMsg extends net.tinyos.message.Message {
     public String toString() {
       String s = "Message <MultiPingMsg> \n";
       try {
+        s += "  [destination=0x"+Long.toHexString(get_destination())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
         s += "  [counter=0x"+Long.toHexString(get_counter())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
@@ -116,9 +119,72 @@ public class MultiPingMsg extends net.tinyos.message.Message {
     // Message-type-specific access methods appear below.
 
     /////////////////////////////////////////////////////////
-    // Accessor methods for field: counter
+    // Accessor methods for field: destination
     //   Field type: int, signed
     //   Offset (bits): 0
+    //   Size (bits): 16
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'destination' is signed (true).
+     */
+    public static boolean isSigned_destination() {
+        return true;
+    }
+
+    /**
+     * Return whether the field 'destination' is an array (false).
+     */
+    public static boolean isArray_destination() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'destination'
+     */
+    public static int offset_destination() {
+        return (0 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'destination'
+     */
+    public static int offsetBits_destination() {
+        return 0;
+    }
+
+    /**
+     * Return the value (as a int) of the field 'destination'
+     */
+    public int get_destination() {
+        return (int)getUIntBEElement(offsetBits_destination(), 16);
+    }
+
+    /**
+     * Set the value of the field 'destination'
+     */
+    public void set_destination(int value) {
+        setUIntBEElement(offsetBits_destination(), 16, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'destination'
+     */
+    public static int size_destination() {
+        return (16 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'destination'
+     */
+    public static int sizeBits_destination() {
+        return 16;
+    }
+
+    /////////////////////////////////////////////////////////
+    // Accessor methods for field: counter
+    //   Field type: int, signed
+    //   Offset (bits): 16
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -140,14 +206,14 @@ public class MultiPingMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'counter'
      */
     public static int offset_counter() {
-        return (0 / 8);
+        return (16 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'counter'
      */
     public static int offsetBits_counter() {
-        return 0;
+        return 16;
     }
 
     /**
@@ -181,7 +247,7 @@ public class MultiPingMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: txpower
     //   Field type: short, signed
-    //   Offset (bits): 16
+    //   Offset (bits): 32
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -203,14 +269,14 @@ public class MultiPingMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'txpower'
      */
     public static int offset_txpower() {
-        return (16 / 8);
+        return (32 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'txpower'
      */
     public static int offsetBits_txpower() {
-        return 16;
+        return 32;
     }
 
     /**
@@ -244,7 +310,7 @@ public class MultiPingMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: channel
     //   Field type: short, signed
-    //   Offset (bits): 24
+    //   Offset (bits): 40
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -266,14 +332,14 @@ public class MultiPingMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'channel'
      */
     public static int offset_channel() {
-        return (24 / 8);
+        return (40 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'channel'
      */
     public static int offsetBits_channel() {
-        return 24;
+        return 40;
     }
 
     /**
@@ -307,7 +373,7 @@ public class MultiPingMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: packets
     //   Field type: int, signed
-    //   Offset (bits): 32
+    //   Offset (bits): 48
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -329,14 +395,14 @@ public class MultiPingMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'packets'
      */
     public static int offset_packets() {
-        return (32 / 8);
+        return (48 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'packets'
      */
     public static int offsetBits_packets() {
-        return 32;
+        return 48;
     }
 
     /**
@@ -370,7 +436,7 @@ public class MultiPingMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: delay
     //   Field type: int, signed
-    //   Offset (bits): 48
+    //   Offset (bits): 64
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -392,14 +458,14 @@ public class MultiPingMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'delay'
      */
     public static int offset_delay() {
-        return (48 / 8);
+        return (64 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'delay'
      */
     public static int offsetBits_delay() {
-        return 48;
+        return 64;
     }
 
     /**
@@ -433,7 +499,7 @@ public class MultiPingMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: size
     //   Field type: short, signed
-    //   Offset (bits): 64
+    //   Offset (bits): 80
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -455,14 +521,14 @@ public class MultiPingMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'size'
      */
     public static int offset_size() {
-        return (64 / 8);
+        return (80 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'size'
      */
     public static int offsetBits_size() {
-        return 64;
+        return 80;
     }
 
     /**
@@ -496,7 +562,7 @@ public class MultiPingMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: counterStrategySuccess
     //   Field type: byte, signed
-    //   Offset (bits): 72
+    //   Offset (bits): 88
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -518,14 +584,14 @@ public class MultiPingMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'counterStrategySuccess'
      */
     public static int offset_counterStrategySuccess() {
-        return (72 / 8);
+        return (88 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'counterStrategySuccess'
      */
     public static int offsetBits_counterStrategySuccess() {
-        return 72;
+        return 88;
     }
 
     /**
@@ -559,7 +625,7 @@ public class MultiPingMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: timerStrategyPeriodic
     //   Field type: byte, signed
-    //   Offset (bits): 80
+    //   Offset (bits): 96
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -581,14 +647,14 @@ public class MultiPingMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'timerStrategyPeriodic'
      */
     public static int offset_timerStrategyPeriodic() {
-        return (80 / 8);
+        return (96 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'timerStrategyPeriodic'
      */
     public static int offsetBits_timerStrategyPeriodic() {
-        return 80;
+        return 96;
     }
 
     /**

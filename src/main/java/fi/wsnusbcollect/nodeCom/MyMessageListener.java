@@ -414,6 +414,9 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
      * Perform notifications to listeners
      * Isolated from message sender, can be spawned multiple threads, but not recommended
      * when not tested. can cause race conditions.
+     * 
+     * Thread executing message arrived event for listener is separated from main listener
+     * since such notification can be time expensive.
      */
     private class MessageNotifyWorker extends Thread implements Runnable {
         public MessageNotifyWorker() {

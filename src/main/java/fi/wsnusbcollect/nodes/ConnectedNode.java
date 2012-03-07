@@ -258,6 +258,10 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     public synchronized void deregisterMessageListener(Message msg, MessageListener listener) {
         msgListener.deregisterListener(msg, listener);
     }
+
+    public void setDropingReceivedPackets(boolean dropingPackets) {
+        msgListener.setDropingPackets(dropingPackets);
+    }
     
     /**
      * Connects to given source (by connection string) and if OK returns mote interface

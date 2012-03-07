@@ -122,6 +122,29 @@ public class NodeHandlerRegister implements Map<Integer, NodeHandler> {
     }
     
     /**
+     * On all registered nodes will cause receiving/ignoring received packets to 
+     * application.
+     * 
+     * @param ignore
+     * @return 
+     */
+    public void setDropingReceivedPackets(boolean ignore){
+        Iterator<Integer> iterator = this.primaryMap.keySet().iterator();
+        while(iterator.hasNext()){
+            Integer nodeid = iterator.next();
+            NodeHandler nh = this.primaryMap.get(nodeid);
+            
+            // connected and correct
+            if (this.isConnectedNode(nh)==false || nh.isCorrect()==false) {
+                continue;
+            }
+            
+            final ConnectedNode cn = (ConnectedNode) nh;
+            cn.setDropingReceivedPackets(ignore);
+        }
+    }
+    
+    /**
      * Inserts node handler to map based on NodeID
      * @param value
      * @return 

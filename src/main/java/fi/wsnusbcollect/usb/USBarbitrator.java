@@ -1,6 +1,7 @@
 package fi.wsnusbcollect.usb;
 
 import fi.wsnusbcollect.App;
+import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.db.USBdevice;
 import fi.wsnusbcollect.nodes.NodePlatform;
 import fi.wsnusbcollect.nodes.NodePlatformFactory;
@@ -25,6 +26,10 @@ import java.util.regex.Pattern;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,18 +65,126 @@ public class USBarbitrator {
     // serial->motelist record association
     // here is hidden multikey map for easy node searching by serial, nodeid, devpath
     private NodeSearchMap moteList = null;
+    
+    // current USB configuration for this run
+    private USBconfiguration curUSBconfig;
 
+    /**
+     * Returns current USB configuration
+     * If no configuration exists, new one is created from currently connected nodes.
+     * Thus this methoud should never return null
+     * 
+     * @return 
+     */
+    public USBconfiguration getCurrentConfiguration(){
+        // first try to fetch last active configuration
+        USBconfiguration lastActiveConfiguration = this.loadLastActiveConfiguration();
+        if (lastActiveConfiguration==null){
+            return this.createNewConfiguration();
+        }
+        
+        return lastActiveConfiguration;
+    }
+    
+    /**
+     * Creates new USB configuration record with currently connected nodes.
+     * @return 
+     */
+    public USBconfiguration createNewConfiguration(){
+        return this.createNewConfiguration(false);
+    }
+    
+    /**
+     * Creates new USB configuration record with currently connected nodes.
+     * @param refreshMotelist if true motelist is refreshed from currently connected nodes.
+     */
+    public USBconfiguration createNewConfiguration(boolean refreshMotelist){
+        // no such configuration found, need to create initial one
+        // need to have mote list to save
+        if (this.moteList==null || this.moteList.isEmpty() || refreshMotelist){
+            // motelist is empty, try to detect new nodes
+            Map<String, NodeConfigRecord> connectedNodes = this.getConnectedNodes();
+
+            // init new node search map and put all data from motelist map
+            this.moteList = new NodeSearchMap();
+            this.moteList.putAll(connectedNodes);
+        }
+
+        // create new configuration
+        USBconfiguration lastActiveConfiguration = new USBconfiguration();
+        lastActiveConfiguration.setConfigurationName("Initial configuration (AUTO)");
+        lastActiveConfiguration.setValidFrom(new Date());
+        lastActiveConfiguration.setValidTo(null);
+        // create persisted entity to be able to associate to it    
+        this.em.persist(lastActiveConfiguration);
+        
+        // now finally update database
+        this.updateNodesDatabase(new HashMap<String, USBdevice>(), moteList, lastActiveConfiguration);
+        
+        this.em.flush();
+        
+        return lastActiveConfiguration;
+    }
+    
+    /**
+     * Loads last active USB configuration from database
+     * @return 
+     */
+    protected USBconfiguration loadLastActiveConfiguration(){   
+        //this.em.createQuery(NODE_ID_PATTERN);
+        List resultList = this.em.createQuery("select c "
+                        + "from USBconfiguration c "
+                        + "WHERE c.validTo IS NULL AND NOT(c.validFrom IS NULL) "
+                        + "ORDER BY c.validFrom DESC "
+                        + "LIMIT 1").getResultList();
+        if (resultList==null || resultList.isEmpty()) {
+            return null;
+        }
+        
+        return (USBconfiguration) resultList.get(0);
+        
+//        CriteriaBuilder cb = em.getCriteriaBuilder();
+//        CriteriaQuery<Object> criteriaQuery = cb.createQuery();
+//        Root<USBconfiguration> from = criteriaQuery.from(USBconfiguration.class);
+//
+//        CriteriaQuery<Object> select = criteriaQuery.select(from);
+//        Predicate restrictions = cb.and(cb.equal(from.get("owner"), owner),
+//                cb.isNull(from.get("parent")));
+//
+//        select.where(restrictions);
+//        select.orderBy(orders);
+//
+//        TypedQuery<Object> typedQuery = em.createQuery(select);
+//        List resultList = typedQuery.getResultList();
+    }
+    
+    /**
+     * Loads all nodes from database and returns map of USBdevice objects
+     * indexed by serial number. Loaded are nodes by last configuration.
+     * If configuration is null, new one is created.
+     * 
+     * @return 
+     */
+    public Map<String, USBdevice> loadNodesFromDatabase(){
+        // by default use current active config
+        if (this.curUSBconfig==null){
+            this.curUSBconfig = this.getCurrentConfiguration();
+        }
+        
+        return this.loadNodesFromDatabase(this.curUSBconfig);
+    }
+    
     /**
      * Loads all nodes from database and returns map of USBdevice objects
      * indexed by serial number
      * 
      * @return 
      */
-    public Map<String, USBdevice> loadNodesFromDatabase(){
+    public Map<String, USBdevice> loadNodesFromDatabase(USBconfiguration config){
         Map<String, USBdevice> result = new HashMap<String, USBdevice>();
-        
-        TypedQuery<USBdevice> tq = this.em.createQuery("SELECT ubd FROM USBdevice ubd", USBdevice.class);
-        List<USBdevice> resultList = tq.getResultList();
+
+        TypedQuery<USBdevice> tq = this.em.createQuery("SELECT ubd FROM USBdevice ubd WHERE ubd.usbconfig=:usbconfig", USBdevice.class);
+        List<USBdevice> resultList = tq.setParameter("usbconfig", config).getResultList();
         if (resultList.isEmpty()){
             log.info("None nodes records in database");
             return result;
@@ -87,6 +200,50 @@ public class USBarbitrator {
     }
     
     /**
+     * Checks whether current config corresponds to database.
+     * If yes, everything is OK, otherwise new configuration has to be created
+     * automaticaly from current. The old configuration is closed (validTo)
+     */
+    public void checkActiveConfiguration(){
+        // load configuration if it is not already loaded
+        if(this.curUSBconfig==null){
+            this.curUSBconfig = this.loadLastActiveConfiguration();
+        }
+        
+        // if null here, just create new one
+        if(this.curUSBconfig==null){
+            this.curUSBconfig = this.createNewConfiguration(true);
+            return;
+        }
+        
+        // check if is same as detected
+        if (this.moteList==null || this.moteList.isEmpty()){
+            // perform detection
+            Map<String, NodeConfigRecord> connectedNodes = this.getConnectedNodes();
+        
+            // init new node search map and put all data from motelist map
+            this.moteList = new NodeSearchMap();
+            this.moteList.putAll(connectedNodes);
+        }
+        
+        // check if is same
+        boolean isSame = this.checkNodesConnection(this.moteList, true);
+        if (isSame==false){
+            log.info("Stored configuration is different from real one. Creating new configuration");
+            System.out.println("Stored configuration is different from real one. Creating new configuration");
+            // merge
+            this.curUSBconfig = this.em.find(USBconfiguration.class, this.curUSBconfig.getId());
+            this.curUSBconfig.setValidTo(new Date());
+            this.em.persist(this.curUSBconfig);
+            this.em.flush();
+            // detach, not to modify
+            this.em.detach(this.curUSBconfig);
+            // create new one
+            this.curUSBconfig = this.createNewConfiguration(true);
+        } 
+    }
+    
+    /**
      * Check nodes connection to actualy loaded motelist
      */
     public void checkNodesConnection(){
@@ -97,11 +254,26 @@ public class USBarbitrator {
      * Checks whether node connection from database corresponds to real one
      * defined in motelist
      */
-    public void checkNodesConnection(Map<String, NodeConfigRecord> localmotelist){
+    public boolean checkNodesConnection(Map<String, NodeConfigRecord> localmotelist){
+        return this.checkNodesConnection(localmotelist, true);
+    }
+    
+    /**
+     * Checks whether node connection from database corresponds to real one
+     * defined in motelist. Node database is loaded by current active configuration
+     * @param  localmotelist  list of connected nodes
+     * @param  output   if true then inconsistencies are printed to stdout
+     * @return TRUE <=> localmotelist corresponds to really connected nodes. Serial = primary key
+     *      criteria to primary keys: nodeid, usbpath, deviceAlias. Newly connected/disconnected
+     *      nodes are detected as well.
+     */
+    public boolean checkNodesConnection(Map<String, NodeConfigRecord> localmotelist, boolean output){
         if (localmotelist==null || localmotelist.isEmpty()){
             log.error("Cannot check database - no local data");
-            return;
+            return false;
         }
+        
+        boolean same=true;
         
         // update nodes if applicable
         // serial -> usbdevice
@@ -129,6 +301,7 @@ public class USBarbitrator {
                 if (mrNodeId!=null && mrNodeId.equals(ubd.getNodeId())==false){
                     System.out.println("NodeID is different for node with serial: " + mr.getSerial()
                             + "; Stored NodeID: " + ubd.getNodeId() + "; Current NodeID: " + mr.getNodeId());
+                    same=false;
                 }
                 
                 // check if device alias is changed, of yes then is probably changed udev rules file
@@ -136,6 +309,7 @@ public class USBarbitrator {
                     System.out.println("Node device alias was changed (probably modified udev rules)"
                             + " for node serial: " + ubd.getSerial()
                             + "; NodeID: " + ubd.getNodeId() );
+                    same=false;
                 }
                 
                 // check USB connection, changed?
@@ -144,6 +318,7 @@ public class USBarbitrator {
                             + "; NodeID: " + ubd.getNodeId() 
                             + "; Should be: " + ubd.getUsbPath()
                             + "; But is: " + mr.getUsbPath());
+                    same=false;
                 }
             } else {
                 // new node detected, announce this. Node should be inserted to database
@@ -156,8 +331,10 @@ public class USBarbitrator {
                         + "; Serial: " + mr.getSerial()
                         + "; Node ID: " + mr.getNodeId()
                         + "; Description: " + mr.getDescription());
+                same=false;
             }
         }
+        
         // process saved but not detected nodes
         Iterator<String> iterator1 = dbNodesSet.iterator();
         while(iterator1.hasNext()){
@@ -170,29 +347,37 @@ public class USBarbitrator {
                     + "; NodeDev: " + ubd.getDevicePath()
                     + "; NodeAlias: " + ubd.getDeviceAlias()
                     + "; Is it intentional? Please check it");
+            same=false;
         }
         
         System.out.println("Node connection check completed");
+        return same;
     }
     
     /**
-     * Updates nodes database according to currently loaded notes.
-     * Updates from current working copy of moteList
+     * Updates node database with preloaded data
+     * @param savedNodes    loaded nodes records from database
+     * @param moteList      connected nodes
+     * @param usbconfig     usbconfiguration to associate new nodes to
      */
-    public void updateNodesDatabase(){
-        if (this.moteList==null || this.moteList.isEmpty()){
+    protected void updateNodesDatabase(Map<String, USBdevice> savedNodes, 
+            NodeSearchMap moteList, USBconfiguration usbconfig){
+        // check nonempty motelist, has nothing to do otherwise
+        if (moteList==null || moteList.isEmpty()){
             log.error("Cannot update node database - no local data");
             return;
         }
         
-        // update nodes if applicable
-        // serial -> usbdevice
-        Map<String, USBdevice> savedNodes = this.loadNodesFromDatabase();
+        // keep it simple, if null create empty map
+        if (savedNodes==null){
+            savedNodes = new HashMap<String, USBdevice>();
+        }
         
-        Iterator<String> iterator = this.moteList.keySet().iterator();
+        // finally iterate over detected nodes and update records in database
+        Iterator<String> iterator = moteList.keySet().iterator();
         while(iterator.hasNext()){
             String nodeSerial = iterator.next();
-            NodeConfigRecord mr = this.moteList.get(nodeSerial);
+            NodeConfigRecord mr = moteList.get(nodeSerial);
             log.info("Saving mote record: " + mr.toString());
             
             USBdevice ubd = new USBdevice();
@@ -201,7 +386,7 @@ public class USBarbitrator {
                 ubd = savedNodes.get(mr.getSerial());
             } else {
                 log.info("Inserting new record");
-                ubd.setUSBConfiguration_id(1L);
+                ubd.setUsbconfig(usbconfig);
                 ubd.setDescription(mr.getDescription());
             }
 
@@ -220,12 +405,35 @@ public class USBarbitrator {
             this.em.persist(ubd);
         }
         this.em.flush();
+    }
+    
+    /**
+     * Updates nodes database according to currently loaded notes.
+     * Updates from current working copy of moteList
+     */
+    public void updateNodesDatabase(){
+        if (this.moteList==null || this.moteList.isEmpty()){
+            log.error("Cannot update node database - no local data");
+            return;
+        }
+        
+        // update nodes if applicable
+        // serial -> usbdevice
+        Map<String, USBdevice> savedNodes = this.loadNodesFromDatabase();
+        // get last config
+        USBconfiguration currentConfiguration = this.loadLastActiveConfiguration();
+        if (currentConfiguration==null){
+            this.createNewConfiguration();
+            return;
+        }
+        
+        this.updateNodesDatabase(savedNodes, this.moteList, currentConfiguration);
         System.out.println("Node database updated");
     }
     
     /**
      * Performs real detection of connected nodes and returns answer as map, indexed
-     * by node serial id.
+     * by node serial id. Detection is done by external motelist command
      * @return 
      */
     public Map<String, NodeConfigRecord> getConnectedNodes() {

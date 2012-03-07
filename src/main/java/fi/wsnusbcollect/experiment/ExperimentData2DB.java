@@ -5,8 +5,8 @@
 package fi.wsnusbcollect.experiment;
 
 import fi.wsnusbcollect.nodeCom.MessageListener;
-import java.util.logging.Level;
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import net.tinyos.message.Message;
@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  *
@@ -31,6 +30,9 @@ public class ExperimentData2DB extends Thread implements MessageListener{
     
     @Autowired
     private JdbcTemplate template;
+    
+    @Resource(name="experimentInit")
+    protected ExperimentInitImpl expInit;
     
     boolean running=true;
     

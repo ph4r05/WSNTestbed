@@ -129,6 +129,10 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.expInit.updateExperimentStart(miliStart);
         log.info("Experiment started, miliseconds start: " + miliStart);
         
+        // unsuspend all packet listeners to start receiving packets
+        log.info("Setting ignore received packets to FALSE to start receiving");
+        this.nodeReg.setDropingReceivedPackets(false);
+        
         // register node coordinator as message listener
         System.out.println("Register message listener for commands and pings");
         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);
@@ -180,6 +184,10 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      *  - messageListener notifier. Take a caution to avoid race conditions and concurrency 
      * problems.
      * 
+     * EntityManager instance is NOT thread-safe, so this method cannot directly use
+     * em instance from class attribute. New entityManager is needed.
+     * 
+     * 
      * @param i
      * @param msg 
      */
@@ -198,6 +206,17 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             final CommandMsg cMsg = (CommandMsg) msg;
             //System.out.println("Command message: " + cMsg.toString());
             log.info("Command message: " + cMsg.toString());
+            
+            // is alive / identification packet?
+            if ((cMsg.get_command_code() == (short)MessageTypes.COMMAND_ACK) 
+                    && cMsg.get_reply_on_command() == (short)MessageTypes.COMMAND_IDENTIFY){
+                // identify message, insert new entity to database
+                
+                
+                
+                
+            }
+            
         }
         
         // report message?
