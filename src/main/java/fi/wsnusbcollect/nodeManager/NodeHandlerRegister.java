@@ -12,6 +12,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -267,5 +269,40 @@ public class NodeHandlerRegister implements Map<Integer, NodeHandler> {
     public void clear() {
         primaryMap.clear();
         connectedNodes.clear();
+    }
+    
+    /**
+     * Updates lastseen indicator for given node
+     * @param nodeId
+     * @param mili 
+     */
+    public void updateLastSeen(int nodeId, long mili) {
+        if (this.containsKey(nodeId) == false) {
+            log.error("Cannot update last seen counter, node not registered: " + nodeId);
+            return;
+        }
+
+        this.get(nodeId).updateLastSeen(mili);
+    }
+    
+    /**
+     * Returns nodes as list where last seen indicator is less than given boudnary
+     * @param mili
+     * @return 
+     */
+    public List<Integer> getNodesLastSeenLessThan(long boudnary){
+        LinkedList<Integer> list = new LinkedList<Integer>();
+        Iterator<Integer> iterator = this.primaryMap.keySet().iterator();
+        while(iterator.hasNext()){
+            Integer nodeId = iterator.next();
+            NodeHandler nh = this.primaryMap.get(nodeId);
+            
+            if (nh.getNodeObj().getLastSeen() < boudnary){
+                list.add(nodeId);
+            }
+            
+        }
+        
+        return list;
     }
 }

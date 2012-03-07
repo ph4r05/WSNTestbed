@@ -140,4 +140,14 @@ public class RemoteNode extends AbstractNodeHandler implements NodeHandler{
         
         this.baseStation.addMessage2Send(this.getNodeId(), msg, text);
     }
+    
+    @Override
+    public void updateLastSeen(long mili) {
+        if (this.nodeObj==null){
+            log.error("Cannot update - null object");
+            return;
+        }
+        
+        this.nodeObj.setLastSeen(mili);
+    }
 }

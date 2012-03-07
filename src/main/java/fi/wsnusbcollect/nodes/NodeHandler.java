@@ -76,4 +76,10 @@ public interface NodeHandler {
      * @param text 
      */
     public void addMessage2Send(Message msg, String text);
+    
+    /**
+     * Update last seen indicator
+     * @param mili 
+     */
+    public void updateLastSeen(long mili);
 }

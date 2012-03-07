@@ -281,6 +281,9 @@ public class App {
         if (shell){
             this.console.getShell();
         }
+        
+        // if here => stop experiment
+        this.expInit.deinitExperiment();
     }
     
     /**

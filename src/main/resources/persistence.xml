@@ -9,6 +9,7 @@
     <class>fi.wsnusbcollect.db.ExperimentDataParameters</class>
     <class>fi.wsnusbcollect.db.ExperimentDataRSSI</class>
     <class>fi.wsnusbcollect.db.ExperimentMetadata</class>
+    <class>fi.wsnusbcollect.db.ExperimentMultiPingRequest</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="hibernate.cache.provider_class" value="org.hibernate.cache.NoCacheProvider"/>

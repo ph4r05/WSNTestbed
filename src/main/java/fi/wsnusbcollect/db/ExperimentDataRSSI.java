@@ -38,6 +38,8 @@ public class ExperimentDataRSSI implements Serializable {
     
     private long rssi;
     
+    private short len;
+    
     public Long getId() {
         return id;
     }
@@ -100,5 +102,13 @@ public class ExperimentDataRSSI implements Serializable {
 
     public void setSendingNodeCounter(long sendingNodeCounter) {
         this.sendingNodeCounter = sendingNodeCounter;
-    }    
+    }
+
+    public short getLen() {
+        return len;
+    }
+
+    public void setLen(short len) {
+        this.len = len;
+    } 
 }

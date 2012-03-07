@@ -6,6 +6,7 @@ package fi.wsnusbcollect.experiment;
 
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.console.Console;
+import fi.wsnusbcollect.db.ExperimentMultiPingRequest;
 import fi.wsnusbcollect.messages.CommandMsg;
 import fi.wsnusbcollect.messages.MessageTypes;
 import fi.wsnusbcollect.messages.MultiPingMsg;
@@ -13,12 +14,14 @@ import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.messages.RssiMsg;
 import fi.wsnusbcollect.nodeCom.MessageListener;
-import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import fi.wsnusbcollect.nodes.NodeHandler;
-import java.util.logging.Level;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Collection;
+import java.util.Date;
+import java.util.Iterator;
 import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import net.tinyos.message.Message;
@@ -27,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  *
@@ -248,7 +252,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
     
     /**
-     * Sends multi ping request to specified node
+     * Sends multi ping request to specified node. Sending packet from this 
+     * method is written to db protocol
      * @param nodeId
      * @param txpower
      * @param channel
@@ -258,11 +263,13 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * @param counterStrategySuccess
      * @param timerStrategyPeriodic 
      */
+    @Transactional
     public synchronized void sendMultiPingRequest(int nodeId, int txpower,
             int channel, int packets, int delay, int size, 
             boolean counterStrategySuccess, boolean timerStrategyPeriodic){
 
 	MultiPingMsg msg = new MultiPingMsg();
+        msg.set_destination(MessageTypes.AM_BROADCAST_ADDR);
         msg.set_channel((short)channel);
         msg.set_counter(0);
         msg.set_counterStrategySuccess((byte) (counterStrategySuccess ? 1:0));
@@ -272,6 +279,15 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         msg.set_timerStrategyPeriodic((byte) (timerStrategyPeriodic ? 1:0));
         msg.set_txpower((short)txpower);
         
+        // now build database record for this request
+        ExperimentMultiPingRequest mpr = new ExperimentMultiPingRequest();
+        mpr.setMiliFromStart(System.currentTimeMillis());
+        mpr.setExperiment(this.expInit.getExpMeta());
+        mpr.loadFromMessage(msg);
+        this.em.persist(mpr);
+        this.em.flush();
+        
+        // add message to send
         this.sendMessageToNode(msg, nodeId);
     }
     
@@ -331,6 +347,34 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     
     public boolean isRunning() {
         return running;
+    }
+    
+    /**
+     * Prints node's last seen values
+     * @param seconds 
+     */
+    public void getNodesLastSeen(int seconds){
+        Collection<NodeHandler> nhvals = this.nodeReg.values();
+        if (nhvals.isEmpty()){
+            System.out.println("Node register is empty");
+            return;
+        }
+        
+        // human readable date formater
+        DateFormat formatter = new SimpleDateFormat("HH:mm:ss:SSS");
+        
+        System.out.println("LastSeen indicators: ");
+        Iterator<NodeHandler> iterator = nhvals.iterator();
+        
+        while(iterator.hasNext()){
+            NodeHandler nh = iterator.next();
+            long lastSeen = nh.getNodeObj().getLastSeen();
+            
+            // convert last seen to human readable format
+            Date date = new Date(lastSeen);
+            System.out.println("NodeID: " + nh.getNodeId() + ";\t LastSeen: " + 
+                formatter.format(date) + ";\t type: " + nh.getType());
+        }
     }
 
     public synchronized void setRunning(boolean running) {

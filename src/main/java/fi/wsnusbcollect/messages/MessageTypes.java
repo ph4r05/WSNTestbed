@@ -72,4 +72,6 @@ public class MessageTypes {
   public static final int REPORTING_MEDIUM=1;
   public static final int REPORTING_TINY=2;
   public static final int REPORTING_MASS=3;
+  
+  public static final int AM_BROADCAST_ADDR=0xFFFF;
 }

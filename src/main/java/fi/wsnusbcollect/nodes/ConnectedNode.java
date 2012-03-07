@@ -448,4 +448,14 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     public boolean canSend() {
         return this.moteIf!=null && this.msgSender!=null;
     }
+
+    @Override
+    public void updateLastSeen(long mili) {
+        if (this.nodeObj==null){
+            log.error("Cannot update - null object");
+            return;
+        }
+        
+        this.nodeObj.setLastSeen(mili);
+    }
 }

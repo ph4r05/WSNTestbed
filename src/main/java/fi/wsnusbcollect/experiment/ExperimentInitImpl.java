@@ -190,6 +190,32 @@ public class ExperimentInitImpl implements ExperimentInit {
         this.em.persist(expMeta);
         this.em.flush();
     }
+
+    @Override
+    public void deinitExperiment() {
+        this.closeExperiment();
+    }
+    
+    /**
+     * Experiment is closing now... update timers in database
+     */
+    public void closeExperiment(){
+        if (this.expMeta==null){
+            throw new NullPointerException("Current experiment metadata is null");
+        }
+        
+        // attached?
+        if (this.em.contains(this.expMeta)){
+            this.expMeta.setDatestop(new Date());
+        } else {
+            log.info("Entity is not managed");
+            this.expMeta = this.em.merge(this.expMeta);
+            this.expMeta.setDatestop(new Date());
+            this.em.persist(this.expMeta);
+        }
+        
+        this.em.flush();
+    }
     
     /**
      * Updates real experiment start in miliseconds - in configuration
@@ -286,6 +312,8 @@ public class ExperimentInitImpl implements ExperimentInit {
             
             // add listening to packets here to separate DB listener
             ExperimentData2DB dbForNode = App.getRunningInstance().getAppContext().getBean("experimentData2DB", ExperimentData2DB.class);
+            dbForNode.setExpMeta(expMeta);
+            
             log.info("DB for node is running: " + dbForNode.isRunning());
             cn.registerMessageListener(new CommandMsg(), dbForNode);
             cn.registerMessageListener(new NoiseFloorReadingMsg(), dbForNode);

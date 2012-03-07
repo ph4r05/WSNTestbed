@@ -40,4 +40,6 @@ public interface ExperimentInit {
     public void initConnectedNodes(Properties props, List<NodeConfigRecord> ncr);
     
     public void updateExperimentStart(long mili);
+    
+    public void deinitExperiment();
 }
