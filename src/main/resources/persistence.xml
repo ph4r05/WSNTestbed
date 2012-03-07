@@ -17,7 +17,7 @@
       <property name="javax.persistence.jdbc.password" value="xyhCmFFTQqfmm7QP"/>
       <property name="javax.persistence.jdbc.driver" value="com.mysql.jdbc.Driver"/>
       <property name="javax.persistence.jdbc.user" value="xklinec"/>
-      <property name="hibernate.dialect" value="org.hibernate.dialect.MySQL5Dialect"/>
+      <property name="hibernate.dialect" value="org.hibernate.dialect.MySQLInnoDBDialect"/>
       <property name="hibernate.hbm2ddl.auto" value="update"/>
       <property name="c3p0.acquire_increment" value="2">1</property>
       <property name="hibernate.c3p0.idle_test_period" value="10">100</property>
