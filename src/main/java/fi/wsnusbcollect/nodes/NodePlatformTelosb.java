@@ -66,4 +66,9 @@ public class NodePlatformTelosb extends NodePlatformGeneric{
         
         return "XBOW Crossbow Telos Rev.B".equalsIgnoreCase(desc.trim());
     }
+    
+    @Override
+    public String getPlatformReflashId() {
+        return "telosb";
+    }
 }

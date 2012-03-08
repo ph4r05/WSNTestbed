@@ -63,4 +63,11 @@ public class NodePlatformIris extends NodePlatformGeneric {
     public boolean isPlatformFromNodeDescription(String desc) {
         return super.isPlatformFromNodeDescription(desc);
     }
+
+    @Override
+    public String getPlatformReflashId() {
+        return "iris";
+    }
+    
+    
 }

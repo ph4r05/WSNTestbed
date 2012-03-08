@@ -83,4 +83,15 @@ public class NodePlatformGeneric implements NodePlatform {
     public boolean isPlatformFromNodeDescription(String desc) {
         return false;
     }
+
+    /**
+     * Default platform is null
+     * @return 
+     */
+    @Override
+    public String getPlatformReflashId() {
+        return "null";
+    }
+    
+    
 }

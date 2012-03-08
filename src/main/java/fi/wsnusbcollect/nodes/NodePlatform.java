@@ -17,6 +17,12 @@ public interface NodePlatform {
     public String getPlatform();
     
     /**
+     * Returns string required to specify platform to makefile
+     * @return 
+     */
+    public String getPlatformReflashId();
+    
+    /**
      * Returns connection string that can be used with Listener to connect directly 
      * to specified device. Connection string is platform dependent.
      * 

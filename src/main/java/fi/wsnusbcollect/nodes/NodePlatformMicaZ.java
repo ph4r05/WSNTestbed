@@ -61,5 +61,10 @@ public class NodePlatformMicaZ extends NodePlatformGeneric{
     @Override
     public boolean isPlatformFromNodeDescription(String desc) {
         return super.isPlatformFromNodeDescription(desc);
-    }    
+    }   
+    
+    @Override
+    public String getPlatformReflashId() {
+        return "micaz";
+    }
 }

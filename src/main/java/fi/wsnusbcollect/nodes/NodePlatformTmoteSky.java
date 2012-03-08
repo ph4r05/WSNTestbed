@@ -66,4 +66,9 @@ public class NodePlatformTmoteSky extends NodePlatformGeneric{
         
         return "Moteiv tmote sky".equalsIgnoreCase(desc.trim());
     }
+    
+    @Override
+    public String getPlatformReflashId() {
+        return "telosb";
+    }
 }
