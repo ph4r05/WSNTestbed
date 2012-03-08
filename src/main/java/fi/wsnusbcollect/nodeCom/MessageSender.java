@@ -68,11 +68,6 @@ public class MessageSender extends Thread {
      */
     private static final int MAX_NOTIFY_THREADS=1;
 
-    /**
-     * Sleep time after message sent
-     */
-    private static final int SENT_SLEEP_TIME=1000;
-
     private ConcurrentLinkedQueue<MessageToSend> queue;
     private MessageToSend msgToSend;
     private MoteIF gateway;
@@ -101,6 +96,11 @@ public class MessageSender extends Thread {
      * Class acknowledging delivery of some messages
      */
     protected MessageDeliveryGuarantor messageDeliveryGuarantor=null;
+    
+    /**
+     * Delay between two sent messages from queue
+     */
+    private int sentSleepTime=500;
 
     /**
      *
@@ -255,7 +255,7 @@ public class MessageSender extends Thread {
             
             // sleep now - give connected node some time
             try {
-                Thread.sleep(SENT_SLEEP_TIME);
+                Thread.sleep(this.sentSleepTime);
             } catch (InterruptedException ex) {
                 log.error("Cannot sleep", ex);
             }
@@ -497,5 +497,13 @@ public class MessageSender extends Thread {
 
     public MessageDeliveryGuarantor getMessageDeliveryGuarantor() {
         return messageDeliveryGuarantor;
+    }
+
+    public int getSentSleepTime() {
+        return sentSleepTime;
+    }
+
+    public void setSentSleepTime(int sentSleepTime) {
+        this.sentSleepTime = sentSleepTime;
     }
 }
