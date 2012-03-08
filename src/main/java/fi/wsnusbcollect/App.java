@@ -61,8 +61,8 @@ public class App {
     @Option(name = "--check-nodes-connection", usage = "checks whether node connection corresponds to DB settings and print warning if not")
     private boolean checkNodesConnection;
     
-    @Option(name = "--shell", usage = "should drop to shell after init?")
-    private boolean shell=false;
+    //@Option(name = "--shell", usage = "should drop to shell after init?")
+    private boolean shell=true;
     
     @Option(name = "--start-suspended", usage = "experiment coordinator starts for command from shell")
     private boolean startSuspended=false;
@@ -87,6 +87,9 @@ public class App {
     
     @Option(name = "--ignore-motes-from-file", usage = "newline separated list of motes serial numbers to ignore in experiment.")
     private File ignoreMotesFile = null;
+    
+    @Option(name = "--reprogram-nodes-with", usage = "path to node software directory to reprogram nodes with. Must contain tinyos makefile")
+    private String reprogramNodesWith=null;
     
     /**
      * Real parsed list of motes to use - uses 
@@ -254,12 +257,18 @@ public class App {
         // check active configuration by default vs. database
         // in previous call database could be updated, if specified by parameter
         usbArbitrator.checkActiveConfiguration();
-
+        
+        // reprogram nodes?
+        if (reprogramNodesWith!=null && reprogramNodesWith.isEmpty()==false){
+            this.expInit.reprogramConnectedNodes(this.reprogramNodesWith);
+            return;
+        }
+        
         // new nodes detection - discovery USB connected nodes and update database
         if (detectNodes){
             // if update node database or check nodes connection were choosen
             // perform just this single actions
-            if (updateNodeDatabase){
+            if (updateNodeDatabase || showBinding || checkNodesConnection){
                 log.info("Ending execution.");
                 return;
             }
@@ -482,5 +491,13 @@ public class App {
 
     public String getConfigFileContents() {
         return configFileContents;
+    }
+
+    public String getReprogramNodesWith() {
+        return reprogramNodesWith;
+    }
+
+    public void setReprogramNodesWith(String reprogramNodesWith) {
+        this.reprogramNodesWith = reprogramNodesWith;
     }
 }

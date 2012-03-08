@@ -61,6 +61,11 @@ public class MessageTypes {
    * booted node (can be after reset already)
    */
   public static final int COMMAND_FETCHSETTINGS=25;
+  
+  // base station settings - forwarding from radio to serial?
+  public static final int COMMAND_FORWARDING_RADIO_ENABLED=26;
+  // base station settings - forwarding from serial to radio?
+  public static final int COMMAND_FORWARDING_SERIAL_ENABLED=27;
 
   // identity types
   public static final int NODE_STATIC=1;

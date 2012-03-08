@@ -42,4 +42,6 @@ public interface ExperimentInit {
     public void updateExperimentStart(long mili);
     
     public void deinitExperiment();
+    
+    public void reprogramConnectedNodes(String makefileDir);
 }

@@ -278,7 +278,7 @@ public class NodeHandlerRegister implements Map<Integer, NodeHandler> {
      */
     public void updateLastSeen(int nodeId, long mili) {
         if (this.containsKey(nodeId) == false) {
-            log.error("Cannot update last seen counter, node not registered: " + nodeId);
+//            log.error("Cannot update last seen counter, node not registered: " + nodeId);
             return;
         }
 

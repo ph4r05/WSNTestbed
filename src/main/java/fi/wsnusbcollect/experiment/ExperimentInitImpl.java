@@ -42,7 +42,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- *
+ * Experiment initialization/helper class
  * @author ph4r05
  */
 @Repository
@@ -82,20 +82,61 @@ public class ExperimentInitImpl implements ExperimentInit {
     
     /**
      * Loads configuration to experiment
+     * @deprecated 
      */
     public void loadConfig(){
         
+    }
+    
+    /**
+     * Process settings from parameters/config file
+     */
+    public List<NodeConfigRecord> getNodes2connect(){
+        // default include/exclude motelist from parameters
+        // init file has precedense
+        String moteInclude = App.getRunningInstance().getUseMotesString();
+        String moteExclude = App.getRunningInstance().getIgnoreMotesString();
+        
+        // read config file
+        this.config = App.getRunningInstance().getIni();
+        if (this.config!=null){            
+            // include/exclude reading
+            if (this.config.containsKey(INISECTION_MOTELIST)){
+                Ini.Section motelist = this.config.get(INISECTION_MOTELIST);
+                
+                if (motelist.containsKey("include")){
+                    moteInclude = motelist.get("include");
+                }
+                
+                if (motelist.containsKey("exclude")){
+                    moteExclude = motelist.get("exclude");
+                }
+            }
+        }
+        
+        // config file/arguments parsing, node selectors, get final set of nodes to connect to
+        return this.usbArbitrator.getNodes2connect(moteInclude, moteExclude);
+    }
+    
+    /**
+     * Helper method - re-programs connected nodes specified by parameters/config file.
+     * Only path to directory with makefile is required. Then is executed
+     * make telosb install,X bsl,/dev/mote_telosX
+     * 
+     * @extension: add multithreading to save time required for reprogramming
+     * 
+     * @param makeDir  absolute path to makefile directory with mote program
+     */
+    @Override
+    public void reprogramConnectedNodes(String makefileDir){
+        List<NodeConfigRecord> nodes2connect = this.getNodes2connect();
+        this.usbArbitrator.reprogramNodes(nodes2connect, makefileDir);
     }
     
     @Override
     public void initClass() {
         log.info("Class initialized");
         this.expCoordinator = App.getRunningInstance().getExpCoord();
-        
-        // default include/exclude motelist from parameters
-        // init file has precedense
-        String moteInclude = App.getRunningInstance().getUseMotesString();
-        String moteExclude = App.getRunningInstance().getIgnoreMotesString();
         
         // stores metadata about experiment
         expMeta = new ExperimentMetadata();
@@ -154,25 +195,10 @@ public class ExperimentInitImpl implements ExperimentInit {
             
             // read parameters from config file
             this.params.load(this.config);
-            
-            // include/exclude reading
-            if (this.config.containsKey(INISECTION_MOTELIST)){
-                Ini.Section motelist = this.config.get(INISECTION_MOTELIST);
-                
-                if (motelist.containsKey("include")){
-                    moteInclude = motelist.get("include");
-                }
-                
-                if (motelist.containsKey("exclude")){
-                    moteExclude = motelist.get("exclude");
-                }
-            }
         }
         
         // config file/arguments parsing, node selectors, get final set of nodes to connect to
-        List<NodeConfigRecord> nodes2connect = 
-                this.usbArbitrator.getNodes2connect(moteInclude, moteExclude);
-        
+        List<NodeConfigRecord> nodes2connect = this.getNodes2connect();
         // init connected nodes - builds handler and connecto to them
         this.initConnectedNodes(null, nodes2connect);
         //write information about directly connected nodes and its configuration (nodes2connect)

@@ -26,10 +26,6 @@ import java.util.regex.Pattern;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +51,7 @@ public class USBarbitrator {
     private static final Logger log = LoggerFactory.getLogger(USBarbitrator.class);
     private static final String UDEV_RULES_LINE_PATTERN = "^ATTRS\\{serial\\}\\s*==\\s*\\\"([0-9a-zA-Z_]+)\\\",\\s*NAME\\s*=\\s*\\\"([0-9a-zA-Z_]+)\\\".*";
     private static final String NODE_ID_PATTERN = ".*?([0-9]+)$";
+    private static final String MAKE="/usr/bin/make";
     
     @PersistenceContext
     private EntityManager em;
@@ -838,15 +835,110 @@ public class USBarbitrator {
         while(iterator.hasNext()){
             String serial = iterator.next();
             NodeConfigRecord ncr = this.moteList.get(serial);
+            System.out.println(ncr.getHumanOutput());
+        }
+    }
+    
+    /**
+     * Reprograms specified nodes with makefile.
+     * Only path to directory with makefile is required. Then is executed
+     * make telosb install,X bsl,/dev/mote_telosX
+     * 
+     * @extension: add multithreading to save time required for reprogramming
+     * 
+     * @param makeDir  absolute path to makefile directory with mote program
+     */
+    public void reprogramNodes(List<NodeConfigRecord> nodes2connect, String makefileDir){
+        // test if makefile exists
+        File makefile = new File(makefileDir + "/Makefile");
+        File makefileDirF = new File(makefileDir);
+        // makefile dir test
+        if (makefileDirF.exists()==false || makefileDirF.isDirectory()==false){
+            log.error("Makefile directory invalid (does not exist OR is not a directory): " + makefile.getPath());
+            System.err.println("Makefile directory invalid (does not exist OR is not a directory): " + makefile.getPath());
+            return;
+        }
+        
+        // test if makefile exists
+        if (makefile.exists()==false){
+            log.error("Makefile does not exists: " + makefile.getPath());
+            System.err.println("Makefile does not exists: " + makefile.getPath());
+            return;
+        }
+        
+        // info at the beggining
+        System.out.println("Following nodes will be reprogrammed: ");
+        Iterator<NodeConfigRecord> iterator = nodes2connect.iterator();
+        while(iterator.hasNext()){
+            NodeConfigRecord ncr = iterator.next();
+            System.out.println(ncr.getHumanOutput());
+        }
+        System.out.println();
+        
+        List<NodeConfigRecord> nodesFailed = new LinkedList<NodeConfigRecord>();
+        // iterate
+        iterator = nodes2connect.iterator();
+        while(iterator.hasNext()){
+            NodeConfigRecord ncr = iterator.next();
+            String command = MAKE + " -f " + makefile.getAbsolutePath() + " "
+                    + NodePlatformFactory.getPlatform(ncr.getPlatformId()).getPlatformReflashId()
+                    +" install," + ncr.getNodeId() + " bsl," + ncr.getDeviceAlias();
+            boolean success=false;
             
-            StringBuilder sb = new StringBuilder();
-            sb.append("Node serial: ").append(ncr.getSerial())
-                    .append(";\t NodeID: ").append(ncr.getNodeId())
-                    .append(";\t Dev: ").append(ncr.getDevicePath())
-                    .append(";\t Alias: ").append(ncr.getDeviceAlias())
-                    .append(";\t Description").append(ncr.getDescription())
-                    .append(";\t USB: ").append(ncr.getUsbPath());
-            System.out.println(sb.toString());
+            // try to repeat 3 times if failed
+            for(int i=0; i<4; i++){
+                log.info("Reprogramming nodeID: " + ncr.getNodeId() + "; On device: " + ncr.getDeviceAlias() + "; Try: " + (i+1));
+                log.info("Going to execute: " + command);
+                try {
+                    // execute motelist command
+                    Process p = Runtime.getRuntime().exec(command, null, makefileDirF);
+                    String output;
+                    
+                    StringBuilder sb = new StringBuilder();
+                    BufferedReader bri = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+                    String line = null;
+                    while ((line = bri.readLine()) != null) {
+                        sb.append(line).append("\n");
+                    }
+                    bri.close();
+                    output = sb.toString();
+
+                    // sunchronous call, wait for command completion
+                    p.waitFor();
+                    int exitVal = p.exitValue();
+
+                    if (exitVal == 0) {
+                        log.info("Node " + ncr.getNodeId() + " flashed successfully");
+                        System.out.println("Node " + ncr.getNodeId() + " flashed successfully");
+                        success=true;
+                        break;
+                    } else {
+                        log.error("Node " + ncr.getNodeId() + " flash error!");
+                        log.info("Output: " + output);
+                        System.out.println("Node " + ncr.getNodeId() + " flash error!");
+                    }
+                } catch (IOException ex) {
+                    log.error("IOException error, try checking motelist command", ex);
+                } catch (InterruptedException ex) {
+                    log.error("Motelist command was probably interrupted", ex);
+                }
+            } // end of for (retry count)
+            
+            if (success==false){
+                nodesFailed.add(ncr);
+            }
+        } // end of while (node iteration)
+        
+        // was there some errors?
+        if (nodesFailed.isEmpty()==false){
+            System.out.println("Some errors occurred during reflashing, problematic nodes: ");
+            iterator = nodesFailed.iterator();
+            while(iterator.hasNext()){
+                NodeConfigRecord ncr = iterator.next();
+                System.out.println(ncr.getHumanOutput());
+            }
+        } else {
+            System.out.println("All nodes flashed successfully!");
         }
     }
     

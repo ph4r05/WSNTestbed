@@ -133,4 +133,20 @@ public class NodeConfigRecord {
     public String toString() {
         return "NodeConfigRecord{" + "bus=" + bus + ", dev=" + dev + ", usbPath=" + usbPath + ", serial=" + serial + ", devicePath=" + devicePath + ", deviceAlias=" + deviceAlias + ", description=" + description + ", nodeId=" + nodeId + '}';
     }
+    
+    /**
+     * Returns human readable output for NodeConfigRecord
+     * Used for dumps lists/show-binding
+     * @return 
+     */
+    public String getHumanOutput(){
+        StringBuilder sb = new StringBuilder();
+        sb.append("Node serial: ").append(getSerial())
+                .append(";\t NodeID: ").append(getNodeId())
+                .append(";\t Dev: ").append(getDevicePath())
+                .append(";\t Alias: ").append(getDeviceAlias())
+                .append(";\t Description").append(getDescription())
+                .append(";\t USB: ").append(getUsbPath());
+        return sb.toString();
+    }
 }
