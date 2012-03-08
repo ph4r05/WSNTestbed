@@ -14,6 +14,7 @@ import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
+import java.util.Random;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
@@ -62,6 +63,17 @@ public class ExperimentData2DB extends Thread implements MessageListener{
      * Messages received from last flush
      */
     int messageFromLastFlush=0;
+    
+    /**
+     * Randomized message threshold flush to distribute flush
+     * elimitanes spikes in database load when multiple threads wants to flush in 
+     * the same time
+     */
+    int currentMessageThresholdFlush=10;
+    
+    int maxMessageThresholdFlush=100;
+    int minMessageThresholdFlush=10;
+    
     
     @PostConstruct
     public void init(){
@@ -186,9 +198,14 @@ public class ExperimentData2DB extends Thread implements MessageListener{
             }
         }
         
-        if (messageFromLastFlush>5){
+        if (messageFromLastFlush>currentMessageThresholdFlush){
             this.em.flush();
             messageFromLastFlush=0;
+            
+            // randomize message flush
+            currentMessageThresholdFlush= maxMessageThresholdFlush==minMessageThresholdFlush ?
+                    this.minMessageThresholdFlush :
+                    minMessageThresholdFlush + (int)(Math.random() * ((maxMessageThresholdFlush - minMessageThresholdFlush) + 1));
         }
     }
 
@@ -214,5 +231,37 @@ public class ExperimentData2DB extends Thread implements MessageListener{
 
     public void setExpMeta(ExperimentMetadata expMeta) {
         this.expMeta = expMeta;
+    }
+
+    public int getCurrentMessageThresholdFlush() {
+        return currentMessageThresholdFlush;
+    }
+
+    public void setCurrentMessageThresholdFlush(int currentMessageThresholdFlush) {
+        this.currentMessageThresholdFlush = currentMessageThresholdFlush;
+    }
+
+    public int getMaxMessageThresholdFlush() {
+        return maxMessageThresholdFlush;
+    }
+
+    public void setMaxMessageThresholdFlush(int maxMessageThresholdFlush) {
+        this.maxMessageThresholdFlush = maxMessageThresholdFlush;
+    }
+
+    public int getMessageFromLastFlush() {
+        return messageFromLastFlush;
+    }
+
+    public void setMessageFromLastFlush(int messageFromLastFlush) {
+        this.messageFromLastFlush = messageFromLastFlush;
+    }
+
+    public int getMinMessageThresholdFlush() {
+        return minMessageThresholdFlush;
+    }
+
+    public void setMinMessageThresholdFlush(int minMessageThresholdFlush) {
+        this.minMessageThresholdFlush = minMessageThresholdFlush;
     }
 }
