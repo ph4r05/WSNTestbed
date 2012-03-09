@@ -102,10 +102,11 @@
         <property name="hibernateProperties" >
             <props>
             <!-- properties chopped for space -->
-                <prop key="hibernate.jdbc.batch_size">50</prop>
+                <prop key="hibernate.jdbc.batch_size">100</prop>
                 <prop key="hibernate.cache.use_second_level_cache">false</prop>
                 <prop key="hibernate.order_inserts">true</prop>
                 <prop key="hibernate.order_updates">true</prop>
+                <prop key="hibernate.show_sql">false</prop>
             </props>
             <!--<value>classpath:/db.properties</value>-->
             <!--<list>

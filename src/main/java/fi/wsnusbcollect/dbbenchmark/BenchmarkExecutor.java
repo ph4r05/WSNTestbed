@@ -71,7 +71,7 @@ public class BenchmarkExecutor implements BenchmarkExecutorI {
             tasks.execute(new threadWorker());
         }
         try {
-            tasks.awaitTermination(70, TimeUnit.SECONDS);
+            tasks.awaitTermination(15, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {
             log.error("interrupted ", ex);
         }
@@ -281,7 +281,7 @@ public class BenchmarkExecutor implements BenchmarkExecutorI {
                 be.setD3((int)this.getId());
                 
                 session.save(be);
-                if ( i % 1000 == 0 || (i+1) == recordsInsert) { //20, same as the JDBC batch size
+                if ( i % 100 == 0 || (i+1) == recordsInsert) { //20, same as the JDBC batch size
                     //flush a batch of inserts and release memory:
                     session.flush();
                     session.clear();
