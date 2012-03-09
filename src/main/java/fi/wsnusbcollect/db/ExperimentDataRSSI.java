@@ -5,15 +5,17 @@
 package fi.wsnusbcollect.db;
 
 import java.io.Serializable;
+import java.util.List;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 /**
- * 
+ * RSSI measurements, requires high throughput
  * @author ph4r05
  */
 @Entity
@@ -24,6 +26,7 @@ public class ExperimentDataRSSI implements Serializable {
     private Long id;
     
     @ManyToOne
+    @JoinColumn(name="experiment_id")
     private ExperimentMetadata experiment;
 
     private long miliFromStart;
@@ -39,6 +42,40 @@ public class ExperimentDataRSSI implements Serializable {
     private long rssi;
     
     private short len;
+    
+    /**
+     * Returns SQL insert string for given list of elements.
+     * WARNING! This method has to be modified if model changes
+     * 
+     * @param list
+     * @return 
+     */
+    public static String getDBInsertString(List<ExperimentDataRSSI> list){
+        if (list==null || list.isEmpty()) return null;
+        StringBuilder sb = new StringBuilder();
+        sb.append("INSERT INTO ExperimentDataRSSI(")
+                .append("id,experiment_id,miliFromStart,connectedNode,")
+                .append("sendingNode,sendingNodeCounter,connectedNodeCounter,")
+                .append("rssi,len) VALUES ");
+            
+        int i=0;
+        for (ExperimentDataRSSI entity : list) {
+            if (i>0) sb.append(",");
+            sb.append("(NULL,")
+                    .append(entity.getExperiment().getId()).append(",")
+                    .append(entity.getMiliFromStart()).append(",")
+                    .append(entity.getConnectedNode()).append(",")
+                    .append(entity.getSendingNode()).append(",")
+                    .append(entity.getSendingNodeCounter()).append(",")
+                    .append(entity.getConnectedNodeCounter()).append(",")
+                    .append(entity.getRssi()).append(",")
+                    .append(entity.getLen()).append(")");
+
+            ++i;
+        }
+        
+        return sb.toString();
+    }
     
     public Long getId() {
         return id;

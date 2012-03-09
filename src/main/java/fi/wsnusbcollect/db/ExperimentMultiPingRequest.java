@@ -27,7 +27,12 @@ public class ExperimentMultiPingRequest implements Serializable {
     private ExperimentMetadata experiment;
     
     private long miliFromStart;
-    private int connectedNode;
+    
+    private int node;
+    
+    private int nodeBS;
+    //************************* END OF COMMON HEADER
+    
     // where to send ping message? single node or broadcast
     int destination;
     // SEQ number ot this request
@@ -77,14 +82,6 @@ public class ExperimentMultiPingRequest implements Serializable {
 
     public void setChannel(int channel) {
         this.channel = channel;
-    }
-
-    public int getConnectedNode() {
-        return connectedNode;
-    }
-
-    public void setConnectedNode(int connectedNode) {
-        this.connectedNode = connectedNode;
     }
 
     public int getCounter() {
@@ -175,8 +172,24 @@ public class ExperimentMultiPingRequest implements Serializable {
         this.txpower = txpower;
     }
 
+    public int getNode() {
+        return node;
+    }
+
+    public void setNode(int node) {
+        this.node = node;
+    }
+
+    public int getNodeBS() {
+        return nodeBS;
+    }
+
+    public void setNodeBS(int nodeBS) {
+        this.nodeBS = nodeBS;
+    }
+
     @Override
     public String toString() {
-        return "ExperimentMultiPingRequest{" + "id=" + id + ", experiment=" + experiment + ", miliFromStart=" + miliFromStart + ", connectedNode=" + connectedNode + ", destination=" + destination + ", counter=" + counter + ", txpower=" + txpower + ", channel=" + channel + ", packets=" + packets + ", delay=" + delay + ", packetSize=" + packetSize + ", counterStrategySuccess=" + counterStrategySuccess + ", timerStrategyPeriodic=" + timerStrategyPeriodic + '}';
+        return "ExperimentMultiPingRequest{" + "id=" + id + ", experiment=" + experiment + ", miliFromStart=" + miliFromStart + ", node=" + node + ", nodeBS=" + nodeBS + ", destination=" + destination + ", counter=" + counter + ", txpower=" + txpower + ", channel=" + channel + ", packets=" + packets + ", delay=" + delay + ", packetSize=" + packetSize + ", counterStrategySuccess=" + counterStrategySuccess + ", timerStrategyPeriodic=" + timerStrategyPeriodic + '}';
     }
 }

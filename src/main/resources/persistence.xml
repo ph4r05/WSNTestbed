@@ -10,6 +10,9 @@
     <class>fi.wsnusbcollect.db.ExperimentDataRSSI</class>
     <class>fi.wsnusbcollect.db.ExperimentMetadata</class>
     <class>fi.wsnusbcollect.db.ExperimentMultiPingRequest</class>
+    <class>fi.wsnusbcollect.db.ExperimentDataCommands</class>
+    <class>fi.wsnusbcollect.db.ExperimentDataGenericMessage</class>
+    <class>fi.wsnusbcollect.dbbenchmark.BenchmarkEntity</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="hibernate.cache.provider_class" value="org.hibernate.cache.NoCacheProvider"/>
@@ -17,20 +20,21 @@
       <property name="javax.persistence.jdbc.password" value="xyhCmFFTQqfmm7QP"/>
       <property name="javax.persistence.jdbc.driver" value="com.mysql.jdbc.Driver"/>
       <property name="javax.persistence.jdbc.user" value="xklinec"/>
-      <property name="hibernate.dialect" value="org.hibernate.dialect.MySQLInnoDBDialect"/>
+      <property name="hibernate.dialect" value="org.hibernate.dialect.MySQL5Dialect"/>
+      <!--org.hibernate.dialect.MySQLInnoDBDialect-->
       <property name="hibernate.hbm2ddl.auto" value="update"/>
       <property name="c3p0.acquire_increment" value="2">1</property>
       <property name="hibernate.c3p0.idle_test_period" value="10">100</property>
       <!-- seconds -->
       <property name="hibernate.c3p0.max_size" value="150">100</property>
       <property name="hibernate.c3p0.max_statements" value="0">0</property>
-      <property name="hibernate.c3p0.min_size" value="25">10</property>
+      <property name="hibernate.c3p0.min_size" value="25">300</property>
       <property name="hibernate.c3p0.timeout" value="10">100</property>
-      <property name="hibernate.c3p0.initialPoolSize" value="30">10</property>
-      <property name="hibernate.c3p0.minPoolSize" value="30">10</property>
-      <property name="hibernate.c3p0.maxPoolSize" value="150">10</property>
+      <property name="hibernate.c3p0.initialPoolSize" value="30">30</property>
+      <property name="hibernate.c3p0.minPoolSize" value="30">30</property>
+      <property name="hibernate.c3p0.maxPoolSize" value="150">100</property>
       <property name="hibernate.c3p0.timeout" value="10">10</property>
-      <property name="hibernate.c3p0.timeout">10</property>
+      <property name="hibernate.jdbc.batch_size" value="50" />
     </properties>
   </persistence-unit>
 </persistence>

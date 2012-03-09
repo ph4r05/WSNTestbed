@@ -63,12 +63,13 @@
       <property name="jdbcUrl"><value>${db.url}</value></property>
       <property name="user"><value>${db.user}</value></property>
       <property name="password"><value>${db.password}</value></property>
-      <property name="acquireIncrement"><value>2</value></property>
+      <property name="acquireIncrement"><value>4</value></property>
       <property name="maxPoolSize"><value>150</value></property>
-      <property name="minPoolSize"><value>30</value></property>
-      <property name="initialPoolSize"><value>30</value></property>
+      <property name="minPoolSize"><value>40</value></property>
+      <property name="initialPoolSize"><value>40</value></property>
     </bean>
           
+    <!-- JDBC template is separated from JTA/Hibernate here for fast queries -->
     <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate" >
         <!-- setter for data source -->
         <property name="dataSource" ref="dataSource" />
@@ -89,47 +90,112 @@
         <property name="persistenceXmlLocation" value="classpath:/persistence.xml"/>
     </bean>
     
-    <!--
-    <bean id="sessionFactory" class="org.springframework.orm.hibernate.LocalSessionFactoryBean">
-        <property name="mappingResources" ref="hibernateMappingList" />
-        <property name="hibernateProperties">
-            <props>
-                <prop key="hibernate.dialect">${db.dialect}</prop>
-                <prop key="transaction.factory_class">
-                    net.sf.hibernate.transaction.JDBCTransactionFactory
-                </prop>
-                <prop key="hibernate.transaction.factory_class">
-                    net.sf.hibernate.transaction.JDBCTransactionFactory
-                </prop>
-                <prop key="hibernate.show_sql">false</prop>
-                <prop key="hibernate.cglib.use_reflection_optimizer">false</prop>
-                <prop key="hibernate.jdbc.batch_size">0</prop>
-
-                <prop key="hibernate.c3p0.min_size">2</prop>
-                <prop key="hibernate.c3p0.max_size">5</prop>
-                <prop key="hibernate.c3p0.timeout">600</prop>
-                <prop key="hibernate.c3p0.max_statements">0</prop>
-                <prop key="hibernate.c3p0.idle_test_period">300</prop>
-                <prop key="hibernate.c3p0.acquire_increment">1</prop>
-          </props>
-        </property>
-    </bean>
-    -->
-
     <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
         <property name="entityManagerFactory" ref="entityManagerFactory"/>
         <property name="dataSource" ref="dataSource"/>
     </bean>
     
-    <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitrator"/>
-    <bean id="consoleHelper" class="fi.wsnusbcollect.console.ConsoleHelper"/>
-    <bean id="console" class="fi.wsnusbcollect.console.Console"/>
-    <bean id="nodeHandlerRegister" class="fi.wsnusbcollect.nodeManager.NodeHandlerRegister"/>
+    
+    <!-- HIBERNATE database connection -->
+    <bean id="mySessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="hibernateProperties" >
+            <props>
+            <!-- properties chopped for space -->
+                <prop key="hibernate.jdbc.batch_size">50</prop>
+                <prop key="hibernate.cache.use_second_level_cache">false</prop>
+                <prop key="hibernate.order_inserts">true</prop>
+                <prop key="hibernate.order_updates">true</prop>
+            </props>
+            <!--<value>classpath:/db.properties</value>-->
+            <!--<list>
+                <value>hibernate.dialect=org.hibernate.dialect.MySQL5Dialect</value>
+                
+            </list>-->
+        </property>
+        
+        <property name="packagesToScan">
+            <array>
+                <value>fi.wsnusbcollect</value>
+            </array>
+        </property>
+        <property name="annotatedPackages">
+            <array>
+                <value>fi.wsnusbcollect</value>
+            </array>
+        </property>
+    </bean> 
+    
+    <bean id="hibernateTransactionManager" 
+            class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+        <property name="sessionFactory" ref="mySessionFactory"/>
+    </bean>
+    
+    <!--<value>hibernate.jdbc.batch_size=50</value>-->
+    <!--<property name="hibernateProperties">
+            <list>
+                <value>hibernate.dialect=org.hibernate.dialect.MySQL5Dialect</value>
+                
+            </list>
+        </property>-->
+    
+    
+    
+    
+    <!--   <tx:annotation-driven />  -->
+    <tx:annotation-driven transaction-manager="transactionManager" proxy-target-class="false" />
+    
+    <!--<aop:aspectj-autoproxy proxy-target-class="true"/>
+    <bean class="org.springframework.aop.aspectj.annotation.AnnotationAwareAspectJAutoProxyCreator" />
+    <tx:annotation-driven mode="aspectj" proxy-target-class="true" />
+    -->
+    
+    <bean id="entityManager" class="org.springframework.orm.jpa.support.SharedEntityManagerBean">
+       <property name="entityManagerFactory" ref="entityManagerFactory"/>
+    </bean>
+    
+    
+    <!--<context:load-time-weaver/>
+     <aop:aspectj-autoproxy />-->
+    
+    
+    
+<!--    <bean id="transactionManager"   class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+    
+    <bean class="org.springframework.transaction.aspectj.AnnotationTransactionAspect" factory-method="aspectOf">
+        <property name="transactionManager" ref="transactionManager"/>
+    </bean>
+
+    
+    <bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator">
+        <property name="proxyTargetClass" value="true"/>
+    </bean>
+
+    <bean class="org.springframework.transaction.interceptor.TransactionAttributeSourceAdvisor">
+        <property name="transactionInterceptor" ref="transactionInterceptor"/>
+    </bean>
+
+    <bean id="transactionInterceptor" class="org.springframework.transaction.interceptor.TransactionInterceptor">
+        <property name="transactionManager" ref="transactionManager"/>
+        <property name="transactionAttributeSource">
+            <bean class="fi.wsnusbcollect.dbManager.CglibOptimizedAnnotationTransactionAttributeSource"/>
+        </property>
+    </bean>
+    -->
+    
+    <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitratorImpl"/>
+    <bean id="consoleHelper" class="fi.wsnusbcollect.console.ConsoleHelperImpl"/>
+    <bean id="console" class="fi.wsnusbcollect.console.ConsoleImpl"/>
+    <bean id="nodeHandlerRegister" class="fi.wsnusbcollect.nodeManager.NodeHandlerRegisterImpl"/>
     
     <!-- Experiment related -->
-    <bean id="experimentParameters" class="fi.wsnusbcollect.experiment.ExperimentParameters"/>
+    <bean id="experimentParameters" class="fi.wsnusbcollect.experiment.ExperimentParametersImpl"/>
     <bean id="experimentInit" class="fi.wsnusbcollect.experiment.ExperimentInitImpl"/>
-    <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl"/>
-    <bean id="experimentData2DB" class="fi.wsnusbcollect.experiment.ExperimentData2DB" scope="prototype"  />
-    <aop:aspectj-autoproxy proxy-target-class="true"/>
+    <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl" lazy-init="true"/>
+    <bean id="experimentData2DB" class="fi.wsnusbcollect.experiment.ExperimentData2DBImpl" scope="prototype"/>
+    
+    <bean id="emdonor" class="fi.wsnusbcollect.dbbenchmark.EMdonor" scope="prototype"/>
+    <bean id="benchmark" class="fi.wsnusbcollect.dbbenchmark.BenchmarkExecutor" />
 </beans>

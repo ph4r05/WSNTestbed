@@ -5,7 +5,6 @@
 package fi.wsnusbcollect.experiment;
 
 import fi.wsnusbcollect.App;
-import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.db.ExperimentMetadata;
 import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.messages.CommandMsg;
@@ -26,7 +25,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import net.tinyos.message.MoteIF;
@@ -53,16 +52,13 @@ public class ExperimentInitImpl implements ExperimentInit {
     @PersistenceContext
     private EntityManager em;
     
-    @Autowired
+    @Resource(name="nodeHandlerRegister")
     protected NodeHandlerRegister nodeReg;
     
     //@Autowired
-    protected ExperimentCoordinatorImpl expCoordinator;
+    protected ExperimentCoordinator expCoordinator;
     
-    @Autowired
-    protected Console console;
-    
-    @Autowired
+    @Resource(name="USBarbitrator")
     protected USBarbitrator usbArbitrator;
     
     // main experiment metadata
@@ -73,7 +69,7 @@ public class ExperimentInitImpl implements ExperimentInit {
     
     private int status=0;
     
-    @Autowired
+    @Resource(name="experimentParameters")
     private ExperimentParameters params;
     
     public static final String INISECTION_MOTELIST="motelist";
@@ -390,7 +386,7 @@ public class ExperimentInitImpl implements ExperimentInit {
         this.nodeReg = nodeReg;
     }
 
-    public ExperimentCoordinatorImpl getExpCoordinator() {
+    public ExperimentCoordinator getExpCoordinator() {
         return expCoordinator;
     }
 
@@ -398,9 +394,9 @@ public class ExperimentInitImpl implements ExperimentInit {
         this.expCoordinator = expCoordinator;
     }
 
-    public void setConsole(Console console) {
-        this.console = console;
-    }
+//    public void setConsole(Console console) {
+//        this.console = console;
+//    }
 
     public ExperimentMetadata getExpMeta() {
         return expMeta;

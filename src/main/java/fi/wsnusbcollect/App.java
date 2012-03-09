@@ -2,7 +2,8 @@ package fi.wsnusbcollect;
 
 import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.console.ConsoleHelper;
-import fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl;
+import fi.wsnusbcollect.dbbenchmark.BenchmarkExecutorI;
+import fi.wsnusbcollect.experiment.ExperimentCoordinator;
 import fi.wsnusbcollect.experiment.ExperimentInit;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.BufferedReader;
@@ -64,6 +65,9 @@ public class App {
     //@Option(name = "--shell", usage = "should drop to shell after init?")
     private boolean shell=true;
     
+    @Option(name = "--bench", usage = "performs database benchmark")
+    private boolean benchmarkDB=false;
+    
     @Option(name = "--start-suspended", usage = "experiment coordinator starts for command from shell")
     private boolean startSuspended=false;
     
@@ -114,7 +118,7 @@ public class App {
     private Console console = null;
     
     // experiment objects
-    private ExperimentCoordinatorImpl expCoord;
+    private ExperimentCoordinator expCoord;
     private ExperimentInit expInit;
     
     // parsed config file
@@ -174,7 +178,8 @@ public class App {
         this.consoleHelper = appContext.getBean("consoleHelper", ConsoleHelper.class);
         this.console = appContext.getBean("console", Console.class);
         this.expInit = appContext.getBean("experimentInit", ExperimentInit.class);
-        this.expCoord = appContext.getBean("experimentCoordinator", ExperimentCoordinatorImpl.class);
+        //this.expCoord = appContext.getBean("experimentCoordinator", ExperimentCoordinatorImpl.class);
+        this.expCoord = (ExperimentCoordinator) appContext.getBean("experimentCoordinator");
         
         // reconnect between
         log.info("All dependencies initialized");
@@ -242,6 +247,14 @@ public class App {
         // application context loading
         log.info("Initializing depencencies");
         this.initDependencies();
+        
+        // benchmark?
+        if (this.benchmarkDB){
+            BenchmarkExecutorI benchmark = (BenchmarkExecutorI) appContext.getBean("benchmark");
+            benchmark.test();
+            return;
+        }
+        
         
         // main logic starting
         log.info("Arguments parsed, can start logic");
@@ -481,7 +494,7 @@ public class App {
         return ini;
     }
 
-    public ExperimentCoordinatorImpl getExpCoord() {
+    public ExperimentCoordinator getExpCoord() {
         return expCoord;
     }
 
@@ -499,5 +512,13 @@ public class App {
 
     public void setReprogramNodesWith(String reprogramNodesWith) {
         this.reprogramNodesWith = reprogramNodesWith;
+    }
+
+    public boolean isBenchmarkDB() {
+        return benchmarkDB;
+    }
+
+    public void setBenchmarkDB(boolean benchmarkDB) {
+        this.benchmarkDB = benchmarkDB;
     }
 }

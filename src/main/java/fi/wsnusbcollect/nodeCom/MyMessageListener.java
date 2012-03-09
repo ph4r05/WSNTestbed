@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import org.slf4j.Logger;
@@ -39,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * @author ph4r05
  */
 public class MyMessageListener extends Thread implements net.tinyos.message.MessageListener {
-    private static final Logger log = LoggerFactory.getLogger(MessageSender.class);
+    private static final Logger log = LoggerFactory.getLogger(MyMessageListener.class);
     
     /**
      * maximum number of notify threads in fixed size thread pool
@@ -54,7 +55,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
     /**
      * Maximum number of messages in queue to reset queue
      */
-    public static final int MAX_QUEUE_SIZE_TO_RESET=1000;
+    public static final int MAX_QUEUE_SIZE_TO_RESET=500;
 
     /**
      * Message queue
@@ -124,10 +125,10 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
 
         // instantiate thread pool
         tasks = Executors.newFixedThreadPool(MAX_NOTIFY_THREADS);
-        this.myWorker = new MessageNotifyWorker();
-        tasks.execute(this.myWorker);
+//        this.myWorker = new MessageNotifyWorker();
+//        tasks.execute(this.myWorker);
         
-//        // create notify threads
+        // create notify threads
 //        for(int i=0; i<MAX_NOTIFY_THREADS; i++){
 //            tasks.execute(new MessageNotifyWorker());
 //        }
@@ -139,7 +140,6 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
      */
     private void pause(int microsecs) {
         try {
-            Thread.yield();
             Thread.sleep(microsecs);
         } catch (InterruptedException ie) {
             log.warn("Cannot sleep", ie);
@@ -325,8 +325,16 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
          // do in infitite loop
          while(true){
             // yield for some time, processor rest
-            this.pause(250);
-
+            //this.pause(500);
+            Thread.yield();
+            try {
+                Thread.sleep(0, 200);
+            } catch (InterruptedException ex) {
+                
+            }
+MessageReceived tmpMessage = null;            
+Iterator<MessageListener> iterator = null;
+            
             // shutdown
             if (this.shutdown == true){
                 log.info("MyMessageReceiver shutting down.");
@@ -343,6 +351,133 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
                 
                 break;
             }
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            // yield for some time iff is queue empty
+                    if (queue == null || queue.isEmpty()) {
+                        this.pause(5);
+                        continue;
+                    }
+
+                    //  nulltest
+                    if (queue == null) {
+                        continue;
+                    }
+
+                    // select new message from queue in synchronized block
+//                    synchronized (queue) {
+                        // check queue size
+                        if (queue.size() > MAX_QUEUE_SIZE_TO_RESET) {
+                            queue.clear();
+
+                            log.warn("Warning! Input queue had to be flushed out!"
+                                    + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET
+                                    + "; " + gateway.getSource().getName() + " psrc: " + gateway.getSource().getPacketSource().getName());
+                            continue;
+                        }
+
+                        // if is nonempty, select first element
+                        if (!queue.isEmpty()) {
+                            tmpMessage = queue.remove();
+                        } else {
+                            tmpMessage = null;
+                        }
+//                    }
+
+                    // end of synchronization block, check if we have some message
+                    if (tmpMessage == null) {
+                        continue;
+                    }
+
+                    // check listener for existence
+                    if (!(tmpMessage instanceof MessageReceived)) {
+                        log.error("Message is not instance of messageReceived - please inspect it");
+                        continue;
+                    }
+
+                    // determine message received
+                    Message msg = tmpMessage.getMsg();
+                    if (msg == null) {
+                        // empty message, continue
+                        log.error("Message is empty in envelope", tmpMessage);
+                        continue;
+                    }
+
+                    Integer amtype = Integer.valueOf(msg.amType());
+
+                    // is this message registered to anybody?
+                    if (messageListeners.containsKey(amtype) == false) {
+                        // registered to no one, continue - why not 
+                        // registered message arrived? Weird
+                        log.warn("Message arrived but no message listener "
+                                + "registered to it - how it could arrive? "
+                                + "AMtype: " + amtype);
+                        continue;
+                    }
+
+                    // get list of listeners interested in receiving messages of
+                    // this AMtype
+                    ConcurrentLinkedQueue<MessageListener> listenersList = messageListeners.get(amtype);
+                    if (listenersList == null || listenersList.isEmpty()) {
+                        // list is null || empty, cannot forward to anyone
+                        continue;
+                    }
+
+                    // iterate over listeners list and notify each listener 
+                    // in serial manner
+                    boolean large=queue.size()>300;
+                    
+                    if (large)
+                        log.info(this.getName() + "; XXqsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
+                    iterator = listenersList.iterator();
+                    while (iterator.hasNext()) {
+                        MessageListener curListener = iterator.next();
+                        if (curListener == null) {
+                            continue;
+                        }
+
+                        // notify this listener,, separate try block - exception
+                        // can be thrown, this exception affects only one listener
+                        try {
+                            // notify here
+                            curListener.messageReceived(tmpMessage.getI(), msg, tmpMessage.getTimeReceivedMili());
+                            
+                            if (large)
+                                log.info(this.getName() + "; qsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
+                        } catch (Exception e) {
+                            log.error("Exception during notifying listener", e);
+                            continue;
+                        }
+                    }
+
+                    // set message to null to release it from memory for garbage collector
+                    tmpMessage = null;
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
 
             // this code is probably useles since message arrived event notify 
             // is performed by notify thread            
@@ -455,63 +590,72 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
          */
         @Override
         public void run() {
+            
             // new message to be notified
             MessageReceived tmpMessage = null;
             log.info("Message notify worker started");
             
-            synchronized(this){
-                // do in infitite loop
-                while(true){
-                    // shutting down
-                    if (shutdown) {
-                        log.info("MessageNotifyWorker shutdown");
-                        return;
-                    }
-                    
+            Iterator<MessageListener> iterator = null;
+            
+            // do in infitite loop
+            while (true) {
+                // shutting down
+                if (shutdown) {
+                    log.info("MessageNotifyWorker shutdown");
+                    return;
+                }
+                
+                if (queue.size()<50){
+                    Thread.yield();
+                }
+                //this.pause(3);
+
+                synchronized (this) {
                     // yield for some time iff is queue empty
-                    if (queue==null || queue.isEmpty()){
-                        this.pause(10);
+                    if (queue == null || queue.isEmpty()) {
+                        this.pause(5);
+                        continue;
                     }
 
                     //  nulltest
-                    if (queue==null){ 
+                    if (queue == null) {
                         continue;
                     }
 
                     // select new message from queue in synchronized block
-                    synchronized(queue){
+//                    synchronized (queue) {
                         // check queue size
-                        if (queue.size() > MAX_QUEUE_SIZE_TO_RESET){
+                        if (queue.size() > MAX_QUEUE_SIZE_TO_RESET) {
                             queue.clear();
-                            
+
                             log.warn("Warning! Input queue had to be flushed out!"
-                                    + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET);
+                                    + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET
+                                    + "; " + gateway.getSource().getName() + " psrc: " + gateway.getSource().getPacketSource().getName());
                             continue;
                         }
-                        
+
                         // if is nonempty, select first element
-                        if (!queue.isEmpty()){
+                        if (!queue.isEmpty()) {
                             tmpMessage = queue.remove();
-                        }
-                        else {
+                        } else {
                             tmpMessage = null;
                         }
-                    }
+//                    }
 
                     // end of synchronization block, check if we have some message
-                    if (tmpMessage==null){
+                    if (tmpMessage == null) {
                         continue;
                     }
-                    
+
                     // check listener for existence
-                    if (!(tmpMessage instanceof MessageReceived)){
+                    if (!(tmpMessage instanceof MessageReceived)) {
                         log.error("Message is not instance of messageReceived - please inspect it");
                         continue;
                     }
 
                     // determine message received
                     Message msg = tmpMessage.getMsg();
-                    if (msg == null){
+                    if (msg == null) {
                         // empty message, continue
                         log.error("Message is empty in envelope", tmpMessage);
                         continue;
@@ -520,7 +664,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
                     Integer amtype = Integer.valueOf(msg.amType());
 
                     // is this message registered to anybody?
-                    if (messageListeners.containsKey(amtype)==false){
+                    if (messageListeners.containsKey(amtype) == false) {
                         // registered to no one, continue - why not 
                         // registered message arrived? Weird
                         log.warn("Message arrived but no message listener "
@@ -528,33 +672,42 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
                                 + "AMtype: " + amtype);
                         continue;
                     }
-                    
+
                     // get list of listeners interested in receiving messages of
                     // this AMtype
                     ConcurrentLinkedQueue<MessageListener> listenersList = messageListeners.get(amtype);
-                    if (listenersList==null || listenersList.isEmpty()){
+                    if (listenersList == null || listenersList.isEmpty()) {
                         // list is null || empty, cannot forward to anyone
                         continue;
                     }
-                    
+
                     // iterate over listeners list and notify each listener 
                     // in serial manner
-                    Iterator<MessageListener> iterator = listenersList.iterator();
-                    while(iterator.hasNext()){
+                    boolean large=queue.size()>300;
+                    
+                    if (large)
+                        log.info(this.getName() + "; XXqsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
+                    iterator = listenersList.iterator();
+                    while (iterator.hasNext()) {
                         MessageListener curListener = iterator.next();
-                        if (curListener==null) continue;
-                        
+                        if (curListener == null) {
+                            continue;
+                        }
+
                         // notify this listener,, separate try block - exception
                         // can be thrown, this exception affects only one listener
-                        try{
+                        try {
                             // notify here
                             curListener.messageReceived(tmpMessage.getI(), msg, tmpMessage.getTimeReceivedMili());
-                        } catch (Exception e){
+                            
+                            if (large)
+                                log.info(this.getName() + "; qsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
+                        } catch (Exception e) {
                             log.error("Exception during notifying listener", e);
                             continue;
                         }
                     }
-                    
+
                     // set message to null to release it from memory for garbage collector
                     tmpMessage = null;
                 } //end while(true)

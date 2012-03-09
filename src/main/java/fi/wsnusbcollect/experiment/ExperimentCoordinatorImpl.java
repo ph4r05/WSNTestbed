@@ -6,6 +6,8 @@ package fi.wsnusbcollect.experiment;
 
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.console.Console;
+import fi.wsnusbcollect.db.ExperimentDataCommands;
+import fi.wsnusbcollect.db.ExperimentDataGenericMessage;
 import fi.wsnusbcollect.db.ExperimentMultiPingRequest;
 import fi.wsnusbcollect.messages.CommandMsg;
 import fi.wsnusbcollect.messages.MessageTypes;
@@ -22,35 +24,56 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceContext;
+import javax.persistence.PersistenceUnit;
 import net.tinyos.message.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.orm.jpa.EntityManagerHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  *
  * @author ph4r05
  */
 @Repository
+@Transactional
 public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoordinator, MessageListener{
     private static final Logger log = LoggerFactory.getLogger(ExperimentCoordinatorImpl.class);
     
     @PersistenceContext
     private EntityManager em;
     
+    /**
+     * Persistence context for event threads - cannot use global em in event handlers.
+     * Events are called from another event-watching threads, if main loop works with em
+     * at the same time it would cause race condition. Event handlers should SYNCHRONIZE 
+     * on this object to avoid same problem with em.
+     */
+    private EntityManager emThread;
+//    
+//    @Resource(name="experimentCoordinator")
+    private ExperimentCoordinator me;
+    
+    @PersistenceUnit
+    private EntityManagerFactory emf;
+    
     @Autowired
     private JdbcTemplate template;
     
     //@Autowired
     //@Resource(name="experimentInit")
-    protected ExperimentInitImpl expInit;
+    protected ExperimentInit expInit;
     
-    @Autowired
+    @Resource(name="nodeHandlerRegister")
     protected NodeHandlerRegister nodeReg;
     
     @Autowired
@@ -61,6 +84,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     protected boolean suspended=true;
     
     private Message lastMsg;
+    
+    private TransactionTemplate transactionTemplate;
     
     /**
      * Miliseconds when unsuspended/started
@@ -78,6 +103,10 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     @PostConstruct
     public void initClass() {
         log.info("Class initialized");
+        
+        // create new entitymanager
+//        log.info("Creating entityManager for thread from factory: " + this.emf.toString());
+        //this.emThread = this.emf.createEntityManager();
     }
 
     @Override
@@ -91,7 +120,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     // without shell it is not necessary
     @Override
     public void work() {
-        this.expInit = (ExperimentInitImpl) App.getRunningInstance().getExpInit();
+        this.expInit = (ExperimentInit) App.getRunningInstance().getExpInit();
+        log.warn("ThreadID: " + this.getId());
         
         if (App.getRunningInstance().isShell()){
             this.start();
@@ -128,7 +158,77 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         }
     }
     
+    /**
+     * Send reset packet to all registered nodes SEQUENTIALY
+     */
+    public void resetAllNodes(){
+        Collection<NodeHandler> values = this.nodeReg.values();
+        Iterator<NodeHandler> iterator = values.iterator();
+        while(iterator.hasNext()){
+            NodeHandler nh = iterator.next();
+            this.sendReset(nh.getNodeId());
+        }
+    }
+    
+    @Transactional
+    @Override
     public void main() {  
+        System.out.println("INIT@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+        
+////        DefaultTransactionDefinition def = new DefaultTransactionDefinition();
+////        // explicitly setting the transaction name is something that can only be done programmatically
+////        def.setName("SomeTxName");
+////        def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
+////
+////        TransactionStatus status = txManager.getTransaction(def);
+////        try {
+////          // execute your business logic here
+////        }
+////        catch (MyException ex) {
+////          txManager.rollback(status);
+////          throw ex;
+////        }
+////        txManager.commit(status);
+//
+//        Object holder = TransactionSynchronizationManager.getResource(emf);
+//        System.out.println("Holder object from emf: " + holder);
+//        EntityManager emx=null;
+//        
+//        if (holder==null){
+//            EntityManagerFactory emfx = (EntityManagerFactory) App.getRunningInstance().getAppContext().getBean("entityManagerFactory");
+//            emx = emfx.createEntityManager();
+//            
+////            emx = emf.createEntityManager();      
+//            TransactionSynchronizationManager.bindResource(emfx, new EntityManagerHolder(emx));
+//            log.warn("New entityManager bounded + " + emx.toString());
+//            log.warn("ThreadID: " + this.getId());
+////            
+//            this.em = emx;
+//        } else {
+//            EntityManagerHolder holder2 = (EntityManagerHolder) holder;
+//            emx = holder2.getEntityManager();
+//            log.warn("Existing entitymanager loaded");
+//            log.warn("ThreadID: " + this.getId());
+//        }
+//       
+//        
+////        EntityManager emx = holder.getEntityManager();
+
+        this.me = (ExperimentCoordinator) App.getRunningInstance().getAppContext().getBean("experimentCoordinator");
+        ExperimentDataGenericMessage edgm = new ExperimentDataGenericMessage();
+        edgm.setAmtype(1);
+        me.storeData(edgm);
+        
+        
+//        emx.persist(edgm);
+//        emx.flush();
+        
+//        // at first reset all nodes before experiment count
+//        this.resetAllNodes();
+        System.out.println("All nodes restarted");
+        this.em = me.getEm();
+        
+        
         this.miliStart = System.currentTimeMillis();
         this.expInit.updateExperimentStart(miliStart);
         log.info("Experiment started, miliseconds start: " + miliStart);
@@ -139,13 +239,13 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         
         // register node coordinator as message listener
         System.out.println("Register message listener for commands and pings");
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.PingMsg(), this);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.RssiMsg(), this);
+//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);
+//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.PingMsg(), this);
+//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.RssiMsg(), this);
         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.NoiseFloorReadingMsg(), this);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingMsg(), this);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseMsg(), this);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseReportMsg(), this);
+//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingMsg(), this);
+//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseMsg(), this);
+//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseReportMsg(), this);
         
         // work
         System.out.println("Sleeping in infinite cycle...");
@@ -161,7 +261,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // shutdown all registered nodes...
         System.out.println("Shutting down all registered nodes");
         this.nodeReg.shutdownAll();
-        
+//        
         System.out.println("Exiting... Returning controll to main application...");
     }
 
@@ -169,7 +269,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         return expInit;
     }
 
-    public void setExpInit(ExperimentInitImpl expInit) {
+    public void setExpInit(ExperimentInit expInit) {
         this.expInit = expInit;
     }
 
@@ -204,6 +304,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                 + "; hsrc: " + msg.getSerialPacket().get_header_src() 
                 + "; mili: " + mili);
         
+        // was this message already handled by specific handler?
+        boolean genericMessage=true;
+        
         // command message?
         if (CommandMsg.class.isInstance(msg)){
             // Command message
@@ -211,16 +314,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             //System.out.println("Command message: " + cMsg.toString());
             log.info("Command message: " + cMsg.toString());
             
-            // is alive / identification packet?
-            if ((cMsg.get_command_code() == (short)MessageTypes.COMMAND_ACK) 
-                    && cMsg.get_reply_on_command() == (short)MessageTypes.COMMAND_IDENTIFY){
-                // identify message, insert new entity to database
-                
-                
-                
-                
-            }
-            
+            genericMessage=false;
         }
         
         // report message?
@@ -228,6 +322,16 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             final MultiPingResponseReportMsg cMsg = (MultiPingResponseReportMsg) msg;
             //System.out.println("Report message: " + cMsg.toString());
             log.info("Report message: " + cMsg.toString());
+            
+            genericMessage=false;
+        }
+        
+        // noise floor message
+        if (NoiseFloorReadingMsg.class.isInstance(msg)){
+            final NoiseFloorReadingMsg nMsg = (NoiseFloorReadingMsg) msg;
+            log.info("NoiseFloorMessage: " + nMsg.toString());
+            
+            genericMessage=false;
         }
         
         // rssi message
@@ -237,10 +341,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             log.info("RSSI message: " + rMsg.toString());
         }
         
-        // noise floor message
-        if (NoiseFloorReadingMsg.class.isInstance(msg)){
-            final NoiseFloorReadingMsg nMsg = (NoiseFloorReadingMsg) msg;
-            log.info("NoiseFloorMessage: " + nMsg.toString());
+        // generic message was probably not really handled -> store to protocol
+        if (genericMessage){
+            this.storeGenericMessageToProtocol(msg, i, false, true);            
         }
         
         this.lastMsg = msg;
@@ -263,7 +366,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * @param counterStrategySuccess
      * @param timerStrategyPeriodic 
      */
-    @Transactional
+    //@Transactional
     public synchronized void sendMultiPingRequest(int nodeId, int txpower,
             int channel, int packets, int delay, int size, 
             boolean counterStrategySuccess, boolean timerStrategyPeriodic){
@@ -283,12 +386,39 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         ExperimentMultiPingRequest mpr = new ExperimentMultiPingRequest();
         mpr.setMiliFromStart(System.currentTimeMillis());
         mpr.setExperiment(this.expInit.getExpMeta());
+        mpr.setNode(nodeId);
+        mpr.setNodeBS(nodeId);
         mpr.loadFromMessage(msg);
+//        me.getEm().persist(mpr);
+//        me.getEm().flush();
         this.em.persist(mpr);
         this.em.flush();
         
         // add message to send
-        this.sendMessageToNode(msg, nodeId);
+        this.sendMessageToNode(msg, nodeId, false);
+    }
+    
+    /**
+     * Sends command message to node. Packet is stored to database
+     * @param payload
+     * @param nodeId 
+     */
+    //@Transactional
+    public synchronized void sendCommand(CommandMsg payload, int nodeId){
+        // store to database here
+        // now build database record for this request
+        ExperimentDataCommands mpr = new ExperimentDataCommands();
+        mpr.setMilitime(System.currentTimeMillis());
+        mpr.setExperiment(this.expInit.getExpMeta());
+        mpr.setNode(nodeId);
+        mpr.setNodeBS(nodeId);
+        mpr.setSent(true);
+        mpr.loadFromMessage(payload);
+        
+        this.storeData(mpr);
+//        me.storeData(mpr); 
+        
+        this.sendMessageToNode(payload, nodeId, false);
     }
     
     /**
@@ -299,7 +429,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         CommandMsg msg = new CommandMsg();
         msg.set_command_code((short) MessageTypes.COMMAND_RESET);
         
-        this.sendMessageToNode(msg, nodeId);
+        //this.sendCommand(msg, nodeId);
+        this.sendCommand(msg, nodeId);
     }
     
     /**
@@ -312,7 +443,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         msg.set_command_code((short) MessageTypes.COMMAND_SETNOISEFLOORREADING);
         msg.set_command_data(delay);
         
-        this.sendMessageToNode(msg, nodeId);
+        this.sendCommand(msg, nodeId);
     }
     
     /**
@@ -320,9 +451,11 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * Another methods may build custom command packet, it is then passed to this method
      * which sends it to all selected nodes
      * 
-     * @param CommandMsg payload    data packet to send. Is CommandMessage
+     * @param payload    data packet to send. Is CommandMessage
+     * @param nodeId     nodeId to send message to
+     * @param protocol   if yes then message is written to generic message protocol
      */    
-    public synchronized void sendMessageToNode(Message payload, int nodeId){
+    public synchronized void sendMessageToNode(Message payload, int nodeId, boolean protocol){
         try {           
             Integer nId = Integer.valueOf(nodeId);
             // get node from node register
@@ -337,6 +470,11 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                 return;
             }
             
+            // store to protocol?
+            if (protocol){
+                this.storeGenericMessageToProtocol(payload, nodeId, true, false);
+            }
+            
             // add to send queue
             log.info("CmdMessage to send for node: " + nId + "; Command: " + payload);
             nh.addMessage2Send(payload, null);
@@ -345,8 +483,39 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         }
     }
     
-    public boolean isRunning() {
-        return running;
+    /**
+     * Stores generic message to protocol log
+     * @param payload
+     * @param nodeId 
+     * @param sent  if true message is marked as sent from application, otherwise 
+     *              message is received to application
+     * @param external if true => method was invoked from different thread from main, then is used emThread
+     */
+    //@Transactional
+    public void storeGenericMessageToProtocol(Message payload, int nodeId, boolean sent, boolean external){
+        ExperimentDataGenericMessage gmsg = new ExperimentDataGenericMessage();
+        gmsg.setMilitime(System.currentTimeMillis());
+        gmsg.setExperiment(this.expInit.getExpMeta());
+        gmsg.setNode(nodeId);
+        gmsg.setNodeBS(nodeId);
+        gmsg.setSent(sent);
+
+        gmsg.setAmtype(payload.amType());
+        gmsg.setLen(payload.dataLength());
+        gmsg.setStringDump(payload.toString());
+        
+        if (external){
+            // entity manager intended for external threads is used
+//            synchronized(this.emThread){
+//                this.emThread.persist(gmsg);
+//                this.emThread.flush();
+//            }
+        } else {
+            synchronized(this.em){
+                this.em.persist(gmsg);
+                this.em.flush();
+            }
+        }
     }
     
     /**
@@ -377,10 +546,6 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         }
     }
 
-    public synchronized void setRunning(boolean running) {
-        this.running = running;
-    }
-
     public Console getConsole() {
         return console;
     }
@@ -393,12 +558,91 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         return suspended;
     }
 
+    /**
+     * Unsuspends experiment. If specified, experiment is suspended before main
+     * logic start to prepare environment and update some settings via console. 
+     * When is everything prepared, unsuspend is called. As a consequence suspend 
+     * sleep cycle is ended and main experiment method is called.
+     */
     @Override
     public synchronized void unsuspend(){
         this.suspended=false;
     }
 
+    /**
+     * Gets last received message - for console use. 
+     * Has no special purpose in main logic, only informative output
+     */
     public Message getLastMsg() {
         return lastMsg;
     }
+    
+    /**
+     * Setting this to false will exit main loop
+     * @param running 
+     */
+    public synchronized void setRunning(boolean running) {
+        this.running = running;
+    }
+    
+    /**
+     * Returns state of running flag. If false => thread probably exited
+     * If true thread my or may not be running
+     * @return 
+     */
+    public boolean isRunning() {
+        return running;
+    }
+
+    public synchronized EntityManager getEm() {
+        return em;
+    }
+
+    @PersistenceContext
+    public void setEm(EntityManager em) {
+        this.em = em;
+    }
+
+//    public EntityManager getEmThread() {
+//        return emThread;
+//    }
+//
+//    public void setEmThread(EntityManager emThread) {
+//        this.emThread = emThread;
+//    }
+
+    public JdbcTemplate getTemplate() {
+        return template;
+    }
+
+    public void setTemplate(JdbcTemplate template) {
+        this.template = template;
+    }
+    
+    public void storeData(Object o){
+        synchronized(this.em){
+            this.em.persist(o);
+            this.em.flush();
+        }
+    }
+    
+    public synchronized void emRefresh(Object o) {
+        em.refresh(o);
+    }
+
+    public synchronized void emPersist(Object o) {
+        em.persist(o);
+    }
+
+    public synchronized void emFlush() {
+        em.flush();
+    }
+
+//    public EntityManagerFactory getEmf() {
+//        return emf;
+//    }
+//
+//    public void setEmf(EntityManagerFactory emf) {
+//        this.emf = emf;
+//    }
 }

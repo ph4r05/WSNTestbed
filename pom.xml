@@ -14,11 +14,16 @@
         <org.springframework.version>3.1.1.RELEASE</org.springframework.version>
         <netbeans.hint.deploy.server>Tomcat</netbeans.hint.deploy.server>
         <org.richfaces.bom.version>4.1.0.CR2</org.richfaces.bom.version>
+        <!--3.2.0.BUILD-SNAPSHOT-->
         <spring.security.version>3.1.0.RELEASE</spring.security.version>
         <spring-faces.version>2.3.0.BUILD-SNAPSHOT</spring-faces.version>
         <org.slf4j.version>1.5.11</org.slf4j.version>
         <!--<org.hibernate.version>3.6.8.Final</org.hibernate.version>-->
         <org.hibernate.version>4.1.0.Final</org.hibernate.version>
+        
+        <project.build.java.target>1.6</project.build.java.target>
+        <maven.compiler.source>6</maven.compiler.source>
+        <maven.compiler.target>6</maven.compiler.target>
     </properties>
 
     <repositories>
@@ -112,6 +117,24 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-aop</artifactId>
+            <version>${org.springframework.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-aspects</artifactId>
+            <version>${org.springframework.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-agent</artifactId>
+            <version>2.5.6</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-instrument</artifactId>
             <version>${org.springframework.version}</version>
         </dependency>
         
@@ -371,6 +394,15 @@
             <version>1.7.0.BUILD-SNAPSHOT</version>
             <type>jar</type>
         </dependency>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+            <version>1.7.0.BUILD-SNAPSHOT</version>
+            <type>jar</type>
+        </dependency>
+        
+        
+        
     </dependencies>
     <groupId>fi</groupId>
     <reporting>
@@ -433,6 +465,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>2.3.2</version>
                 <configuration>
+                    <compilerVersion>1.6</compilerVersion>
+                    <fork>true</fork>
                     <source>1.6</source>
                     <target>1.6</target>
                 </configuration>
@@ -468,6 +502,52 @@
                 </executions>
             </plugin>
             
+            <!-- build time weaving to support aspectj transactions 
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>aspectj-maven-plugin</artifactId>
+                <version>1.4</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <configuration>
+                            <source>1.6</source>
+                            <target>1.6</target>
+                            <verbose>false</verbose>
+                            <outxml>true</outxml>
+                            <aspectLibraries>
+                                <aspectLibrary>
+                                    <groupId>org.springframework</groupId>
+                                    <artifactId>spring-aspects</artifactId>
+                                </aspectLibrary>
+                            </aspectLibraries>
+                        </configuration>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>test-compile</id>
+                        <configuration>
+                            <source>1.6</source>
+                            <target>1.6</target>
+                            <verbose>false</verbose>
+                            <aspectLibraries>
+                                <aspectLibrary>
+                                    <groupId>org.springframework</groupId>
+                                    <artifactId>spring-aspects</artifactId>
+                                </aspectLibrary>
+                            </aspectLibraries>
+                        </configuration>
+                        <goals>
+                            <goal>test-compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+             -->
+             
+             
             <!-- export all dependencies as jars to specified directory -->
              <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

@@ -4,6 +4,7 @@
  */
 package fi.wsnusbcollect.experiment;
 
+import fi.wsnusbcollect.db.ExperimentMetadata;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.util.List;
 import java.util.Properties;
@@ -44,4 +45,6 @@ public interface ExperimentInit {
     public void deinitExperiment();
     
     public void reprogramConnectedNodes(String makefileDir);
+    
+    public ExperimentMetadata getExpMeta();
 }
