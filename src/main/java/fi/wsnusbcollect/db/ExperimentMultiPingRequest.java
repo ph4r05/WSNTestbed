@@ -11,6 +11,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
+import javax.persistence.TableGenerator;
 
 /**
  * Protocoling entity, only sent messages are stored here
@@ -20,7 +21,10 @@ import javax.persistence.ManyToOne;
 public class ExperimentMultiPingRequest implements Serializable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.TABLE)
+//    @TableGenerator(name="generatorName", table="TableID",  
+//                pkColumnName="tablename", // TableID.TableName (value = table_name, test_table, etc.)  
+//                valueColumnName="id") // TableID.ID (value = 1,2,3,etc.)  
     private Long id;
     
     @ManyToOne
@@ -74,6 +78,10 @@ public class ExperimentMultiPingRequest implements Serializable {
         this.setPacketSize(msg.get_size());
         this.setTimerStrategyPeriodic(msg.get_timerStrategyPeriodic());
         this.setTxpower(msg.get_txpower());
+    }
+    
+    public String getIdentityColumnString() {
+        return "not null auto_increment"; //starts with 1, implicitly
     }
     
     public int getChannel() {

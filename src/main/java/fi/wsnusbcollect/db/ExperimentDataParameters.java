@@ -19,7 +19,7 @@ import javax.persistence.ManyToOne;
 public class ExperimentDataParameters implements Serializable {
      // node id record, configuration ID
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
     
     @ManyToOne

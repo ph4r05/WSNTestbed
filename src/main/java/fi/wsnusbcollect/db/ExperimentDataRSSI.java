@@ -22,7 +22,7 @@ import javax.persistence.Table;
 @Table(name="experimentDataRSSI")
 public class ExperimentDataRSSI implements Serializable {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
     
     @ManyToOne
