@@ -5,6 +5,7 @@
 
 package fi.wsnusbcollect.nodes;
 
+import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +92,16 @@ public class NodePlatformGeneric implements NodePlatform {
     @Override
     public String getPlatformReflashId() {
         return "null";
+    }
+
+    @Override
+    public boolean canHwReset() {
+        return false;
+    }
+
+    @Override
+    public String hwResetCommand(String device, Properties prop) {
+        return null;
     }
     
     

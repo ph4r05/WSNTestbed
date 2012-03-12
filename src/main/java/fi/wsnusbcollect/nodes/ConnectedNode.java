@@ -4,6 +4,7 @@
  */
 package fi.wsnusbcollect.nodes;
 
+import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.nodeCom.MessageReceived;
 import fi.wsnusbcollect.nodeCom.MessageSender;
@@ -11,8 +12,8 @@ import fi.wsnusbcollect.nodeCom.MessageSentListener;
 import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
+import fi.wsnusbcollect.usb.USBarbitrator;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Level;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
@@ -110,6 +111,40 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     public void reconnect(){
         this.disconnect();
         this.connectToNode();
+    }
+    
+    /**
+     * Returns whether is possible to reset this node by means of hw.
+     * @return 
+     */
+    public boolean hwresetPossible(){
+        // necessarry objects 
+        if (this.nodeObj==null 
+                || this.nodeConfig==null 
+                || this.nodeObj.getPlatform()==null) return false;
+        
+        return this.nodeObj.getPlatform().canHwReset();
+    }
+    
+    /**
+     * performs hw reset if applicable. 
+     * If yes, then disconnect all threads
+     * perform hw reset, wait 1000 miliseconds, register all threads, wait 500 miliseconds
+     * 
+     */
+    public void hwreset(){
+        if (this.hwresetPossible()==false) return;
+        // disconnect all nodes
+        this.disconnect();
+        // reset nodes
+        String hwResetCommand = this.nodeObj.getPlatform().hwResetCommand(this.nodeConfig.getDeviceAlias(), null);
+        boolean ok = App.getRunningInstance().getUsbArbitrator().resetNode(hwResetCommand);
+        
+        if (ok){
+            this.connectToNode();
+        } else {
+            log.error("Cannot restart node with command: " + hwResetCommand);
+        }
     }
     
     /**

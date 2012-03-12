@@ -73,6 +73,28 @@ public class NodeHandlerRegisterImpl implements NodeHandlerRegister {
     }
     
     /**
+     * Restarts all nodes HW
+     */
+    @Override
+    public void hwresetAll(){
+        Iterator<Integer> iterator = this.primaryMap.keySet().iterator();
+        while(iterator.hasNext()){
+            Integer nodeid = iterator.next();
+            NodeHandler nh = this.primaryMap.get(nodeid);
+            
+            // connected and correct
+            if (this.isConnectedNode(nh)==false || nh.isCorrect()==false) {
+                continue;
+            }
+            
+            final ConnectedNode cn = (ConnectedNode) nh;
+            if (cn.hwresetPossible()){
+                cn.hwreset();
+            }
+        }
+    }
+    
+    /**
      * Returns whether given node id is connected node
      * @param nodeid
      * @return 

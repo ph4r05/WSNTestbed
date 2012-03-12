@@ -5,12 +5,15 @@
 
 package fi.wsnusbcollect.nodes;
 
+import java.util.Properties;
+
 /**
  *
  * @author ph4r05
  */
 public class NodePlatformTmoteSky extends NodePlatformGeneric{
     public static final int platformId = NodePlatformFactory.NODE_PLATFORM_TMOTE;
+    private static final String TOSBSL_PATH = "/usr/bin/tos-bsl";
     
    /**
     * tx output power level
@@ -70,5 +73,15 @@ public class NodePlatformTmoteSky extends NodePlatformGeneric{
     @Override
     public String getPlatformReflashId() {
         return "telosb";
+    }
+
+    @Override
+    public boolean canHwReset() {
+        return true;
+    }
+
+    @Override
+    public String hwResetCommand(String device, Properties prop) {
+        return TOSBSL_PATH + " --telosb -r -c " + device;
     }
 }

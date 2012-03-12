@@ -958,6 +958,53 @@ public class USBarbitratorImpl implements USBarbitrator {
         }
     }
     
+    /**
+     * Restarts node with given command, successful restart returns 0 as returnvalue
+     * @param resetCommand
+     * @return 
+     */
+    public boolean resetNode(String resetCommand){
+        // info at the beggining
+        
+        boolean success=false;
+        // try to repeat 3 times if failed
+        for(int i=0; i<3; i++){
+            log.info("Going to execute: " + resetCommand);
+            try {
+                // execute motelist command
+                Process p = Runtime.getRuntime().exec(resetCommand);
+                String output;
+
+                StringBuilder sb = new StringBuilder();
+                BufferedReader bri = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+                String line = null;
+                while ((line = bri.readLine()) != null) {
+                    sb.append(line).append("\n");
+                }
+                bri.close();
+                output = sb.toString();
+
+                // sunchronous call, wait for command completion
+                p.waitFor();
+                int exitVal = p.exitValue();
+
+                if (exitVal == 0) {
+                    log.info("Node restarted successfully");
+                    success=true;
+                    break;
+                } else {
+                    log.error("Node restart error! Output: " + output);
+                }
+            } catch (IOException ex) {
+                log.error("IOException error, try checking motelist command", ex);
+            } catch (InterruptedException ex) {
+                log.error("Motelist command was probably interrupted", ex);
+            }
+        } // end of for (retry count)
+       
+        return success;
+    }
+    
     @Override
     public Map<String, NodeConfigRecord> getMoteList() {
         return moteList;

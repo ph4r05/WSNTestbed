@@ -5,6 +5,8 @@
 
 package fi.wsnusbcollect.nodes;
 
+import java.util.Properties;
+
 /**
  * Node platform interface
  * @author ph4r05
@@ -37,4 +39,16 @@ public interface NodePlatform {
      * @return 
      */
     public boolean isPlatformFromNodeDescription(String desc);
+    
+    /**
+     * Returns whether it is possible reset this node by HW -> need to be connected
+     * @return 
+     */
+    public boolean canHwReset();
+    
+    /**
+     * Returns command for HWreset
+     * @return 
+     */
+    public String hwResetCommand(String device, Properties prop);
 }

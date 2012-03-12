@@ -77,4 +77,9 @@ public interface NodeHandlerRegister extends Map<Integer, NodeHandler> {
      */
     void updateLastSeen(int nodeId, long mili);
     
+    
+    /**
+     * Restarts all nodes HW
+     */
+    public void hwresetAll();
 }

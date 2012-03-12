@@ -165,4 +165,11 @@ public interface USBarbitrator {
      */
     void updateNodesDatabase();
     
+    /**
+     * Restarts node with given command, successful restart returns 0 as returnvalue
+     * @param resetCommand
+     * @return 
+     */
+    public boolean resetNode(String resetCommand);
+    
 }
