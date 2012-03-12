@@ -42,7 +42,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
 import net.tinyos.message.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,7 +99,7 @@ public class MessageSender extends Thread {
     /**
      * Delay between two sent messages from queue
      */
-    private int sentSleepTime=500;
+    private int sentSleepTime=100;
 
     /**
      *
@@ -135,12 +134,12 @@ public class MessageSender extends Thread {
     
     /**
      * Pausing thread
-     * @param microsecs
+     * @param milisecs
      */
-    private void pause(int microsecs) {
+    private void pause(int milisecs) {
         try {
             Thread.yield();
-            Thread.sleep(microsecs);
+            Thread.sleep(milisecs);
         } catch (InterruptedException ie) {
             log.warn("Cannot sleep", ie);
         }
@@ -165,7 +164,7 @@ public class MessageSender extends Thread {
          // do in infitite loop
          while(true){
             // yield for some time
-            this.pause(500);
+            this.pause(30);
 
             // shutdown
             if (this.shutdown == true){
@@ -244,7 +243,7 @@ public class MessageSender extends Thread {
 //                    if (this.logger!=null && msgToSend.string!=null){
 //                        this.logger.addLogEntry(msgToSend.string, 56, "MsgSender", 0, 1, JPannelLoggerLogElement.SEVERITY_INFO);
 //                    }
-                    log.info("Sending message: " + msgToSend.string);
+                    log.info("Sending message: NodeID: " +  msgToSend.getDestination() + "; StringID: " + msgToSend.string);
 
                     // store last sent messages
                     this.timeLastMessageSent = System.currentTimeMillis();

@@ -63,6 +63,10 @@ public class MessageReceived {
         this.msg = msg;
     }
 
+    /**
+     * Returns exact time in miliseconds when message arrived to listener queue
+     * @return 
+     */
     public long getTimeReceivedMili() {
         return timeReceivedMili;
     }

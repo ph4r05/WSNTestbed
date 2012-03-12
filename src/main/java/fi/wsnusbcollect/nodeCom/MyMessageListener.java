@@ -55,7 +55,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
     /**
      * Maximum number of messages in queue to reset queue
      */
-    public static final int MAX_QUEUE_SIZE_TO_RESET=500;
+    public static final int MAX_QUEUE_SIZE_TO_RESET=5000;
 
     /**
      * Message queue
@@ -323,6 +323,9 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
     @Override
     public void run() {
          // do in infitite loop
+        MessageReceived tmpMessage = null;            
+        Iterator<MessageListener> iterator = null;
+
          while(true){
             // yield for some time, processor rest
             //this.pause(500);
@@ -332,8 +335,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
             } catch (InterruptedException ex) {
                 
             }
-MessageReceived tmpMessage = null;            
-Iterator<MessageListener> iterator = null;
+
             
             // shutdown
             if (this.shutdown == true){
