@@ -12,6 +12,7 @@ import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeCom.MessageSender;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
+import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.GenericNode;
@@ -361,7 +362,10 @@ public class ExperimentInitImpl implements ExperimentInit {
      * @return 
      */
     public MoteIF connectToNode(String source){
-        PhoenixSource phoenix = BuildSource.makePhoenix(source, PrintStreamMessenger.err);
+        // build custom error mesenger - store error messages from tinyos to logs directly
+        TOSLogMessenger messenger = new TOSLogMessenger();
+        // instantiate phoenix source
+        PhoenixSource phoenix = BuildSource.makePhoenix(source, messenger);
         MoteIF moteInterface = null;
         
         // phoenix is not null, can create packet source and mote interface
