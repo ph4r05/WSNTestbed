@@ -62,20 +62,8 @@ public class BenchmarkExecutor implements BenchmarkExecutorI {
      */
     @Override
     public void test(){
-        tasks = Executors.newFixedThreadPool(threadCount);
         
-        tasks = Executors.newFixedThreadPool(threadCount);
-        System.out.println("Testing JDBC: ");
-        this.clear();
-        for(int i=0; i<threadCount; i++){
-            tasks.execute(new threadWorker());
-        }
-        try {
-            tasks.awaitTermination(15, TimeUnit.SECONDS);
-        } catch (InterruptedException ex) {
-            log.error("interrupted ", ex);
-        }
-        
+        // Hibernate
         tasks = Executors.newFixedThreadPool(threadCount);
         System.out.println("Testing Hibernate: ");
         this.clear();
@@ -83,26 +71,44 @@ public class BenchmarkExecutor implements BenchmarkExecutorI {
             tasks.execute(new threadWorkerHB());
         }
         try {
+            tasks.shutdown();
             tasks.awaitTermination(70, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {
             log.error("interrupted ", ex);
         }
         
+        // JPA
+        tasks = Executors.newFixedThreadPool(threadCount);
         System.out.println("Testing JPA: ");
         this.clear();
         for(int i=0; i<threadCount; i++){
             tasks.execute(new threadWorkerEM());
         }
         try {
+            tasks.shutdown();
             tasks.awaitTermination(70, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {
             log.error("interrupted ", ex);
         }
-     
+        
+//        // JDBC
+//        tasks = Executors.newFixedThreadPool(threadCount);
+//        System.out.println("Testing JDBC: ");
+//        this.clear();
+//        for(int i=0; i<threadCount; i++){
+//            tasks.execute(new threadWorker());
+//        }
+//        try {
+//            tasks.shutdown();
+//            tasks.awaitTermination(15, TimeUnit.SECONDS);
+//        } catch (InterruptedException ex) {
+//            log.error("interrupted ", ex);
+//        }
     }
     
     public void clear(){
-        template.execute("TRUNCATE TABLE BenchmarkEntity");
+       // template.execute("TRUNCATE TABLE BenchmarkEntity");
+       // template.execute("OPTIMIZE TABLE BenchmarkEntity");
     }
     
     private interface threadWorkerI extends Runnable {
@@ -149,6 +155,8 @@ public class BenchmarkExecutor implements BenchmarkExecutorI {
             
             log.info("Inserting " + recordsInsert + " from " + this.getName() + "; took: " + miliSum + "ms");
             System.out.println("Inserting " + recordsInsert + " from " + this.getName() + "; took: " + miliSum + "ms");            
+            
+            this.interrupt();
         } // end run()
         
         public void store(List<BenchmarkEntity> list){

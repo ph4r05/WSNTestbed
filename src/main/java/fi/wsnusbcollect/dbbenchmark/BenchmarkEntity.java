@@ -10,6 +10,9 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.TableGenerator;
+import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Parameter;
 
 /**
  *
@@ -21,8 +24,14 @@ import javax.persistence.Table;
 		dynamicInsert = true
 )
 public class BenchmarkEntity implements Serializable {
+//    @GenericGenerator(name="table-hilo-generator", strategy="org.hibernate.id.TableHiLoGenerator",
+//                    parameters={@Parameter(value="hibernate_id_generation", name="table")})
     @Id
-    @GeneratedValue(strategy = GenerationType.TABLE)
+//    @GeneratedValue(strategy=GenerationType.TABLE, generator="tbl-gen")
+//    @TableGenerator(name="tbl-gen", pkColumnName="BenchmarkEntity", allocationSize=100, table="GENERATORS")
+    //@GeneratedValue(strategy = GenerationType.IDENTITY)
+//    @GeneratedValue(generator="table-hilo-generator")
+    @GeneratedValue(strategy=GenerationType.TABLE)
     private Long id;
       
     private int d1;
