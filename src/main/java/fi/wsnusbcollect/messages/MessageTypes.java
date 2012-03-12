@@ -66,6 +66,16 @@ public class MessageTypes {
   public static final int COMMAND_FORWARDING_RADIO_ENABLED=26;
   // base station settings - forwarding from serial to radio?
   public static final int COMMAND_FORWARDING_SERIAL_ENABLED=27;
+  
+  // base station settings - forwarding from radio to serial? default=without specific wiring
+  public static final int COMMAND_DEFAULT_FORWARDING_RADIO_ENABLED = 28;
+  // base station settings - forwarding from serial to radio? setRadioSnoopEnabled
+  public static final int COMMAND_DEFAULT_FORWARDING_SERIAL_ENABLED = 29;
+
+  // base station settings - whether forward messages received on snoop interface?
+  public static final int COMMAND_RADIO_SNOOPING_ENABLED = 30;
+  // base station settings - address recognition? if false then mote will sniff foreign messages
+  public static final int COMMAND_RADIO_ADDRESS_RECOGNITION_ENABLED = 31;
 
   // identity types
   public static final int NODE_STATIC=1;
