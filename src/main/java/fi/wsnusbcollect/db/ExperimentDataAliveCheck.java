@@ -31,6 +31,10 @@ public class ExperimentDataAliveCheck implements Serializable {
     private int node;
     
     private long counter;
+    
+    private int radioQueueFree;
+    private int serialQueueFree;
+    private int serialFails;
 
     public long getCounter() {
         return counter;
@@ -71,4 +75,29 @@ public class ExperimentDataAliveCheck implements Serializable {
     public void setNode(int node) {
         this.node = node;
     }
+
+    public int getRadioQueueFree() {
+        return radioQueueFree;
+    }
+
+    public void setRadioQueueFree(int radioQueueFree) {
+        this.radioQueueFree = radioQueueFree;
+    }
+
+    public int getSerialQueueFree() {
+        return serialQueueFree;
+    }
+
+    public void setSerialQueueFree(int serialQueueFree) {
+        this.serialQueueFree = serialQueueFree;
+    }
+
+    public int getSerialFails() {
+        return serialFails;
+    }
+
+    public void setSerialFails(int serialFails) {
+        this.serialFails = serialFails;
+    }
+    
 }
