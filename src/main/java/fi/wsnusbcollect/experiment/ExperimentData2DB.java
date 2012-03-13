@@ -29,5 +29,9 @@ public interface ExperimentData2DB extends MessageListener{
     public void setMessageFromLastFlush(int messageFromLastFlush);
     public int getMinMessageThresholdFlush();
     public void setMinMessageThresholdFlush(int minMessageThresholdFlush);
-
+    public long getMiliFLushThreshold();
+    public void setMiliFLushThreshold(long miliFLushThreshold);
+    public long getMiliLastFlush();
+    public void setMiliLastFlush(long miliLastFlush);
+    public void checkQueues();
 }

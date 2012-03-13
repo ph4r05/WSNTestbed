@@ -17,12 +17,19 @@ import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.messages.RssiMsg;
 import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
+import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.NodeHandler;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
@@ -34,10 +41,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.orm.jpa.EntityManagerHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -91,6 +97,13 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * Miliseconds when unsuspended/started
      */
     private Long miliStart;
+    
+    private ExperimentState eState;
+    
+    // nodes received identification packet after reset
+    private Set<Integer> nodePrepared;
+    
+    private HashMap<Integer, Integer> lastNodeAliveCounter;
 
     public ExperimentCoordinatorImpl(String name) {
         super(name);
@@ -159,8 +172,30 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
     
     /**
+     * Performs hw reset for all nodes where applicable
+     */
+    @Override
+    public void hwresetAllNodes(){
+        this.nodeReg.hwresetAll();
+    }
+    
+    @Override
+    public void hwresetNode(int nodeId){
+        if (this.nodeReg.containsKey(nodeId)==false) return;
+        NodeHandler nh = this.nodeReg.get(nodeId);
+        
+        if (ConnectedNode.class.isInstance(nh)){
+            final ConnectedNode cnh = (ConnectedNode) nh;
+            if (cnh.hwresetPossible()){
+                cnh.hwreset();
+            }
+        }
+    }
+    
+    /**
      * Send reset packet to all registered nodes SEQUENTIALY
      */
+    @Override
     public void resetAllNodes(){
         Collection<NodeHandler> values = this.nodeReg.values();
         Iterator<NodeHandler> iterator = values.iterator();
@@ -170,99 +205,229 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         }
     }
     
+    @Override
+    public void resetNode(int nodeId){
+        if (this.nodeReg.containsKey(nodeId)==false) return;
+        this.sendReset(nodeId);
+    }
+    
+    /**
+     * Initialize fresh started node - push settings and so ...
+     * Current implementation: start again noise floor reading
+     * @param nodeId 
+     */
+    public void nodeStartedFresh(int nodeId){
+        if (this.nodeReg.containsKey(nodeId)==false) return;
+        this.sendNoiseFloorReading(nodeId, 3000);
+    }
+    
     @Transactional
     @Override
     public void main() {  
-        System.out.println("INIT@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-        
-////        DefaultTransactionDefinition def = new DefaultTransactionDefinition();
-////        // explicitly setting the transaction name is something that can only be done programmatically
-////        def.setName("SomeTxName");
-////        def.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
-////
-////        TransactionStatus status = txManager.getTransaction(def);
-////        try {
-////          // execute your business logic here
-////        }
-////        catch (MyException ex) {
-////          txManager.rollback(status);
-////          throw ex;
-////        }
-////        txManager.commit(status);
-//
-//        Object holder = TransactionSynchronizationManager.getResource(emf);
-//        System.out.println("Holder object from emf: " + holder);
-//        EntityManager emx=null;
-//        
-//        if (holder==null){
-//            EntityManagerFactory emfx = (EntityManagerFactory) App.getRunningInstance().getAppContext().getBean("entityManagerFactory");
-//            emx = emfx.createEntityManager();
-//            
-////            emx = emf.createEntityManager();      
-//            TransactionSynchronizationManager.bindResource(emfx, new EntityManagerHolder(emx));
-//            log.warn("New entityManager bounded + " + emx.toString());
-//            log.warn("ThreadID: " + this.getId());
-////            
-//            this.em = emx;
-//        } else {
-//            EntityManagerHolder holder2 = (EntityManagerHolder) holder;
-//            emx = holder2.getEntityManager();
-//            log.warn("Existing entitymanager loaded");
-//            log.warn("ThreadID: " + this.getId());
-//        }
-//       
-//        
-////        EntityManager emx = holder.getEntityManager();
-
+        // get transaction manager - programmaticall transaction management
+        this.transactionTemplate = new TransactionTemplate((PlatformTransactionManager)App.getRunningInstance().getAppContext().getBean("transactionManager"));        
         this.me = (ExperimentCoordinator) App.getRunningInstance().getAppContext().getBean("experimentCoordinator");
-        ExperimentDataGenericMessage edgm = new ExperimentDataGenericMessage();
-        edgm.setAmtype(1);
-        me.storeData(edgm);
-        
-        
-//        emx.persist(edgm);
-//        emx.flush();
-        
-//        // at first reset all nodes before experiment count
-//        this.resetAllNodes();
-        System.out.println("All nodes restarted");
         this.em = me.getEm();
         
+        // at first reset all nodes before experiment count
+        System.out.println("Restarting all nodes before experiment, "
+                + "waiting nodes to reinit (need to receive IDENTITY message from everyone)");
+        // here we should wait to receive identification from all nodes
+        this.nodePrepared = new HashSet<Integer>(this.nodeReg.size());
+        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);       
+        this.nodeReg.setDropingReceivedPackets(false);
+        this.lastNodeAliveCounter = new HashMap<Integer, Integer>();
         
+        // restart all nodes
+        this.resetAllNodes();
+        long restartStartedMili = System.currentTimeMillis();
+        // check all nodes are prepared
+        while(true){
+            int preparedCount = 0;
+            synchronized(this.nodePrepared){
+                preparedCount=this.nodePrepared.size();
+            }
+            
+            // compare size preparedNodes vs. all nodes
+            if (preparedCount==this.nodeReg.size()){
+                log.info("All nodes prepared, starting experiment");
+                System.out.println("All nodes prepared, starting experiment");
+                break;
+            }
+            
+            // timeouted?
+            long nowMili = System.currentTimeMillis();
+            if (nowMili-restartStartedMili > 180000){
+                log.warn("Node prepare cycle wait expired");
+                System.out.println("Node prepare cycle wait expired");
+                break;
+            }
+            
+            // sleep now, wait
+            this.pause(500);
+        }
+
         this.miliStart = System.currentTimeMillis();
         this.expInit.updateExperimentStart(miliStart);
-        log.info("Experiment started, miliseconds start: " + miliStart);
-        
+        log.info("Experiment started, miliseconds start: " + miliStart);        
         // unsuspend all packet listeners to start receiving packets
         log.info("Setting ignore received packets to FALSE to start receiving");
-        this.nodeReg.setDropingReceivedPackets(false);
-        
         // register node coordinator as message listener
         System.out.println("Register message listener for commands and pings");
-//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);
 //        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.PingMsg(), this);
 //        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.RssiMsg(), this);
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.NoiseFloorReadingMsg(), this);
+//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.NoiseFloorReadingMsg(), this);
 //        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingMsg(), this);
-//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseMsg(), this);
+//         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseMsg(), this);
 //        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseReportMsg(), this);
         
-        // work
-        System.out.println("Sleeping in infinite cycle...");
-        try {
-            while(running){
-                Thread.sleep(10L);
-                Thread.yield();
-            }
-        } catch (InterruptedException ex) {
-            log.error("Cannot sleep", ex);
+        // work, inform user that experiment is beginning
+        System.out.println("Starting main experiment logic...");       
+        //
+        // from configuration
+        //
+        
+        // how often to receive noise floor reading?
+        int noiseFloorReadingTimeout=3000;
+        // how many miliseconds can be node unreachable to be considered as unresponsive
+        int nodeAliveThreshold=5000;
+        // last node alive check time - not to write warning each miliseconds, reasonable
+        // notify intervals
+        long nodeAliveLastCheck=0;
+        // packets requested
+        int packetsRequested = 100;
+        // in miliseconds
+        int packetDelay = 100;
+        // time needed for nodes to transmit (safety zone 1 second)
+        long timeNeededForNode = packetsRequested*packetDelay + 1000;
+        // init message sizes - should be from config file
+        ArrayList<Integer> messageSizes = new ArrayList<Integer>();
+        messageSizes.add(0);
+        messageSizes.add(8);
+        messageSizes.add(16);
+        messageSizes.add(24);
+        
+        // init experiment state
+        this.eState = new ExperimentState();
+        this.eState.setPacketDelay(packetDelay);
+        this.eState.setPacketsRequested(packetsRequested);
+        this.eState.setNodeReg(nodeReg);
+        this.eState.setMessageSizes(messageSizes);
+        this.eState.setTimeNeededForNode(timeNeededForNode);
+        
+        // instructing all nodes to collect noise floor values
+        log.info("Instructing all nodes to do noise floor readings");
+        for(NodeHandler nh : this.nodeReg.values()){
+            this.sendNoiseFloorReading(nh.getNodeId(), noiseFloorReadingTimeout);
+        }
+                
+        // number of successfully finished cycles from last reset
+        // when moving backwards (node freeze) it helps not to repeat older and older 
+        // experiments
+        int succCyclesFromLastReset=0;
+        
+        // main running cycle, experiment can be shutted down setting running=false
+        log.info("Starting main collecting cycle, one sending block: " + timeNeededForNode + " ms");
+        while(running){
+            //
+            // Experiment state
+            //
+            
+            // next state
+            this.eState.next();
+            int curNode = this.eState.getCurrentNodeHandler().getNodeId();
+            int curTx = this.eState.getCurTxPower();
+            int msgSize = this.eState.getCurMsgSize();
+                        
+            log.info("Sending new ping request for node " + curNode + "; "
+                    + "curTx=" + curTx + "; msgSize=" + msgSize + "; succCycles: " + succCyclesFromLastReset);            
+            // now send message request
+            this.sendMultiPingRequest(curNode, curTx, 0,
+                    packetsRequested, packetDelay, msgSize, true, true);
+            // wait
+            this.pause(timeNeededForNode);
+            // send request stopping all transfer
+            this.sendMultiPingRequest(curNode, curTx, 0,
+                    1, 0, msgSize, true, true);
+            this.pause(1000);
+            
+            //
+            // node alive monitor
+            //
+            long timeNow = System.currentTimeMillis();
+            if ((timeNow - nodeAliveLastCheck) > 2000){
+                List<Integer> nodesLastResponse = getNodesLastResponse(nodeAliveThreshold);
+                if (nodesLastResponse!=null && nodesLastResponse.isEmpty()==false){
+                    // some unreachable nodes detected
+                    log.warn("There are some unreachable nodes here: (mili="+timeNow+"), restarting");
+                    for(Integer unreachableNodeId : nodesLastResponse){
+                        NodeHandler nh = this.nodeReg.get(unreachableNodeId);
+                        log.warn("NodeID: " + nh.getNodeId() 
+                                + "; Obj: " + nh.getNodeObj().toString() 
+                                + "; lastSeen: " + nh.getNodeObj().getLastSeen());
+                        
+                        boolean resetDone=false;
+                        
+                        // determine adequate way of restart
+                        if(ConnectedNode.class.isInstance(nh)){
+                            // connected node needs special manipulation
+                            final ConnectedNode cn = (ConnectedNode) nh;
+                            long nodeDelay = timeNow - nh.getNodeObj().getLastSeen();
+                            
+                            // decide what to do depending on timeout
+                            if (nodeDelay<=6000){
+                                // maybe is enought to resync
+                                cn.setResetQueues(false);
+                                cn.reconnect();
+                                log.info("Node was reconnected, timeout is not so big.");
+                            } else {
+                                // latency increased a lot, do hard reset
+                                if (cn.hwresetPossible()){
+                                    // try HW reset
+                                    cn.hwreset();
+                                    resetDone=true;
+                                    log.info("HW reset performed");
+                                } else {
+                                    // HW reset not available, send reset message
+                                    this.resetNode(nh.getNodeId());
+                                    cn.reconnect();
+                                    resetDone=true;
+                                    log.info("SW reset performed");
+                                }
+                            }
+                        }
+                        
+                        // reset failed or not a connected node - reset by old way
+                        if (resetDone==false){
+                            this.resetNode(nh.getNodeId());
+                            log.info("SW reset performed");
+                        }
+                        
+                        // sleep, wait for node initialization
+                        this.pause(1000);
+                        this.nodeStartedFresh(nh.getNodeId());
+                    } // end of foreach nodes
+                    
+                    // if here, need to repeat last 2 experiments
+                    log.info("Need to repeat last 2 experiments, moving backward");
+                    this.eState.prev(succCyclesFromLastReset > 3 ? 3 : (succCyclesFromLastReset+1));
+                    
+                    nodeAliveLastCheck = timeNow;
+                    succCyclesFromLastReset=0;
+                } // end of non-empty failed nodes
+                else {
+                    succCyclesFromLastReset++;
+                }
+            } else {
+                succCyclesFromLastReset++;
+            }   
         }
         
-        // shutdown all registered nodes...
+        // shutdown all registered nodes... Deregister and shutdown listening/sending threads
         System.out.println("Shutting down all registered nodes");
         this.nodeReg.shutdownAll();
-//        
-        System.out.println("Exiting... Returning controll to main application...");
+        // final message for user
+        System.out.println("Exiting... Returning control to main application...");
     }
 
     public ExperimentInit getExpInit() {
@@ -273,6 +438,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.expInit = expInit;
     }
 
+    @Override
     public NodeHandlerRegister getNodeReg() {
         return nodeReg;
     }
@@ -297,22 +463,66 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      */
     @Override
     public synchronized void messageReceived(int i, Message msg, long mili) {
-        //System.out.println("Message received: " + i);
-        log.info("Message received: " + i + "; type: " + msg.amType()
-                + "; dataLen: " + msg.dataLength() 
-                + "; hdest: " + msg.getSerialPacket().get_header_dest()
-                + "; hsrc: " + msg.getSerialPacket().get_header_src() 
-                + "; mili: " + mili);
+////        System.out.println("Message received: " + i);
+//        log.info("Message received: " + i + "; type: " + msg.amType()
+//                + "; dataLen: " + msg.dataLength() 
+//                + "; hdest: " + msg.getSerialPacket().get_header_dest()
+//                + "; hsrc: " + msg.getSerialPacket().get_header_src() 
+//                + "; mili: " + mili);
         
         // was this message already handled by specific handler?
         boolean genericMessage=true;
+        
+        // source nodeid
+        int nodeIdSrc = msg.getSerialPacket().get_header_src();
         
         // command message?
         if (CommandMsg.class.isInstance(msg)){
             // Command message
             final CommandMsg cMsg = (CommandMsg) msg;
-            //System.out.println("Command message: " + cMsg.toString());
-            log.info("Command message: " + cMsg.toString());
+            
+            // identification received?
+            if (    cMsg.get_command_code() == (short)MessageTypes.COMMAND_ACK
+                 && cMsg.get_reply_on_command() == (short)MessageTypes.COMMAND_IDENTIFY)
+            {               
+                // update node last seen
+                synchronized(this.nodeReg){
+                    this.nodeReg.updateLastSeen(nodeIdSrc, mili);
+                }
+                
+                // check alive sequence for suspicious gaps
+                // if gap > 10 and current sequence is under 100, consider node
+                // as newly restarted
+                synchronized(this.lastNodeAliveCounter){
+                    if (this.lastNodeAliveCounter.containsKey(nodeIdSrc)){
+                        Integer lastCounter = this.lastNodeAliveCounter.get(nodeIdSrc);
+                        
+                        if (cMsg.get_command_id() < 100 
+                                && ((cMsg.get_command_id()-lastCounter) % 65535) > 10){
+                            log.warn("Node " + nodeIdSrc + "; was probably reseted. "
+                                    + "Last sequence: " + lastCounter + "; now: " + cMsg.get_command_id());
+                            this.nodeStartedFresh(nodeIdSrc);
+                        }
+                    }
+                    
+                    this.lastNodeAliveCounter.put(nodeIdSrc, cMsg.get_command_id());
+                }
+                
+                // nodes prepared after reset
+                // must synchronize over this Set - different thread from main execution thread
+                synchronized(this.nodePrepared){
+                    // first node identification after reset? 
+                    // add to prepared set - indicates nodes was restarted successfully
+                    if  (this.nodePrepared!=null 
+                            && cMsg.get_command_code() == (short)MessageTypes.COMMAND_ACK
+                            && cMsg.get_reply_on_command() == (short)MessageTypes.COMMAND_IDENTIFY
+                            && this.nodePrepared.contains(nodeIdSrc)==false
+                            ){
+                        log.info("NodeId: " + nodeIdSrc + " is now prepared to communicate");
+                        this.nodePrepared.add(nodeIdSrc);
+                    }
+                }
+            }
             
             genericMessage=false;
         }
@@ -366,7 +576,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * @param counterStrategySuccess
      * @param timerStrategyPeriodic 
      */
-    //@Transactional
+    @Transactional
+    @Override
     public synchronized void sendMultiPingRequest(int nodeId, int txpower,
             int channel, int packets, int delay, int size, 
             boolean counterStrategySuccess, boolean timerStrategyPeriodic){
@@ -389,10 +600,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         mpr.setNode(nodeId);
         mpr.setNodeBS(nodeId);
         mpr.loadFromMessage(msg);
-//        me.getEm().persist(mpr);
-//        me.getEm().flush();
-        this.em.persist(mpr);
-        this.em.flush();
+        me.storeData(mpr);
         
         // add message to send
         this.sendMessageToNode(msg, nodeId, false);
@@ -403,7 +611,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * @param payload
      * @param nodeId 
      */
-    //@Transactional
+    @Transactional
+    @Override
     public synchronized void sendCommand(CommandMsg payload, int nodeId){
         // store to database here
         // now build database record for this request
@@ -414,9 +623,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         mpr.setNodeBS(nodeId);
         mpr.setSent(true);
         mpr.loadFromMessage(payload);
-        
-        this.storeData(mpr);
-//        me.storeData(mpr); 
+        me.storeData(mpr);
         
         this.sendMessageToNode(payload, nodeId, false);
     }
@@ -425,6 +632,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * Send reset message
      * @param nodeId 
      */
+    @Override
     public synchronized void sendReset(int nodeId){
         CommandMsg msg = new CommandMsg();
         msg.set_command_code((short) MessageTypes.COMMAND_RESET);
@@ -438,6 +646,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * @param nodeId
      * @param delay 
      */
+    @Override
     public synchronized void sendNoiseFloorReading(int nodeId, int delay){
         CommandMsg msg = new CommandMsg();
         msg.set_command_code((short) MessageTypes.COMMAND_SETNOISEFLOORREADING);
@@ -455,6 +664,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * @param nodeId     nodeId to send message to
      * @param protocol   if yes then message is written to generic message protocol
      */    
+    @Override
     public synchronized void sendMessageToNode(Message payload, int nodeId, boolean protocol){
         try {           
             Integer nId = Integer.valueOf(nodeId);
@@ -476,7 +686,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             }
             
             // add to send queue
-            log.info("CmdMessage to send for node: " + nId + "; Command: " + payload);
+            log.debug("Message to send for node: " + nId + "; Command: " + payload);
             nh.addMessage2Send(payload, null);
         }  catch (Exception ex) {
             log.error("Cannot send CmdMessage to nodeId: " + nodeId, ex);
@@ -492,8 +702,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * @param external if true => method was invoked from different thread from main, then is used emThread
      */
     //@Transactional
+    @Override
     public void storeGenericMessageToProtocol(Message payload, int nodeId, boolean sent, boolean external){
-        ExperimentDataGenericMessage gmsg = new ExperimentDataGenericMessage();
+        final ExperimentDataGenericMessage gmsg = new ExperimentDataGenericMessage();
         gmsg.setMilitime(System.currentTimeMillis());
         gmsg.setExperiment(this.expInit.getExpMeta());
         gmsg.setNode(nodeId);
@@ -503,15 +714,19 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         gmsg.setAmtype(payload.amType());
         gmsg.setLen(payload.dataLength());
         gmsg.setStringDump(payload.toString());
-        
-        if (external){
-            // entity manager intended for external threads is used
-//            synchronized(this.emThread){
-//                this.emThread.persist(gmsg);
-//                this.emThread.flush();
-//            }
-        } else {
-            synchronized(this.em){
+
+        synchronized (this.em) {
+            if (true || external) {
+//                transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+//                    // the code in this method executes in a transactional context
+//                    @Override
+//                    protected void doInTransactionWithoutResult(TransactionStatus status) {
+//                        em.persist(gmsg);
+//                        em.flush();
+//                    }
+//                });
+                me.storeData(gmsg);
+            } else {
                 this.em.persist(gmsg);
                 this.em.flush();
             }
@@ -519,10 +734,38 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
     
     /**
+     * Returns nodes that have (NOW()-lastSeen) > mili. Time from last seen is 
+     * greater than mili
+     * 
+     * @param mili 
+     */
+    @Override
+    public List<Integer> getNodesLastResponse(long mili){
+       long currTime = System.currentTimeMillis();
+       List<Integer> lnodeList = new LinkedList<Integer>();
+       
+       Collection<NodeHandler> nhvals = this.nodeReg.values();
+        if (nhvals.isEmpty()){
+            System.out.println("Node register is empty");
+            return lnodeList;
+        }
+
+        for(NodeHandler nh : nhvals){
+            long lastSeen = nh.getNodeObj().getLastSeen();
+            if ((currTime-lastSeen) > mili){
+                lnodeList.add(nh.getNodeId());
+            }
+        }
+        
+        return lnodeList;
+    }
+    
+    /**
      * Prints node's last seen values
      * @param seconds 
      */
-    public void getNodesLastSeen(int seconds){
+    @Override
+    public void getNodesLastSeen(){
         Collection<NodeHandler> nhvals = this.nodeReg.values();
         if (nhvals.isEmpty()){
             System.out.println("Node register is empty");
@@ -543,6 +786,31 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             Date date = new Date(lastSeen);
             System.out.println("NodeID: " + nh.getNodeId() + ";\t LastSeen: " + 
                 formatter.format(date) + ";\t type: " + nh.getType());
+        }
+    }
+    
+    /**
+     * Pause execution of this thread for specified time
+     * @param mili 
+     */
+    public void pause(long mili){
+        try {
+            Thread.sleep(mili);
+        } catch (InterruptedException ex) {
+            log.error("Cannot sleep " + ex);
+        }
+    }
+    
+    /**
+     * Pause execution of this thread for specified time
+     * @param mili
+     * @param nano 
+     */
+    public void pause(long mili, int nano){
+        try {
+            Thread.sleep(mili, nano);
+        } catch (InterruptedException ex) {
+            log.error("Cannot sleep " + ex);
         }
     }
 
@@ -594,6 +862,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         return running;
     }
 
+    @Override
     public synchronized EntityManager getEm() {
         return em;
     }
@@ -603,14 +872,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.em = em;
     }
 
-//    public EntityManager getEmThread() {
-//        return emThread;
-//    }
-//
-//    public void setEmThread(EntityManager emThread) {
-//        this.emThread = emThread;
-//    }
-
+    @Override
     public JdbcTemplate getTemplate() {
         return template;
     }
@@ -619,30 +881,42 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.template = template;
     }
     
+    @Override
     public void storeData(Object o){
         synchronized(this.em){
-            this.em.persist(o);
-            this.em.flush();
+            try {
+                this.em.persist(o);
+                this.em.flush();
+            } catch(Exception e){
+                log.error("Cannot persist object, exception thrown", e);
+            }
         }
     }
     
+    @Override
     public synchronized void emRefresh(Object o) {
         em.refresh(o);
     }
 
+    @Override
     public synchronized void emPersist(Object o) {
         em.persist(o);
     }
 
+    @Override
     public synchronized void emFlush() {
         em.flush();
     }
 
-//    public EntityManagerFactory getEmf() {
-//        return emf;
-//    }
-//
-//    public void setEmf(EntityManagerFactory emf) {
-//        this.emf = emf;
-//    }
+    @Override
+    public ExperimentState geteState() {
+        return eState;
+    }
+
+    @Override
+    public void seteState(ExperimentState eState) {
+        this.eState = eState;
+    }
+    
+    
 }

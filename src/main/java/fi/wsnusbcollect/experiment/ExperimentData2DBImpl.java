@@ -14,24 +14,26 @@ import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import net.tinyos.message.Message;
+import org.hibernate.SessionFactory;
+import org.hibernate.StatelessSession;
+import org.hibernate.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Default message received handler for connected node.
  * Implements thread in order to run independently and ease database access.
+ * 
+ * Kind of schizophrenic interface. For batch insert is used hibernate directly...
  * 
  * Received messages are stored to database by its type.
  * @author ph4r05
@@ -47,6 +49,10 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
     @Autowired
     private JdbcTemplate template;
     
+    @Autowired
+    private SessionFactory sf;
+    StatelessSession session2;
+    
     @Resource(name="experimentInit")
     protected ExperimentInit expInit;
     
@@ -54,7 +60,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
     protected NodeHandlerRegister nodeReg;
     
     /**
-     * ExperimentMetadata copy for local optimalization. Should not be written!!
+     * ExperimentMetadata copy for local optimization. Should not be written!!
      * It is readonly to optimize fetch time for this information
      */
     protected ExperimentMetadata expMeta;
@@ -64,9 +70,22 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
      */
     boolean running=true;
     
-    private String sqlFlush="";
-    private List<String> sqlQueue = new ArrayList<String>(400);
-    private List<Object> objQueue = new ArrayList<Object>(400);
+    private List<String> sqlQueue = new ArrayList<String>(500);
+    
+    /**
+     * Queue of entities to store
+     */
+    private List<Object> objQueue = new ArrayList<Object>(500);
+    
+    /**
+     * Threshold for queue flush, maximal time when queues can remain in memory.
+     */
+    private long miliFLushThreshold = 2000;
+    
+    /**
+     * Miliseconds when last queue flush was performed
+     */
+    private long miliLastFlush = 0;
     
     /**
      * Messages received from last flush
@@ -85,6 +104,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
     
     
     @PostConstruct
+    @Override
     public void init(){
         log.info("Initialized DB manager");
     }
@@ -104,9 +124,6 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
         log.info("Finishing");
     }   
     
-    
-    
-    
     public EntityManager getEm() {
         return em;
     }
@@ -125,7 +142,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
 
     @Override
     public void messageReceived(int i, Message msg) {
-        this.messageReceived(i, msg);
+        this.messageReceived(i, msg, 0);
     }
     
     /**
@@ -135,6 +152,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
      * @param cMsg
      * @param mili 
      */
+    @Override
     public void identificationReceived(int i, CommandMsg cMsg, long mili){        
         // @extension: for future use here can be converter from i+message+mili to
         // database entity, now directly here...
@@ -143,9 +161,13 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
         experimentDataAliveCheck.setCounter(cMsg.get_command_id());
         experimentDataAliveCheck.setExperiment(expMeta);
         experimentDataAliveCheck.setMiliFromStart(mili);
+        experimentDataAliveCheck.setRadioQueueFree(cMsg.get_command_data_next()[2] & 0xFF);
+        experimentDataAliveCheck.setSerialQueueFree((cMsg.get_command_data_next()[2] & 0xFF00) >> 8);
+        experimentDataAliveCheck.setSerialFails(cMsg.get_command_data_next()[3]);
+        
         // @TODO: can be problem in multihop protocol
         experimentDataAliveCheck.setNode(cMsg.getSerialPacket().get_header_src());
-//        this.em.persist(experimentDataAliveCheck);
+        this.objQueue.add(experimentDataAliveCheck);
         
         // update last seen record
         synchronized(this.nodeReg){
@@ -163,21 +185,22 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
         if (CommandMsg.class.isInstance(msg)){
             // Command message
             final CommandMsg cMsg = (CommandMsg) msg;
-            //System.out.println("Command message: " + cMsg.toString());
-            log.info("Command message: " + cMsg.toString());
             
             // is alive / identification packet?
             if ((cMsg.get_command_code() == (short)MessageTypes.COMMAND_ACK) 
                     && cMsg.get_reply_on_command() == (short)MessageTypes.COMMAND_IDENTIFY){
                 // notify appropriate method
                 this.identificationReceived(i, cMsg, mili);
+            } else {
+                // print only messages different from identity messages
+                log.info("Command message: " + cMsg.toString());
             }
         }
         
         // noise floor message
         if (NoiseFloorReadingMsg.class.isInstance(msg)){
             final NoiseFloorReadingMsg nMsg = (NoiseFloorReadingMsg) msg;
-            log.info("NoiseFloorMessage: " + nMsg.toString());
+            //log.info("NoiseFloorMessage: " + nMsg.toString());
             
             // store noise floor message to database
             ExperimentDataNoise expDataNoise = new ExperimentDataNoise();
@@ -186,14 +209,17 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
             expDataNoise.setNoise(nMsg.get_noise());
             expDataNoise.setExperiment(expMeta);
             expDataNoise.setMiliFromStart(mili);
-            this.em.persist(expDataNoise);
+            this.objQueue.add(expDataNoise);
+            
+            // update last seen record
+            synchronized(this.nodeReg){
+                this.nodeReg.updateLastSeen(nMsg.getSerialPacket().get_header_src(), mili);
+            }
         }
         
         // report message?
         if (MultiPingResponseReportMsg.class.isInstance(msg)){
             final MultiPingResponseReportMsg cMsg = (MultiPingResponseReportMsg) msg;
-            //System.out.println("Report message: " + cMsg.toString());
-            //log.info("Report message: " + cMsg.toString());
             
             // store RSSI measured to database, one report packet may contain multiple
             // measured RSSI values
@@ -209,65 +235,97 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
                 dataRSSI.setSendingNodeCounter(cMsg.getElement_nodecounter(j));
                 dataRSSI.setLen(cMsg.getElement_len(j));
                 
-                String toStore="(NULL, "+cMsg.getElement_nodeid(j) +",2,2,"+mili+","+cMsg.getElement_rssi(j)+",2,2,2)";
-                this.sqlQueue.add(toStore);
                 this.objQueue.add(dataRSSI);
-                
-//                this.template.execute("INSERT INTO experimentDataRSSI(id,connectedNode,connectedNodeCounter,len,miliFromStart,rssi,sendingNode,sendingNodeCounter,experiment_id) "
-//                        + "VALUES(NULL, 2,2,2,2,2,2,2,2)");
-//                this.em.persist(dataRSSI);
             }
         }
         
-        if (messageFromLastFlush>currentMessageThresholdFlush){
-//            this.em.flush();
-            this.flushQueues();
-        }
+        this.checkQueues();
     }
-
-    @Transactional
-    public void flushQueues(){
-        messageFromLastFlush=0;
-            log.info("Flushing queue size=" + this.objQueue.size() + "; thread: " + this.getName());
+    
+    /**
+     * Checks if is needed to empty queues, if yes, queues are flushed
+     */
+    @Override
+    public void checkQueues(){
+        long curTime = System.currentTimeMillis();
+        
+        if (messageFromLastFlush>currentMessageThresholdFlush || 
+                (curTime-miliLastFlush) > miliFLushThreshold){
+            this.flushQueues();
             
-//            sqlFlush="INSERT INTO experimentDataRSSI(id,connectedNode,connectedNodeCounter,len,miliFromStart,rssi,sendingNode,sendingNodeCounter,experiment_id) VALUES ";
-//            Iterator<String> iterator = this.sqlQueue.iterator();
-//            StringBuilder sb = new StringBuilder();
-//            sb.append(sqlFlush);
-//            
-//            for(int k=0; iterator.hasNext(); k++){
-//                String sq = iterator.next();
-//                if (k>0){
-//                    sb.append(", ");
-//                }
-//                
-//                sb.append(sq);
-//            }
-//            
-//            log.info(sb.toString());
-//            this.template.execute(sb.toString());
-            
-            Iterator<Object> iterator2 = this.objQueue.iterator();
-            while(iterator2.hasNext()){
-                Object obj = iterator2.next();
-                this.em.persist(obj);
-            }
-            
-            this.em.flush();
-            
-            this.objQueue.clear();
-            this.sqlQueue.clear();
+            miliLastFlush = curTime;
             
             // randomize message flush
             currentMessageThresholdFlush= maxMessageThresholdFlush==minMessageThresholdFlush ?
                     this.minMessageThresholdFlush :
                     minMessageThresholdFlush + (int)(Math.random() * ((maxMessageThresholdFlush - minMessageThresholdFlush) + 1));
+        }
+    }
+
+//    @Transactional
+    /**
+     * Directly flushes object queues to database.
+     */
+    public void flushQueues(){
+        messageFromLastFlush=0;
+        log.debug("Flushing queue size=" + this.objQueue.size() + "; thread: " + this.getName());
+
+        if (session2==null){
+            session2 = sf.openStatelessSession();
+        }
+        
+        Transaction tx = null;
+        tx = session2.getTransaction();
+        if (tx==null){
+            tx = session2.beginTransaction();
+        }
+        
+        if (tx.isActive()==false){
+            tx.begin();
+        }
+                
+        for (Object entity : objQueue) {
+            session2.insert(entity);
+        }
+        tx.commit();
+        
+            
+            
+////            sqlFlush="INSERT INTO experimentDataRSSI(id,connectedNode,connectedNodeCounter,len,miliFromStart,rssi,sendingNode,sendingNodeCounter,experiment_id) VALUES ";
+////            Iterator<String> iterator = this.sqlQueue.iterator();
+////            StringBuilder sb = new StringBuilder();
+////            sb.append(sqlFlush);
+////            
+////            for(int k=0; iterator.hasNext(); k++){
+////                String sq = iterator.next();
+////                if (k>0){
+////                    sb.append(", ");
+////                }
+////                
+////                sb.append(sq);
+////            }
+////            
+////            log.info(sb.toString());
+////            this.template.execute(sb.toString());
+//            
+//            Iterator<Object> iterator2 = this.objQueue.iterator();
+//            while(iterator2.hasNext()){
+//                Object obj = iterator2.next();
+//                this.em.persist(obj);
+//            }
+//            
+//            this.em.flush();
+            
+            this.objQueue.clear();
+            this.sqlQueue.clear();
     }
     
+    @Override
     public boolean isRunning() {
         return running;
     }
 
+    @Override
     public synchronized void setRunning(boolean running) {
         this.running = running;
     }
@@ -280,43 +338,81 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
         this.expInit = expInit;
     }
 
+    @Override
     public ExperimentMetadata getExpMeta() {
         return expMeta;
     }
 
+    @Override
     public void setExpMeta(ExperimentMetadata expMeta) {
         this.expMeta = expMeta;
     }
 
+    @Override
     public int getCurrentMessageThresholdFlush() {
         return currentMessageThresholdFlush;
     }
 
+    @Override
     public void setCurrentMessageThresholdFlush(int currentMessageThresholdFlush) {
         this.currentMessageThresholdFlush = currentMessageThresholdFlush;
     }
 
+    @Override
     public int getMaxMessageThresholdFlush() {
         return maxMessageThresholdFlush;
     }
 
+    @Override
     public void setMaxMessageThresholdFlush(int maxMessageThresholdFlush) {
         this.maxMessageThresholdFlush = maxMessageThresholdFlush;
     }
 
+    @Override
     public int getMessageFromLastFlush() {
         return messageFromLastFlush;
     }
 
+    @Override
     public void setMessageFromLastFlush(int messageFromLastFlush) {
         this.messageFromLastFlush = messageFromLastFlush;
     }
 
+    @Override
     public int getMinMessageThresholdFlush() {
         return minMessageThresholdFlush;
     }
 
+    @Override
     public void setMinMessageThresholdFlush(int minMessageThresholdFlush) {
         this.minMessageThresholdFlush = minMessageThresholdFlush;
+    }
+
+    @Override
+    public long getMiliFLushThreshold() {
+        return miliFLushThreshold;
+    }
+
+    @Override
+    public void setMiliFLushThreshold(long miliFLushThreshold) {
+        this.miliFLushThreshold = miliFLushThreshold;
+    }
+
+    @Override
+    public long getMiliLastFlush() {
+        return miliLastFlush;
+    }
+
+    @Override
+    public void setMiliLastFlush(long miliLastFlush) {
+        this.miliLastFlush = miliLastFlush;
+    }
+
+    public SessionFactory getSf() {
+        return sf;
+    }
+
+    public void setSf(SessionFactory sf) {
+        this.sf = sf;
     }
 }

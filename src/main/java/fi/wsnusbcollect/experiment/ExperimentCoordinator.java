@@ -5,6 +5,8 @@
 package fi.wsnusbcollect.experiment;
 
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
+import java.util.List;
 import javax.persistence.EntityManager;
 import net.tinyos.message.Message;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,7 +33,12 @@ public interface ExperimentCoordinator extends Runnable{
     public void sendNoiseFloorReading(int nodeId, int delay);
     public void sendMessageToNode(Message payload, int nodeId, boolean protocol);
     public void storeGenericMessageToProtocol(Message payload, int nodeId, boolean sent, boolean external);
-    public void getNodesLastSeen(int seconds);
+    public void getNodesLastSeen();
+    public List<Integer> getNodesLastResponse(long mili);
+    public NodeHandlerRegister getNodeReg();
+    public void hwresetAllNodes();
+    public void hwresetNode(int nodeId);
+    public void resetNode(int nodeId);
     
     public  EntityManager getEm();
     public JdbcTemplate getTemplate();
@@ -39,4 +46,7 @@ public interface ExperimentCoordinator extends Runnable{
     public void emPersist(Object o);
     public void emFlush();
     public void storeData(Object o);
+    
+    public ExperimentState geteState();
+    public void seteState(ExperimentState eState);
 }
