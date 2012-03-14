@@ -72,7 +72,7 @@ public class RingBuffer<Item> implements Iterable<Item> {
             newIndex+=a.length;
         }
         
-        return a[(last - i) % a.length];
+        return a[newIndex];
     }
 
     @Override
