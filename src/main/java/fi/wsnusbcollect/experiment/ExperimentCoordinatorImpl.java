@@ -8,6 +8,8 @@ import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.db.ExperimentDataCommands;
 import fi.wsnusbcollect.db.ExperimentDataGenericMessage;
+import fi.wsnusbcollect.db.ExperimentDataLog;
+import fi.wsnusbcollect.db.ExperimentDataRevokedCycles;
 import fi.wsnusbcollect.db.ExperimentMultiPingRequest;
 import fi.wsnusbcollect.messages.CommandMsg;
 import fi.wsnusbcollect.messages.MessageTypes;
@@ -19,6 +21,7 @@ import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.NodeHandler;
+import fi.wsnusbcollect.utils.RingBuffer;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -100,10 +103,17 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     
     private ExperimentState eState;
     
-    // nodes received identification packet after reset
-    private Set<Integer> nodePrepared;
+    // beginning time of last N experiments
+    private RingBuffer<Long> lastExperimentTimes;
     
-    private HashMap<Integer, Integer> lastNodeAliveCounter;
+    /**
+     * Node reachability monitor - monitors state of nodes and recovers from freeze
+     */
+    private NodeReachabilityMonitor nodeMonitor;
+    
+    // number of success cycles in row
+    private int succCyclesFromLastReset;
+    private long nodeAliveThreshold;
 
     public ExperimentCoordinatorImpl(String name) {
         super(name);
@@ -216,71 +226,63 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * Current implementation: start again noise floor reading
      * @param nodeId 
      */
-    public void nodeStartedFresh(int nodeId){
-        if (this.nodeReg.containsKey(nodeId)==false) return;
-        this.sendNoiseFloorReading(nodeId, 3000);
+    public void nodeStartedFresh(int nodeId){        
+        log.info("Sending node " + nodeId + " instruction to start noise floor "
+                + "reading every " + 1000 + " miliseconds");
+        this.sendNoiseFloorReading(nodeId, 1000);
     }
     
     @Transactional
     @Override
     public void main() {  
+        //
+        // INIT objects - new thread 
+        //
+        
         // get transaction manager - programmaticall transaction management
         this.transactionTemplate = new TransactionTemplate((PlatformTransactionManager)App.getRunningInstance().getAppContext().getBean("transactionManager"));        
         this.me = (ExperimentCoordinator) App.getRunningInstance().getAppContext().getBean("experimentCoordinator");
         this.em = me.getEm();
+        // here we should wait to receive identification from all nodes
+        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);       
+        this.nodeReg.setDropingReceivedPackets(false);
+        this.lastExperimentTimes = new RingBuffer<Long>(15, false);
+        this.nodeMonitor = new NodeReachabilityMonitor(nodeReg, this);
         
         // at first reset all nodes before experiment count
         System.out.println("Restarting all nodes before experiment, "
                 + "waiting nodes to reinit (need to receive IDENTITY message from everyone)");
-        // here we should wait to receive identification from all nodes
-        this.nodePrepared = new HashSet<Integer>(this.nodeReg.size());
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);       
-        this.nodeReg.setDropingReceivedPackets(false);
-        this.lastNodeAliveCounter = new HashMap<Integer, Integer>();
+        // use node monitor to restart all nodes, set higher agresivity, reconnect is 
+        // not enough
+        this.nodeMonitor.setResetNodesDuringWaitIfUnreachable(true);
+        this.nodeMonitor.setResetNodeDelay(4000);
+        this.nodeMonitor.setIdSequenceMaxGap(20);
+        this.nodeMonitor.setNodeAliveThreshold(4000);
+        this.nodeMonitor.setNodeDelayReconnect(5000);
+        this.nodeReg.registerMessageListener(new CommandMsg(), this.nodeMonitor);
         
-        // restart all nodes
-        this.resetAllNodes();
-        long restartStartedMili = System.currentTimeMillis();
-        // check all nodes are prepared
-        while(true){
-            int preparedCount = 0;
-            synchronized(this.nodePrepared){
-                preparedCount=this.nodePrepared.size();
+        Collection<Integer> deadNodes = this.nodeMonitor.makeNodesReachable(this.nodeReg.values(), 180000, 1);
+        if (deadNodes.isEmpty()==false){
+            // failed to start some nodes - error...
+            log.error("Cannot restart some nodes. Error nodes: ");
+            for(Integer deadNodeId : deadNodes){
+                log.error("Dead nodeId: " + deadNodeId);
             }
+            return;
             
-            // compare size preparedNodes vs. all nodes
-            if (preparedCount==this.nodeReg.size()){
-                log.info("All nodes prepared, starting experiment");
-                System.out.println("All nodes prepared, starting experiment");
-                break;
-            }
-            
-            // timeouted?
-            long nowMili = System.currentTimeMillis();
-            if (nowMili-restartStartedMili > 180000){
-                log.warn("Node prepare cycle wait expired");
-                System.out.println("Node prepare cycle wait expired");
-                break;
-            }
-            
-            // sleep now, wait
-            this.pause(500);
+        } else {
+            log.info("All nodes prepared, starting experiment");
+            System.out.println("All nodes prepared, starting experiment");
         }
 
+        // 
+        // Experiment start
+        //        
         this.miliStart = System.currentTimeMillis();
         this.expInit.updateExperimentStart(miliStart);
         log.info("Experiment started, miliseconds start: " + miliStart);        
         // unsuspend all packet listeners to start receiving packets
-        log.info("Setting ignore received packets to FALSE to start receiving");
-        // register node coordinator as message listener
-        System.out.println("Register message listener for commands and pings");
-//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.PingMsg(), this);
-//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.RssiMsg(), this);
-//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.NoiseFloorReadingMsg(), this);
-//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingMsg(), this);
-//         this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseMsg(), this);
-//        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.MultiPingResponseReportMsg(), this);
-        
+        log.info("Setting ignore received packets to FALSE to start receiving");        
         // work, inform user that experiment is beginning
         System.out.println("Starting main experiment logic...");       
         //
@@ -288,12 +290,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         //
         
         // how often to receive noise floor reading?
-        int noiseFloorReadingTimeout=3000;
+        int noiseFloorReadingTimeout=1000;
         // how many miliseconds can be node unreachable to be considered as unresponsive
-        int nodeAliveThreshold=5000;
-        // last node alive check time - not to write warning each miliseconds, reasonable
-        // notify intervals
-        long nodeAliveLastCheck=0;
+        nodeAliveThreshold=4000;
         // packets requested
         int packetsRequested = 100;
         // in miliseconds
@@ -318,13 +317,13 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // instructing all nodes to collect noise floor values
         log.info("Instructing all nodes to do noise floor readings");
         for(NodeHandler nh : this.nodeReg.values()){
-            this.sendNoiseFloorReading(nh.getNodeId(), noiseFloorReadingTimeout);
+            this.nodeStartedFresh(nh.getNodeId());
         }
                 
         // number of successfully finished cycles from last reset
         // when moving backwards (node freeze) it helps not to repeat older and older 
         // experiments
-        int succCyclesFromLastReset=0;
+        succCyclesFromLastReset=0;
         
         // main running cycle, experiment can be shutted down setting running=false
         log.info("Starting main collecting cycle, one sending block: " + timeNeededForNode + " ms");
@@ -338,89 +337,77 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             int curNode = this.eState.getCurrentNodeHandler().getNodeId();
             int curTx = this.eState.getCurTxPower();
             int msgSize = this.eState.getCurMsgSize();
-                        
+            long timeWaitedSum = 0;
+            
+            // store current time when experiment started - to be able to revoke in future
+            // if error occurr
+            this.lastExperimentTimes.enqueue(System.currentTimeMillis());
+            
             log.info("Sending new ping request for node " + curNode + "; "
                     + "curTx=" + curTx + "; msgSize=" + msgSize + "; succCycles: " + succCyclesFromLastReset);            
             // now send message request
             this.sendMultiPingRequest(curNode, curTx, 0,
                     packetsRequested, packetDelay, msgSize, true, true);
-            // wait
-            this.pause(timeNeededForNode);
-            // send request stopping all transfer
-            this.sendMultiPingRequest(curNode, curTx, 0,
-                    1, 0, msgSize, true, true);
-            this.pause(1000);
-            
-            //
-            // node alive monitor
-            //
-            long timeNow = System.currentTimeMillis();
-            if ((timeNow - nodeAliveLastCheck) > 2000){
-                List<Integer> nodesLastResponse = getNodesLastResponse(nodeAliveThreshold);
-                if (nodesLastResponse!=null && nodesLastResponse.isEmpty()==false){
-                    // some unreachable nodes detected
-                    log.warn("There are some unreachable nodes here: (mili="+timeNow+"), restarting");
-                    for(Integer unreachableNodeId : nodesLastResponse){
-                        NodeHandler nh = this.nodeReg.get(unreachableNodeId);
-                        log.warn("NodeID: " + nh.getNodeId() 
-                                + "; Obj: " + nh.getNodeObj().toString() 
-                                + "; lastSeen: " + nh.getNodeObj().getLastSeen());
-                        
-                        boolean resetDone=false;
-                        
-                        // determine adequate way of restart
-                        if(ConnectedNode.class.isInstance(nh)){
-                            // connected node needs special manipulation
-                            final ConnectedNode cn = (ConnectedNode) nh;
-                            long nodeDelay = timeNow - nh.getNodeObj().getLastSeen();
-                            
-                            // decide what to do depending on timeout
-                            if (nodeDelay<=6000){
-                                // maybe is enought to resync
-                                cn.setResetQueues(false);
-                                cn.reconnect();
-                                log.info("Node was reconnected, timeout is not so big.");
-                            } else {
-                                // latency increased a lot, do hard reset
-                                if (cn.hwresetPossible()){
-                                    // try HW reset
-                                    cn.hwreset();
-                                    resetDone=true;
-                                    log.info("HW reset performed");
-                                } else {
-                                    // HW reset not available, send reset message
-                                    this.resetNode(nh.getNodeId());
-                                    cn.reconnect();
-                                    resetDone=true;
-                                    log.info("SW reset performed");
-                                }
-                            }
-                        }
-                        
-                        // reset failed or not a connected node - reset by old way
-                        if (resetDone==false){
-                            this.resetNode(nh.getNodeId());
-                            log.info("SW reset performed");
-                        }
-                        
-                        // sleep, wait for node initialization
-                        this.pause(1000);
-                        this.nodeStartedFresh(nh.getNodeId());
-                    } // end of foreach nodes
-                    
-                    // if here, need to repeat last 2 experiments
-                    log.info("Need to repeat last 2 experiments, moving backward");
-                    this.eState.prev(succCyclesFromLastReset > 3 ? 3 : (succCyclesFromLastReset+1));
-                    
-                    nodeAliveLastCheck = timeNow;
-                    succCyclesFromLastReset=0;
-                } // end of non-empty failed nodes
-                else {
-                    succCyclesFromLastReset++;
+            // wait in node monitor here - process unreachable nodes
+            boolean nodeError = false;
+            while(timeWaitedSum <= timeNeededForNode){
+                // real waiting, increment waited sum
+                this.pause(200);
+                timeWaitedSum+=200;
+                
+                // trigger node monitor
+                this.nodeMonitor.nodeMonitorCycle();
+                
+                // inspect if node monitor failed => error occurred
+                if (this.nodeMonitor.isLastCycleError()==false){
+                    // node monitor OK
+                    continue;
                 }
-            } else {
+                
+                // error occurred - reset current sending node not to overflow again
+                this.resetNode(curNode);
+                this.nodeStartedFresh(curNode);
+                
+                // if execution here, node monitor found error nodes
+                Set<Integer> unreachableNodes = this.nodeMonitor.getLastNodeUnreachable();
+                String monitorLastError = this.nodeMonitor.getLastError();
+                String monitorLastErrorDescription = this.nodeMonitor.getLastErrorDescription();
+                long monitorMinLastSeen = this.nodeMonitor.getLastMinLastSeen();
+                
+                // need to make this nodes reachable - make it available
+                Collection<Integer> reallyDeadNodes = this.nodeMonitor.makeNodesReachable(unreachableNodes, 120000, 0);
+                if (reallyDeadNodes.isEmpty()==false){
+                    log.error("Cannot recover from node unreachability - need to quit experiment!!!");
+                    for(Integer deadNodeId : reallyDeadNodes){
+                        log.error("Dead nodeId: " + deadNodeId);
+                    }
+                    return;
+                }
+                
+                // reinit nodes
+                for(Integer unreachableNodeId : unreachableNodes){
+                    this.nodeStartedFresh(unreachableNodeId);
+                }
+                
+                // how long is node out of service?
+                long outOufServiceFrom = monitorMinLastSeen-3500;
+                
+                // nodes recovered, experiment revocation/rollback
+                // if here, need to repeat last X experiments
+                log.info("Need to repeat last X experiments, moving backward, outOfOrder: " + outOufServiceFrom);
+                this.moveExperimentStateBackward(outOufServiceFrom, 1, "Nodes unreachable", monitorLastErrorDescription + "\n" + this.nodeMonitor.getResetProtocol());
+                succCyclesFromLastReset = 0;
+                nodeError=true;
+                break;
+            }
+            
+            // no error happened => continue
+            if (nodeError==false){
+                this.sendMultiPingRequest(curNode, curTx, 0,
+                        1, 0, msgSize, true, true);
+                this.pause(1000);
                 succCyclesFromLastReset++;
-            }   
+            }
         }
         
         // shutdown all registered nodes... Deregister and shutdown listening/sending threads
@@ -430,6 +417,112 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         System.out.println("Exiting... Returning control to main application...");
     }
 
+    /**
+     * Revokes STEP experiments, move experiment state automaton backward - called
+     * if error on node occurred during experiment, cycles with error are revoked 
+     * and repeated again assuming that error was fixed for now.
+     * 
+     * @param errorConditionFrom - when was first error condition detected?
+     * @param code - error code for protocol
+     * @param reason - reason of revocation
+     * @param description - detailed description of error condition to log - for human
+     */
+    public void moveExperimentStateBackward(Long errorConditionFrom, int code, String reason, String description){
+        // if succ cycles from last reset is small. Do not repeat already repeated.
+        int step=2;
+        if (errorConditionFrom==null){
+            step = succCyclesFromLastReset > 2 ? 2 : succCyclesFromLastReset;
+            // get experiment step start time to be able to revoke it
+            // if there is only few experiments done, cannot revoke more...
+            if (step > this.lastExperimentTimes.size()){
+                step = this.lastExperimentTimes.size();
+                log.info("Cannot revoke more experiments, reducing step to: " + step);
+            }
+        } else {
+            // compute how many steps are necessarry to rollback
+            // find nearest experiment start time to the left
+            step=0;
+            boolean found=false;
+            for(int cn=this.lastExperimentTimes.size(); step<cn; step++){
+                // geth i-th element = i-th experiment start time. 0=current experiment
+                // sequence MUST be decreasing!
+                Long lastExperimentStartTime = this.lastExperimentTimes.get(step);
+                log.info("lastExperimentStartTime["+step+"]=" + lastExperimentStartTime);
+                if (lastExperimentStartTime<errorConditionFrom){
+                    // rollback this state as well - error occured here
+                    step+=1;
+                    found=true;
+                    break;
+                }
+            }
+            
+            // if not found left boundary, revoke all experiments contained
+            if (found==false){
+                log.warn("Experiment error frame was not found; ErrCond: " + errorConditionFrom
+                        + "; lastExperimentTimes.size() = " + this.lastExperimentTimes.size()
+                        + "; curStep = " + step);
+                step = this.lastExperimentTimes.size();
+            }
+            
+            step = succCyclesFromLastReset > step ? step : succCyclesFromLastReset;
+        }
+        
+        log.warn("Need to revoke&repeat last " + step + " experiments");
+        
+        // next main loop cycle will call next(). Thus we need to move step+1 backward.
+        // Problem can be if current state is 2 and we need to revoke 2 experiments, thus
+        // we need to move to -1 experiment to be prepared for next() call to get correct 
+        // experiment to repeat.
+        // From definition, transition=1 in initial state. Thus 
+        int transitionNum = this.eState.getCurTransition();
+        if (transitionNum < step){
+            // extreme situation, we are at step lower that number of steps to 
+            // revoke -> reset to null state
+            this.eState.resetState();
+        } else {
+            this.eState.prev(step);
+        }
+        
+        // revoke STEP experiments to database - in order to delete/ignore results
+        // from this experiments, will be repeated again...
+        long prevExperimentStart = System.currentTimeMillis();
+        for(int i=0; i<step; i++){
+            // revoke ith experiment from current. 0th = current experiment
+            Long curExperimentStart = this.lastExperimentTimes.get(i);
+            ExperimentDataRevokedCycles edrc = new ExperimentDataRevokedCycles();
+            edrc.setExperiment(this.expInit.getExpMeta());
+            edrc.setReasonCode(code);
+            edrc.setReasonName(reason);
+            edrc.setReasonDescription(description);
+            edrc.setMiliStart(curExperimentStart);
+            edrc.setMiliEnd(prevExperimentStart);
+            me.storeData(edrc);
+            
+            prevExperimentStart = curExperimentStart;
+        }
+        
+        // store info to experiment dependent log
+        this.add2experimentLog("WARN", 2, reason + "; MovedBackward: " + step, description);
+    }
+    
+    /**
+     * Adds entry to experiment log
+     * @param severity
+     * @param code
+     * @param reason
+     * @param reasonDesc 
+     */
+    public synchronized void add2experimentLog(String severity, int code, String reason, String reasonDesc){
+        ExperimentDataLog edl = new ExperimentDataLog();
+        edl.setExperiment(this.expInit.getExpMeta());
+        edl.setMiliEventTime(System.currentTimeMillis());
+        edl.setReasonCode(code);
+        edl.setReasonName(reason);
+        edl.setReasonData(reasonDesc);
+        edl.setSeverity(severity);
+        me.storeData(edl);
+    }
+    
     public ExperimentInit getExpInit() {
         return expInit;
     }
@@ -445,6 +538,16 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
 
     public void setNodeReg(NodeHandlerRegister nodeReg) {
         this.nodeReg = nodeReg;
+    }
+    
+    /**
+     * Assumes that given message is identification packet, performs node liveness check
+     * @param i
+     * @param cMsg
+     * @param mili 
+     */
+    public synchronized void identificationReceived(int i, CommandMsg cMsg, long mili){
+        // nothing to do here, all responsibility now on nodeMonitor
     }
 
     /**
@@ -484,44 +587,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             // identification received?
             if (    cMsg.get_command_code() == (short)MessageTypes.COMMAND_ACK
                  && cMsg.get_reply_on_command() == (short)MessageTypes.COMMAND_IDENTIFY)
-            {               
-                // update node last seen
-                synchronized(this.nodeReg){
-                    this.nodeReg.updateLastSeen(nodeIdSrc, mili);
-                }
-                
-                // check alive sequence for suspicious gaps
-                // if gap > 10 and current sequence is under 100, consider node
-                // as newly restarted
-                synchronized(this.lastNodeAliveCounter){
-                    if (this.lastNodeAliveCounter.containsKey(nodeIdSrc)){
-                        Integer lastCounter = this.lastNodeAliveCounter.get(nodeIdSrc);
-                        
-                        if (cMsg.get_command_id() < 100 
-                                && ((cMsg.get_command_id()-lastCounter) % 65535) > 10){
-                            log.warn("Node " + nodeIdSrc + "; was probably reseted. "
-                                    + "Last sequence: " + lastCounter + "; now: " + cMsg.get_command_id());
-                            this.nodeStartedFresh(nodeIdSrc);
-                        }
-                    }
-                    
-                    this.lastNodeAliveCounter.put(nodeIdSrc, cMsg.get_command_id());
-                }
-                
-                // nodes prepared after reset
-                // must synchronize over this Set - different thread from main execution thread
-                synchronized(this.nodePrepared){
-                    // first node identification after reset? 
-                    // add to prepared set - indicates nodes was restarted successfully
-                    if  (this.nodePrepared!=null 
-                            && cMsg.get_command_code() == (short)MessageTypes.COMMAND_ACK
-                            && cMsg.get_reply_on_command() == (short)MessageTypes.COMMAND_IDENTIFY
-                            && this.nodePrepared.contains(nodeIdSrc)==false
-                            ){
-                        log.info("NodeId: " + nodeIdSrc + " is now prepared to communicate");
-                        this.nodePrepared.add(nodeIdSrc);
-                    }
-                }
+            {            
+                // identification message is processed separately
+                this.identificationReceived(i, cMsg, mili);
             }
             
             genericMessage=false;
@@ -882,14 +950,12 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
     
     @Override
-    public void storeData(Object o){
-        synchronized(this.em){
-            try {
-                this.em.persist(o);
-                this.em.flush();
-            } catch(Exception e){
-                log.error("Cannot persist object, exception thrown", e);
-            }
+    public synchronized void storeData(Object o){
+        try {
+            this.em.persist(o);
+            this.em.flush();
+        } catch(Exception e){
+            log.error("Cannot persist object, exception thrown", e);
         }
     }
     

@@ -192,14 +192,13 @@ public class MessageSender extends Thread {
             }
 
             // test queue to send
-            synchronized(queue){
-                if (this.queue.isEmpty()){
-                    msgToSend=null;
-                }
-                else {
-                    msgToSend=queue.remove();
-                }
+            if (this.queue.isEmpty()){
+                msgToSend=null;
             }
+            else {
+                msgToSend=queue.remove();
+            }
+           
 
             synchronized(this){
                 // if message was null, continue to sleep
@@ -235,9 +234,7 @@ public class MessageSender extends Thread {
                     if (msgToSend.listener != null && msgToSend.listener.isEmpty()==false){
                         // do it in sycnhronized block not to interfere with reading
                         // threads
-                        synchronized(this.toNotify){
-                            this.toNotify.add(msgToSend);
-                        }
+                        this.toNotify.add(msgToSend);
                     }
 
 //                    if (this.logger!=null && msgToSend.string!=null){
@@ -283,10 +280,7 @@ public class MessageSender extends Thread {
         }
 
         MessageToSend msgRecord = new MessageToSend(msg, target, text);
-
-        synchronized(this.queue){
-            this.queue.add(msgRecord);
-        }
+        this.queue.add(msgRecord);
     }
 
     /**
@@ -302,9 +296,7 @@ public class MessageSender extends Thread {
         }
         MessageToSend msgRecord = new MessageToSend(msg, target, text, listener, listenerKey);
 
-        synchronized(this.queue){
-            this.queue.add(msgRecord);
-        }
+        this.queue.add(msgRecord);
     }
 
     /**
@@ -316,9 +308,7 @@ public class MessageSender extends Thread {
             throw new NullPointerException("Cannot add message to send queue since gateway is null");
         }
         
-        synchronized(this.queue){
-            this.queue.add(msg);
-        }
+        this.queue.add(msg);
     }
 
     /**
@@ -392,16 +382,13 @@ public class MessageSender extends Thread {
                 
                 //  nulltest
                 if (toNotify==null) continue;
-
-                // select new message from queue in synchronized block
-                synchronized(toNotify){
-                    // if is nonempty, select first element
-                    if (!toNotify.isEmpty()){
-                        tmpMessage = toNotify.remove();
-                    }
-                    else {
-                        tmpMessage = null;
-                    }
+                
+                // if is nonempty, select first element
+                if (!toNotify.isEmpty()){
+                    tmpMessage = toNotify.remove();
+                }
+                else {
+                    tmpMessage = null;
                 }
 
                 // end of synchronization block, check if we have some message
@@ -459,9 +446,15 @@ public class MessageSender extends Thread {
         return gateway;
     }
 
-    public synchronized void setGateway(MoteIF gateway) {
+    public synchronized void setGateway(MoteIF gateway){
+        this.setGateway(gateway, true);
+    }
+    
+    public synchronized void setGateway(MoteIF gateway, boolean reset) {
         this.gateway = gateway;
-        this.reset();
+        if (reset){
+            this.reset();
+        }
         
         if (this.messageDeliveryGuarantor!=null){
             this.messageDeliveryGuarantor.registerListeners();

@@ -15,6 +15,8 @@ import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
@@ -75,7 +77,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
     /**
      * Queue of entities to store
      */
-    private List<Object> objQueue = new ArrayList<Object>(500);
+    private Queue<Object> objQueue = new ConcurrentLinkedQueue<Object>();
     
     /**
      * Threshold for queue flush, maximal time when queues can remain in memory.
@@ -170,9 +172,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
         this.objQueue.add(experimentDataAliveCheck);
         
         // update last seen record
-        synchronized(this.nodeReg){
-            this.nodeReg.updateLastSeen(cMsg.getSerialPacket().get_header_src(), mili);
-        }
+        this.nodeReg.updateLastSeen(cMsg.getSerialPacket().get_header_src(), mili);
     }
     
     @Override
@@ -212,9 +212,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
             this.objQueue.add(expDataNoise);
             
             // update last seen record
-            synchronized(this.nodeReg){
-                this.nodeReg.updateLastSeen(nMsg.getSerialPacket().get_header_src(), mili);
-            }
+            this.nodeReg.updateLastSeen(nMsg.getSerialPacket().get_header_src(), mili);
         }
         
         // report message?
@@ -267,29 +265,41 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
      * Directly flushes object queues to database.
      */
     public void flushQueues(){
-        messageFromLastFlush=0;
-        log.debug("Flushing queue size=" + this.objQueue.size() + "; thread: " + this.getName());
+        log.debug("Flushing queue size=" + this.objQueue.size() + "; thread: " + this.getName());    
+        try {
+            if (session2==null){
+                session2 = sf.openStatelessSession();
+            }
+        
+            Transaction tx = session2.getTransaction();
+            if (tx == null) {
+                tx = session2.beginTransaction();
+            }
+               
+            if (tx.isActive() == false) {
+                tx.begin();
+            }
 
-        if (session2==null){
-            session2 = sf.openStatelessSession();
-        }
-        
-        Transaction tx = null;
-        tx = session2.getTransaction();
-        if (tx==null){
-            tx = session2.beginTransaction();
-        }
-        
-        if (tx.isActive()==false){
-            tx.begin();
-        }
-                
-        for (Object entity : objQueue) {
-            session2.insert(entity);
-        }
-        tx.commit();
-        
+            for (Object entity : objQueue) {
+                session2.insert(entity);
+            }
+
+            if (tx != null) {
+                tx.commit();
+            }
             
+            this.objQueue.clear();
+            this.sqlQueue.clear();
+            messageFromLastFlush=0;
+        } catch (Exception e) {
+            log.warn("Exception when starting transaction", e);
+            try {
+                session2.close();
+            } catch(Exception ex){
+                log.error("Cannot close session2", ex);
+            }
+            session2 = null;
+        }
             
 ////            sqlFlush="INSERT INTO experimentDataRSSI(id,connectedNode,connectedNodeCounter,len,miliFromStart,rssi,sendingNode,sendingNodeCounter,experiment_id) VALUES ";
 ////            Iterator<String> iterator = this.sqlQueue.iterator();
@@ -314,10 +324,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
 //                this.em.persist(obj);
 //            }
 //            
-//            this.em.flush();
-            
-            this.objQueue.clear();
-            this.sqlQueue.clear();
+//            this.em.flush();  
     }
     
     @Override

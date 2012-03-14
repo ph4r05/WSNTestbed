@@ -124,7 +124,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
         this.gateway = gateway;
 
         // instantiate thread pool
-        tasks = Executors.newFixedThreadPool(MAX_NOTIFY_THREADS);
+//        tasks = Executors.newFixedThreadPool(MAX_NOTIFY_THREADS);
 //        this.myWorker = new MessageNotifyWorker();
 //        tasks.execute(this.myWorker);
         
@@ -153,7 +153,9 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
         this.reset();
         this.dropingPackets=true;
         this.shutdown=true;
-        this.tasks.shutdown();
+        if (this.tasks!=null){
+            this.tasks.shutdown();
+        }
     }
     
     /**
@@ -340,7 +342,9 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
             // shutdown
             if (this.shutdown == true){
                 log.info("MyMessageReceiver shutting down.");
-                this.tasks.shutdown();
+                if (this.tasks!=null){
+                    this.tasks.shutdown();
+                }
                 
                 return;
             }
@@ -349,7 +353,9 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
             if (queue==null){
                 log.error("Queue is null - should not happen, queue is final, "
                         + "initialized in constructor. Has to exit...");
-                this.tasks.shutdown();
+                if (this.tasks!=null){
+                    this.tasks.shutdown();
+                }
                 
                 break;
             }
@@ -362,116 +368,115 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
             
             
             
-            
-            
-            
-            
-            
-            
-            
-            
-            // yield for some time iff is queue empty
-                    if (queue == null || queue.isEmpty()) {
-                        this.pause(5);
-                        continue;
-                    }
+           
 
-                    //  nulltest
-                    if (queue == null) {
-                        continue;
-                    }
 
-                    // select new message from queue in synchronized block
-//                    synchronized (queue) {
-                        // check queue size
-                        if (queue.size() > MAX_QUEUE_SIZE_TO_RESET) {
-                            queue.clear();
 
-                            log.warn("Warning! Input queue had to be flushed out!"
-                                    + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET
-                                    + "; " + gateway.getSource().getName() + " psrc: " + gateway.getSource().getPacketSource().getName());
-                            continue;
-                        }
 
-                        // if is nonempty, select first element
-                        if (!queue.isEmpty()) {
-                            tmpMessage = queue.remove();
-                        } else {
-                            tmpMessage = null;
-                        }
-//                    }
 
-                    // end of synchronization block, check if we have some message
-                    if (tmpMessage == null) {
-                        continue;
-                    }
 
-                    // check listener for existence
-                    if (!(tmpMessage instanceof MessageReceived)) {
-                        log.error("Message is not instance of messageReceived - please inspect it");
-                        continue;
-                    }
 
-                    // determine message received
-                    Message msg = tmpMessage.getMsg();
-                    if (msg == null) {
-                        // empty message, continue
-                        log.error("Message is empty in envelope", tmpMessage);
-                        continue;
-                    }
+             // yield for some time iff is queue empty
+             if (queue == null || queue.isEmpty()) {
+                 this.pause(5);
+                 continue;
+             }
 
-                    Integer amtype = Integer.valueOf(msg.amType());
+             //  nulltest
+             if (queue == null) {
+                 continue;
+             }
 
-                    // is this message registered to anybody?
-                    if (messageListeners.containsKey(amtype) == false) {
-                        // registered to no one, continue - why not 
-                        // registered message arrived? Weird
-                        log.warn("Message arrived but no message listener "
-                                + "registered to it - how it could arrive? "
-                                + "AMtype: " + amtype);
-                        continue;
-                    }
+             // check queue size
+             if (queue.size() > MAX_QUEUE_SIZE_TO_RESET) {
+                 queue.clear();
 
-                    // get list of listeners interested in receiving messages of
-                    // this AMtype
-                    ConcurrentLinkedQueue<MessageListener> listenersList = messageListeners.get(amtype);
-                    if (listenersList == null || listenersList.isEmpty()) {
-                        // list is null || empty, cannot forward to anyone
-                        continue;
-                    }
+                 log.warn("Warning! Input queue had to be flushed out!"
+                         + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET
+                         + "; " + gateway.getSource().getName() + " psrc: " + gateway.getSource().getPacketSource().getName());
+                 continue;
+             }
 
-                    // iterate over listeners list and notify each listener 
-                    // in serial manner
-                    boolean large=queue.size()>300;
-                    
-                    if (large)
-                        log.info(this.getName() + "; XXqsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
-                    iterator = listenersList.iterator();
-                    while (iterator.hasNext()) {
-                        MessageListener curListener = iterator.next();
-                        if (curListener == null) {
-                            continue;
-                        }
+             // if is nonempty, select first element
+             if (!queue.isEmpty()) {
+                 tmpMessage = queue.remove();
+             } else {
+                 tmpMessage = null;
+             }
 
-                        // notify this listener,, separate try block - exception
-                        // can be thrown, this exception affects only one listener
-                        try {
-                            // notify here
-                            curListener.messageReceived(tmpMessage.getI(), msg, tmpMessage.getTimeReceivedMili());
-                            
-                            if (large)
-                                log.info(this.getName() + "; qsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
-                        } catch (Exception e) {
-                            log.error("Exception during notifying listener", e);
-                            continue;
-                        }
-                    }
+             // end of synchronization block, check if we have some message
+             if (tmpMessage == null) {
+                 continue;
+             }
 
-                    // set message to null to release it from memory for garbage collector
-                    tmpMessage = null;
-            
-            
-            
+             // check listener for existence
+             if (!(tmpMessage instanceof MessageReceived)) {
+                 log.error("Message is not instance of messageReceived - please inspect it");
+                 continue;
+             }
+
+             // determine message received
+             Message msg = tmpMessage.getMsg();
+             if (msg == null) {
+                 // empty message, continue
+                 log.error("Message is empty in envelope", tmpMessage);
+                 continue;
+             }
+
+             Integer amtype = Integer.valueOf(msg.amType());
+
+             // is this message registered to anybody?
+             if (messageListeners.containsKey(amtype) == false) {
+                 // registered to no one, continue - why not 
+                 // registered message arrived? Weird
+                 log.warn("Message arrived but no message listener "
+                         + "registered to it - how it could arrive? "
+                         + "AMtype: " + amtype);
+                 continue;
+             }
+
+             // get list of listeners interested in receiving messages of
+             // this AMtype
+             ConcurrentLinkedQueue<MessageListener> listenersList = messageListeners.get(amtype);
+             if (listenersList == null || listenersList.isEmpty()) {
+                 // list is null || empty, cannot forward to anyone
+                 continue;
+             }
+
+             // iterate over listeners list and notify each listener 
+             // in serial manner
+             boolean large = queue.size() > 300;
+
+             if (large) {
+                 log.info(this.getName() + "; XXqsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
+             }
+             iterator = listenersList.iterator();
+             while (iterator.hasNext()) {
+                 MessageListener curListener = iterator.next();
+                 if (curListener == null) {
+                     continue;
+                 }
+
+                 // notify this listener,, separate try block - exception
+                 // can be thrown, this exception affects only one listener
+                 try {
+                     // notify here
+                     curListener.messageReceived(tmpMessage.getI(), msg, tmpMessage.getTimeReceivedMili());
+
+                     if (large) {
+                         log.info(this.getName() + "; qsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
+                     }
+                 } catch (Exception e) {
+                     log.error("Exception during notifying listener", e);
+                     continue;
+                 }
+             }
+
+             // set message to null to release it from memory for garbage collector
+             tmpMessage = null;
+
+
+
             
             
             
@@ -610,9 +615,8 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
                 if (queue.size()<50){
                     Thread.yield();
                 }
-                //this.pause(3);
 
-                synchronized (this) {
+//                synchronized (this) {
                     // yield for some time iff is queue empty
                     if (queue == null || queue.isEmpty()) {
                         this.pause(5);
@@ -624,25 +628,22 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
                         continue;
                     }
 
-                    // select new message from queue in synchronized block
-//                    synchronized (queue) {
-                        // check queue size
-                        if (queue.size() > MAX_QUEUE_SIZE_TO_RESET) {
-                            queue.clear();
+                    // check queue size
+                    if (queue.size() > MAX_QUEUE_SIZE_TO_RESET) {
+                        queue.clear();
 
-                            log.warn("Warning! Input queue had to be flushed out!"
-                                    + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET
-                                    + "; " + gateway.getSource().getName() + " psrc: " + gateway.getSource().getPacketSource().getName());
-                            continue;
-                        }
+                        log.warn("Warning! Input queue had to be flushed out!"
+                                + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET
+                                + "; " + gateway.getSource().getName() + " psrc: " + gateway.getSource().getPacketSource().getName());
+                        continue;
+                    }
 
-                        // if is nonempty, select first element
-                        if (!queue.isEmpty()) {
-                            tmpMessage = queue.remove();
-                        } else {
-                            tmpMessage = null;
-                        }
-//                    }
+                    // if is nonempty, select first element
+                    if (!queue.isEmpty()) {
+                        tmpMessage = queue.remove();
+                    } else {
+                        tmpMessage = null;
+                    }
 
                     // end of synchronization block, check if we have some message
                     if (tmpMessage == null) {
@@ -713,7 +714,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
                     // set message to null to release it from memory for garbage collector
                     tmpMessage = null;
                 } //end while(true)
-            } // end of synchronized
+//            } // end of synchronized
         } // end run()
     }
 
@@ -729,17 +730,25 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
         return gateway;
     }
 
-    public synchronized void setGateway(MoteIF gateway) {
+    public synchronized void setGateway(MoteIF gateway){
+        this.setGateway(gateway, true);
+    }
+    
+    public synchronized void setGateway(MoteIF gateway, boolean reset) {
         this.gateway = gateway;
         
         // reset internal queues
-        this.reset();
+        if (reset) {
+            this.reset();
+        }
         
         // re-register listeners here
         this.reregisterListeners();
         
         // reset queues again
-        this.reset();
+        if (reset) {
+            this.reset();
+        }
         log.info("Gateway changed for MessageListener");
     }
 

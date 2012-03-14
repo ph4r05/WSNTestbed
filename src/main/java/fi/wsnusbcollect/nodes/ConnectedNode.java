@@ -11,14 +11,13 @@ import fi.wsnusbcollect.nodeCom.MessageSender;
 import fi.wsnusbcollect.nodeCom.MessageSentListener;
 import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
+import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
-import fi.wsnusbcollect.usb.USBarbitrator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
 import net.tinyos.packet.PhoenixSource;
-import net.tinyos.util.PrintStreamMessenger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +50,8 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
 
     // mote interface for specific node
     private MoteIF moteIf;
+    
+    private boolean resetQueues=true;
     
     /**
      * Proxy method to nodeObj. Throws nullpointer exception if nodeObj is null
@@ -90,12 +91,12 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     public void disconnect(){
         // shutdown sender
         if (this.msgSender!=null){
-            this.msgSender.setGateway(null);
+            this.msgSender.setGateway(null, this.resetQueues);
         }
         
         // shutdown listener
         if (this.msgListener!=null){
-            this.msgListener.setGateway(null);
+            this.msgListener.setGateway(null, this.resetQueues);
         }
         
         // shutdown moteif
@@ -304,7 +305,9 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
      * @return 
      */
     public static MoteIF getConnectionToNode(String source){
-        PhoenixSource phoenix = BuildSource.makePhoenix(source, PrintStreamMessenger.err);
+        // build custom error mesenger - store error messages from tinyos to logs directly
+        TOSLogMessenger messenger = new TOSLogMessenger();
+        PhoenixSource phoenix = BuildSource.makePhoenix(source, messenger);
         MoteIF moteInterface = null;
         
         // phoenix is not null, can create packet source and mote interface
@@ -423,13 +426,12 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         
         // set new node for sender/listener if not null
         if (this.msgListener!=null){
-            this.msgListener.setGateway(moteIf);
+            this.msgListener.setGateway(moteIf, this.resetQueues);
         }
         
         if (this.msgSender!=null){
-            this.msgSender.setGateway(moteIf);
+            this.msgSender.setGateway(moteIf, this.resetQueues);
         }
-        
     }
 
     @Override
@@ -491,6 +493,19 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
             return;
         }
         
+        // if updating with older value than current, leave it
+        if (this.nodeObj.getLastSeen() > mili) {
+            return;
+        }
+        
         this.nodeObj.setLastSeen(mili);
+    }
+
+    public boolean isResetQueues() {
+        return resetQueues;
+    }
+
+    public void setResetQueues(boolean resetQueues) {
+        this.resetQueues = resetQueues;
     }
 }

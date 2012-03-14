@@ -33,6 +33,12 @@ public class AppTest
      */
     public void testApp()
     {
-        assertTrue( true );
+        
+        int newIndex = (4 - 18) % 16;
+        if (newIndex<0){
+            newIndex+=16;
+        }
+        
+        System.out.println(newIndex);
     }
 }

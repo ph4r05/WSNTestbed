@@ -13,6 +13,8 @@
     <class>fi.wsnusbcollect.db.ExperimentDataCommands</class>
     <class>fi.wsnusbcollect.db.ExperimentDataGenericMessage</class>
     <class>fi.wsnusbcollect.dbbenchmark.BenchmarkEntity</class>
+    <class>fi.wsnusbcollect.db.ExperimentDataLog</class>
+    <class>fi.wsnusbcollect.db.ExperimentDataRevokedCycles</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="hibernate.cache.provider_class" value="org.hibernate.cache.NoCacheProvider"/>
@@ -33,9 +35,14 @@
       <property name="hibernate.c3p0.initialPoolSize" value="30">30</property>
       <property name="hibernate.c3p0.minPoolSize" value="30">30</property>
       <property name="hibernate.c3p0.maxPoolSize" value="150">100</property>
-      <property name="hibernate.c3p0.timeout" value="10">10</property>
-      <property name="hibernate.jdbc.batch_size" value="100" />
-      <property name="hibernate.show_sql" value="false" />
+      <property name="hibernate.c3p0.idle_test_period">300</property>
+      <property name="hibernate.c3p0.preferredTestQuery">120</property>
+      <property name="hibernate.jdbc.batch_size" value="100">10</property>
+      <property name="hibernate.show_sql" value="false"/>
+      <property name="hibernate.c3p0.maxAdministrativeTaskTime" value="0"/>
+    
+      
+      maxAdministrativeTaskTime
     </properties>
   </persistence-unit>
 </persistence>

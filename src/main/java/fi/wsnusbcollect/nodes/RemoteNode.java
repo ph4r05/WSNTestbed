@@ -148,6 +148,11 @@ public class RemoteNode extends AbstractNodeHandler implements NodeHandler{
             return;
         }
         
+        // if updating with older value than current, leave it
+        if (this.nodeObj.getLastSeen() > mili) {
+            return;
+        }
+        
         this.nodeObj.setLastSeen(mili);
     }
 }

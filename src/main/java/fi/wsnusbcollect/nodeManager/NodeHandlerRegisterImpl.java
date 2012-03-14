@@ -9,14 +9,15 @@ import fi.wsnusbcollect.nodes.AbstractNodeHandler;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.NodeHandler;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,14 +29,14 @@ public class NodeHandlerRegisterImpl implements NodeHandlerRegister {
     private static final Logger log = LoggerFactory.getLogger(NodeHandlerRegisterImpl.class);
     
     // primary map for
-    private Map<Integer, NodeHandler> primaryMap;
+    private ConcurrentMap<Integer, NodeHandler> primaryMap;
     
     // set of connected nodes - base stations
     private Set<Integer> connectedNodes;
 
     public NodeHandlerRegisterImpl() {
-        this.primaryMap = new HashMap<Integer, NodeHandler>();
-        this.connectedNodes = new HashSet<Integer>();
+        this.primaryMap = new ConcurrentHashMap<Integer, NodeHandler>();
+        this.connectedNodes = Collections.newSetFromMap(new ConcurrentHashMap<Integer,Boolean>());
     }
     
     /**
@@ -306,9 +307,9 @@ public class NodeHandlerRegisterImpl implements NodeHandlerRegister {
      * @param mili 
      */
     @Override
-    public void updateLastSeen(int nodeId, long mili) {
+    public synchronized void updateLastSeen(int nodeId, long mili) {
         if (this.containsKey(nodeId) == false) {
-//            log.error("Cannot update last seen counter, node not registered: " + nodeId);
+            log.warn("Cannot update last seen counter, node not registered: " + nodeId);
             return;
         }
 

@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.persistence.EntityManager;
@@ -865,6 +867,8 @@ public class USBarbitratorImpl implements USBarbitrator {
      */
     @Override
     public void reprogramNodes(List<NodeConfigRecord> nodes2connect, String makefileDir){
+        int threadCount = 5;
+        
         // test if makefile exists
         File makefile = new File(makefileDir + "/Makefile");
         File makefileDirF = new File(makefileDir);
@@ -890,6 +894,13 @@ public class USBarbitratorImpl implements USBarbitrator {
             System.out.println(ncr.getHumanOutput());
         }
         System.out.println();
+        
+        // prepare multiple tasks
+//        ExecutorService tasks = Executors.newFixedThreadPool(threadCount);
+        //tasks.e
+        
+        
+        
         
         List<NodeConfigRecord> nodesFailed = new LinkedList<NodeConfigRecord>();
         // iterate
@@ -955,6 +966,43 @@ public class USBarbitratorImpl implements USBarbitrator {
             }
         } else {
             System.out.println("All nodes flashed successfully!");
+        }
+    }
+    
+    /**
+     * Reprograms nodes 
+     */
+    private class NodeReprogrammer extends Thread{
+        private String command;
+        private String output;
+        private boolean success;
+        
+        
+        public NodeReprogrammer() {
+            this.setName("Node reprogrammer");
+        }
+
+        @Override
+        public void run() {
+            
+            
+            
+        }
+
+        public String getCommand() {
+            return command;
+        }
+
+        public void setCommand(String command) {
+            this.command = command;
+        }
+
+        public String getOutput() {
+            return output;
+        }
+
+        public boolean isSuccess() {
+            return success;
         }
     }
     

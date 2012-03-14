@@ -40,7 +40,7 @@ public class RingBuffer<Item> implements Iterable<Item> {
         if (N == a.length && checkBoundaries) { throw new RuntimeException("Ring buffer overflow"); }
         a[last] = item;
         last = (last + 1) % a.length;     // wrap-around
-        N++;
+        N = Math.min(N+1, a.length);
     }
 
     // remove the least recently added item - doesn't check for underflow
@@ -48,7 +48,7 @@ public class RingBuffer<Item> implements Iterable<Item> {
         if (isEmpty()) { throw new RuntimeException("Ring buffer underflow"); }
         Item item = a[first];
         a[first] = null;                  // to help with garbage collection
-        N--;
+        N=Math.max(N-1, 0);
         first = (first + 1) % a.length;   // wrap-around
         return item;
     }
@@ -67,7 +67,12 @@ public class RingBuffer<Item> implements Iterable<Item> {
             throw new NoSuchElementException("Cannot reach element");
         }
         
-        return a[(first + i) % a.length];
+        int newIndex = (last - i - 1) % a.length;
+        if (newIndex<0){
+            newIndex+=a.length;
+        }
+        
+        return a[(last - i) % a.length];
     }
 
     @Override

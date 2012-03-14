@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Base register of all nodes.
@@ -54,7 +55,7 @@ public class NodeRegister implements Serializable{
     private MobileNodeManager mnm=null;
 
     public NodeRegister() {
-        this.nodes = new HashMap<Integer, GenericNode>();
+        this.nodes = new ConcurrentHashMap<Integer, GenericNode>();
         this.dataChangeListeners = new ArrayList<NodeRegisterEventListener>();
     }
 
@@ -157,58 +158,56 @@ public class NodeRegister implements Serializable{
      * @return true if node is new
      */
     public boolean discoveryPong(int from, int identification, int platform){
-        // synchronize over node list to avoid collisions
-        synchronized(this.nodes){
-            if (this.existsNode(from)){
-                // node is not new, node exists
-                // update counters only
-                GenericNode curNode = this.getNode(from);
-                if (curNode==null) throw new NullPointerException("Registered node is null");
-
-                // update last seen counter
-                curNode.setLastSeen(System.currentTimeMillis());
-
-                // update platform if changed
-                if (curNode.getPlatform() == null ||
-                        curNode.getPlatform().getPlatformId() != platform){
-                    curNode.setPlatform(NodePlatformFactory.getPlatform(platform));
-                }
-
-                return false;
+           if (this.existsNode(from)) {
+            // node is not new, node exists
+            // update counters only
+            GenericNode curNode = this.getNode(from);
+            if (curNode == null) {
+                throw new NullPointerException("Registered node is null");
             }
-            else {
-                // node is new, create record, notify listeners
-                // determine type of node
-                GenericNode newNode = new SimpleGenericNode(true, from, 1);
 
-                // set node platform
-                newNode.setPlatform(NodePlatformFactory.getPlatform(platform));
+            // update last seen counter
+            curNode.setLastSeen(System.currentTimeMillis());
 
-                if (identification==MessageTypes.NODE_DYNAMIC){
-                    // create mobile node instance
-                    MobileNode newMobileNode = new MobileNode(from);
-                    newMobileNode.setGenericNode(newNode);
-
-                    // tie mobile node and generic node together
-                    newNode.setMobileExtension(newMobileNode);
-                    newNode.setAnchor(false);
-
-                    this.addNode(newNode);
-                    if (mnm!=null){
-                        mnm.addMobileNode(newMobileNode);
-                    }
-                } else {
-                    newNode.setAnchor(true);
-                    this.addNode(newNode);
-                }
-
-                // notify about new node
-                Map<Integer, String> changes = new HashMap<Integer, String>();
-                changes.put(Integer.valueOf(from), null);
-                this.changeNotify(changes);
-                
-                return true;
+            // update platform if changed
+            if (curNode.getPlatform() == null
+                    || curNode.getPlatform().getPlatformId() != platform) {
+                curNode.setPlatform(NodePlatformFactory.getPlatform(platform));
             }
+
+            return false;
+        } else {
+            // node is new, create record, notify listeners
+            // determine type of node
+            GenericNode newNode = new SimpleGenericNode(true, from, 1);
+
+            // set node platform
+            newNode.setPlatform(NodePlatformFactory.getPlatform(platform));
+
+            if (identification == MessageTypes.NODE_DYNAMIC) {
+                // create mobile node instance
+                MobileNode newMobileNode = new MobileNode(from);
+                newMobileNode.setGenericNode(newNode);
+
+                // tie mobile node and generic node together
+                newNode.setMobileExtension(newMobileNode);
+                newNode.setAnchor(false);
+
+                this.addNode(newNode);
+                if (mnm != null) {
+                    mnm.addMobileNode(newMobileNode);
+                }
+            } else {
+                newNode.setAnchor(true);
+                this.addNode(newNode);
+            }
+
+            // notify about new node
+            Map<Integer, String> changes = new HashMap<Integer, String>();
+            changes.put(Integer.valueOf(from), null);
+            this.changeNotify(changes);
+
+            return true;
         }
     }
 
@@ -328,9 +327,7 @@ public class NodeRegister implements Serializable{
         }
         
         // clean mobile manager
-        synchronized(this.mnm){
-            this.mnm.resetState();
-        }
+        this.mnm.resetState();
         
         // flush all nodes in node register
         this.baseStation = null;

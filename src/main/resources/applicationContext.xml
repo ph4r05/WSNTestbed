@@ -63,10 +63,13 @@
       <property name="jdbcUrl"><value>${db.url}</value></property>
       <property name="user"><value>${db.user}</value></property>
       <property name="password"><value>${db.password}</value></property>
-      <property name="acquireIncrement"><value>4</value></property>
+      <property name="acquireIncrement"><value>1</value></property>
       <property name="maxPoolSize"><value>150</value></property>
       <property name="minPoolSize"><value>40</value></property>
       <property name="initialPoolSize"><value>40</value></property>
+      <property name="maxAdministrativeTaskTime"><value>0</value></property>
+      <property name="idleConnectionTestPeriod"><value>300</value></property>
+      <property name="preferredTestQuery"><value>select 1;</value></property>
     </bean>
           
     <!-- JDBC template is separated from JTA/Hibernate here for fast queries -->

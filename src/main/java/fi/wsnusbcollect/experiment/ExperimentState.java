@@ -36,6 +36,8 @@ public class ExperimentState implements Serializable {
     // cur tx power index;
     private Integer curTxPowerIndex;
     
+    // curTransition = 0 if we are at null position = no state. 
+    // 1=initial state. Last state can be at arbitrary position, thus we cannot guess where it is
     private int curTransition=0;
     
     // real current node handler
@@ -58,6 +60,26 @@ public class ExperimentState implements Serializable {
             messageSizes.add(0);
         }
         
+        this.nodeList = new ArrayList<Integer>();
+        this.curNodeHandler=null;
+        this.curMsgSizeIndex=null;
+        this.curTxPowerIndex=null;
+        this.curNodeIndex=null;
+        
+        // real tx power
+        curTxPower=0;
+        // real msg size
+        curMsgSize=0;
+        // rounds completed at high level
+        roundsCompleted=0;
+        curTransition=0;
+    }
+    
+    /**
+     * Reset state in such way that resetState() and next() results in initial state.
+     * curTransition=0. 
+     */
+    public void resetState(){
         this.nodeList = new ArrayList<Integer>();
         this.curNodeHandler=null;
         this.curMsgSizeIndex=null;
@@ -297,6 +319,11 @@ public class ExperimentState implements Serializable {
     }
     
     public boolean prev(int i){
+        if (i > this.curTransition){
+            this.resetState();
+            return true;
+        }
+        
         boolean succ=true;
         for(int j=0; j<i; j++){
             succ = this.prev();
