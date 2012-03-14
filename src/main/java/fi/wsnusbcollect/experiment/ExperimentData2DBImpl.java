@@ -165,7 +165,8 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
         experimentDataAliveCheck.setMiliFromStart(mili);
         experimentDataAliveCheck.setRadioQueueFree(cMsg.get_command_data_next()[2] & 0xFF);
         experimentDataAliveCheck.setSerialQueueFree((cMsg.get_command_data_next()[2] & 0xFF00) >> 8);
-        experimentDataAliveCheck.setSerialFails(cMsg.get_command_data_next()[3]);
+        experimentDataAliveCheck.setAliveFails(cMsg.get_command_data_next()[3] & 0xFF);
+        experimentDataAliveCheck.setSerialFails((cMsg.get_command_data_next()[3] & 0xFF00) >> 8);
         
         // @TODO: can be problem in multihop protocol
         experimentDataAliveCheck.setNode(cMsg.getSerialPacket().get_header_src());
@@ -263,8 +264,20 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
 //    @Transactional
     /**
      * Directly flushes object queues to database.
+     * Need to synchronize on this object - messageReceived is synchronized as well.
+     * If no, special case can occur: flush starts, transaction is started. Some delay
+     * is occurs in database connection. Meanwhile new messages arrive to queues BUT
+     * after queue flush queue can be cleared => error, messages received in time of 
+     * queue flush are lost. Two main solutions:
+     * 1. synchronize on whole instance
+     * 2. + do not call clear on queue, just remove inserted elements from queue
+     * 
+     * Warning: it is necessary the hibernate bulk insert works properly, otherwise
+     * large bottleneck is here (each message inserted by separate sql query=very slow),
+     * queues can overflow and congestion may occur. If problem, run database benchmark 
+     * and compare JDBC with Hibernate times. Should be in reasonable ratio.
      */
-    public void flushQueues(){
+    public synchronized void flushQueues(){
         log.debug("Flushing queue size=" + this.objQueue.size() + "; thread: " + this.getName());    
         try {
             if (session2==null){
@@ -279,16 +292,27 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
             if (tx.isActive() == false) {
                 tx.begin();
             }
-
-            for (Object entity : objQueue) {
+            
+            // queue here => insert all elements from queue until there is any
+            Object entity = null;
+            while(objQueue.isEmpty()==false){
+                entity = objQueue.poll();
+                if (entity==null){
+                    // null element in queue - probably empty
+                    continue;
+                }
+                
+                // bulk insert should work here!
+                // otherwise this is large bottleneck, see benchmark if problems
+                // occur
                 session2.insert(entity);
             }
-
+            
+            // commit transaction if any
             if (tx != null) {
                 tx.commit();
             }
             
-            this.objQueue.clear();
             this.sqlQueue.clear();
             messageFromLastFlush=0;
         } catch (Exception e) {

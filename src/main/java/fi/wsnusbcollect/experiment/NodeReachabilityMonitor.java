@@ -77,6 +77,11 @@ public class NodeReachabilityMonitor implements MessageListener{
     private long referenceNowTime;
     
     /**
+     * Time of monitor launched last time
+     */
+    private long lastMonitorTime;
+    
+    /**
      * Time of unreachable node to perform reconnecting
      */
     private int nodeDelayReconnect=5500;
@@ -263,6 +268,7 @@ public class NodeReachabilityMonitor implements MessageListener{
                 // get timeouted nodes - try to restart if applicable from atributes
                 for(Integer nodeId : this.nodesWaiting){
                     if (this.nodePrepared.contains(nodeId)) continue;
+                    nowMili = System.currentTimeMillis();
 
                     // get last reset sent...
                     long curLastResetSent = this.referenceNowTime;
@@ -360,6 +366,14 @@ public class NodeReachabilityMonitor implements MessageListener{
         boolean resetDone = false;
         StringBuilder sb = new StringBuilder();
         
+        // was node recovered already?
+        if (nodeDelay <= 0 && agresivity==0){
+            log.info("Node is already up, no reset, delay: " + nodeDelay 
+                    + "; refTime: " + this.referenceNowTime
+                    + "; lastSeen: " + nh.getNodeObj().getLastSeen());
+            return "OK";
+        }
+        
         // determine adequate/gracefull-first way of restart
         if (ConnectedNode.class.isInstance(nh)) {
             // connected node needs special manipulation
@@ -422,48 +436,54 @@ public class NodeReachabilityMonitor implements MessageListener{
      */
     public void nodeMonitorCycle(){
         long timeNow = System.currentTimeMillis();
-        List<Integer> nodesLastResponse = this.expCoord.getNodesLastResponse(nodeAliveThreshold);
+        this.referenceNowTime = timeNow;
+        this.lastMonitorTime = timeNow;
+        this.lastCycleError=false;
         
-        if (nodesLastResponse == null || nodesLastResponse.isEmpty()) {
-            // no nodes are unreachable, return OK, nothing to do
-            this.lastCycleError=false;
-            return;
+        // string builder - build experiment revoke description
+        StringBuilder sb = null;
+        
+        for(NodeHandler nh : this.nodeReg.values()){
+            long lastSeen = nh.getNodeObj().getLastSeen();
+            long nodeDelay = timeNow - lastSeen;
+            if ((timeNow-lastSeen) <= nodeAliveThreshold){
+                // node time is OK
+                continue;
+            }
             
-        } else {
-            // string builder - build experiment revoke description
-            StringBuilder sb = new StringBuilder();
-            // need to flush set of unreachable nodes - new records will be inserted
-            this.lastNodeUnreachable.clear();
-            this.lastMinLastSeen = Long.MAX_VALUE;
-            
-            // some unreachable nodes detected
-            log.warn("There are some unreachable nodes here: (mili=" + timeNow + "), restarting");
-            for (Integer unreachableNodeId : nodesLastResponse) {
-                NodeHandler nh = this.nodeReg.get(unreachableNodeId);
-                long lastSeen = nh.getNodeObj().getLastSeen();
-                long nodeDelay = timeNow - lastSeen;
+            // first such node ?
+            // => init, error occurred
+            if (this.lastCycleError==false){
+                sb = new StringBuilder();
+                // need to flush set of unreachable nodes - new records will be inserted
+                this.lastNodeUnreachable.clear();
+                this.lastMinLastSeen = Long.MAX_VALUE;
                 
-                String revokedNodeMsg = "NodeID: " + nh.getNodeId()
-                        + "; Obj: " + nh.getNodeObj().toString()
-                        + "; lastSeen: " + lastSeen
-                        + "; delay: " + nodeDelay;
-                log.warn(revokedNodeMsg);
-                sb.append("Revoked node: ").
-                        append(revokedNodeMsg).
-                        append("; \n");
-                
-                // add to set
-                this.lastNodeUnreachable.add(unreachableNodeId);
-                // update greatest monitor
-                this.lastMinLastSeen = Math.min(lastSeen, this.lastMinLastSeen);
-                
-            } // end of foreach nodes
-            
-            // set error state here
+                log.warn("There are some unreachable nodes here: (mili=" + timeNow + "), restarting");
+            }
             this.lastCycleError=true;
+
+            
+            String revokedNodeMsg = "NodeID: " + nh.getNodeId()
+                    + "; Obj: " + nh.getNodeObj().toString()
+                    + "; lastSeen: " + lastSeen
+                    + "; delay: " + nodeDelay;
+            log.warn(revokedNodeMsg);
+            sb.append("Revoked node: ").
+                    append(revokedNodeMsg).
+                    append("; \n");
+
+            // add to set
+            this.lastNodeUnreachable.add(nh.getNodeId());
+            // update greatest monitor
+            this.lastMinLastSeen = Math.min(lastSeen, this.lastMinLastSeen);
+        }
+
+        // set error state here
+        if (this.lastCycleError){
             this.lastError="Unreachable nodes";
             this.lastErrorDescription=sb.toString();
-        } // end o
+        }
     }
     
     @Override
@@ -487,12 +507,12 @@ public class NodeReachabilityMonitor implements MessageListener{
         this.nodeReg.updateLastSeen(nodeIdSrc, mili);
 
         // check alive sequence for suspicious gaps
-        // if gap > 10 and current sequence is under 100, consider node
-        // as newly restarted
+        // if gap > idSequenceMaxGap and current sequence is under reasonable constant
+        // (node could fail sending - reconnecting) consider node as newly restarted
         if (this.lastNodeAliveCounter.containsKey(nodeIdSrc)) {
             Integer lastCounter = this.lastNodeAliveCounter.get(nodeIdSrc);
 
-            if (cMsg.get_command_id() < 100
+            if (cMsg.get_command_id() < 10000
                     && ((cMsg.get_command_id() - lastCounter) % 65536) > idSequenceMaxGap) {
                 // node counter is low && gep between last recorded node and 
                 // current recorded node is too big (gap is modular - in a way
@@ -628,5 +648,9 @@ public class NodeReachabilityMonitor implements MessageListener{
 
     public long getLastMinLastSeen() {
         return lastMinLastSeen;
+    }
+
+    public long getLastMonitorTime() {
+        return lastMonitorTime;
     }
 }

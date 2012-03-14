@@ -35,6 +35,7 @@ public class ExperimentDataAliveCheck implements Serializable {
     private int radioQueueFree;
     private int serialQueueFree;
     private int serialFails;
+    private int aliveFails;
 
     public long getCounter() {
         return counter;
@@ -99,5 +100,12 @@ public class ExperimentDataAliveCheck implements Serializable {
     public void setSerialFails(int serialFails) {
         this.serialFails = serialFails;
     }
-    
+
+    public int getAliveFails() {
+        return aliveFails;
+    }
+
+    public void setAliveFails(int aliveFails) {
+        this.aliveFails = aliveFails;
+    }    
 }

@@ -27,8 +27,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -229,6 +227,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     public void nodeStartedFresh(int nodeId){        
         log.info("Sending node " + nodeId + " instruction to start noise floor "
                 + "reading every " + 1000 + " miliseconds");
+        this.add2experimentLog("INFO", 4, "Node fresh init: " + nodeId, "Starting noise floor reading, 1000ms");
         this.sendNoiseFloorReading(nodeId, 1000);
     }
     
@@ -257,7 +256,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.nodeMonitor.setResetNodesDuringWaitIfUnreachable(true);
         this.nodeMonitor.setResetNodeDelay(4000);
         this.nodeMonitor.setIdSequenceMaxGap(20);
-        this.nodeMonitor.setNodeAliveThreshold(4000);
+        this.nodeMonitor.setNodeAliveThreshold(6000);
         this.nodeMonitor.setNodeDelayReconnect(5000);
         this.nodeReg.registerMessageListener(new CommandMsg(), this.nodeMonitor);
         
@@ -394,7 +393,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                 
                 // nodes recovered, experiment revocation/rollback
                 // if here, need to repeat last X experiments
-                log.info("Need to repeat last X experiments, moving backward, outOfOrder: " + outOufServiceFrom);
+                log.info("Need to repeat last X experiments, moving backward, outOfOrder: " + outOufServiceFrom + "; now: " + System.currentTimeMillis());
                 this.moveExperimentStateBackward(outOufServiceFrom, 1, "Nodes unreachable", monitorLastErrorDescription + "\n" + this.nodeMonitor.getResetProtocol());
                 succCyclesFromLastReset = 0;
                 nodeError=true;
@@ -463,8 +462,6 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                         + "; curStep = " + step);
                 step = this.lastExperimentTimes.size();
             }
-            
-            step = succCyclesFromLastReset > step ? step : succCyclesFromLastReset;
         }
         
         log.warn("Need to revoke&repeat last " + step + " experiments");
