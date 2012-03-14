@@ -91,24 +91,24 @@ public class BenchmarkExecutor implements BenchmarkExecutorI {
             log.error("interrupted ", ex);
         }
         
-//        // JDBC
-//        tasks = Executors.newFixedThreadPool(threadCount);
-//        System.out.println("Testing JDBC: ");
-//        this.clear();
-//        for(int i=0; i<threadCount; i++){
-//            tasks.execute(new threadWorker());
-//        }
-//        try {
-//            tasks.shutdown();
-//            tasks.awaitTermination(15, TimeUnit.SECONDS);
-//        } catch (InterruptedException ex) {
-//            log.error("interrupted ", ex);
-//        }
+        // JDBC
+        tasks = Executors.newFixedThreadPool(threadCount);
+        System.out.println("Testing JDBC: ");
+        this.clear();
+        for(int i=0; i<threadCount; i++){
+            tasks.execute(new threadWorker());
+        }
+        try {
+            tasks.shutdown();
+            tasks.awaitTermination(30, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            log.error("interrupted ", ex);
+        }
     }
     
     public void clear(){
-       // template.execute("TRUNCATE TABLE BenchmarkEntity");
-       // template.execute("OPTIMIZE TABLE BenchmarkEntity");
+       template.execute("TRUNCATE TABLE BenchmarkEntity");
+       template.execute("OPTIMIZE TABLE BenchmarkEntity");
     }
     
     private interface threadWorkerI extends Runnable {
