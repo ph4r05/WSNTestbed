@@ -394,23 +394,26 @@ public class DefaultMessageDeliveryGuarantorWatcher implements MessageDeliveryGu
      * update uniqueID attribute to match command message id.
      * @param msgToSend
      */
+    @Override
     public void setMsgToSend(MessageToSend msgToSend) {
         this.msgToSend = msgToSend;
 
         // update unique ID
         if (msgToSend!=null 
                 && msgToSend.getsMsg() != null
-                && msgToSend.sMsg instanceof CommandMsg){
-            final CommandMsg commandMsg = (CommandMsg) msgToSend.sMsg;
+                && msgToSend.getsMsg() instanceof CommandMsg){
+            final CommandMsg commandMsg = (CommandMsg) msgToSend.getsMsg();
             this.uniqueId = commandMsg.get_command_id();
-            this.destination = msgToSend.destination;
+            this.destination = msgToSend.getDestination();
         }
     }
 
+    @Override
     public MessageDeliveryEventListener getListener() {
         return listener;
     }
 
+    @Override
     public void setListener(MessageDeliveryEventListener listener) {
         this.listener = listener;
     }
