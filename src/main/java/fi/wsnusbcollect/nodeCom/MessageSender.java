@@ -36,6 +36,8 @@ package fi.wsnusbcollect.nodeCom;
  */
 /**
  * @author Raja Jurdak, Antonio Ruzzelli, and Samuel Boivineau
+ * @author Dusan Klinec (ph4r05) - extended basic idea
+ * 
  */
 import java.util.Iterator;
 import java.util.List;
@@ -56,6 +58,8 @@ import org.slf4j.LoggerFactory;
  *
  * Constraints: should be only one running thread for one gateway node.
  * @todo: multiton generator for this object
+ * 
+ * Spawns 2 threads, 1 for message sending, another for message-sent-notifier
  *
  * @author ph4r05
  */
@@ -163,8 +167,11 @@ public class MessageSender extends Thread {
     public void run() {
          // do in infitite loop
          while(true){
+             // current sleep time can be changed by each message
+             long currentSleepTime = this.sentSleepTime;
+             
             // yield for some time
-            this.pause(30);
+            this.pause(20);
 
             // shutdown
             if (this.shutdown == true){
@@ -231,27 +238,35 @@ public class MessageSender extends Thread {
     //                }
 
                     // add message to tonotify queue if needed
-                    if (msgToSend.listener != null && msgToSend.listener.isEmpty()==false){
+                    if (msgToSend.useListener()){
                         // do it in sycnhronized block not to interfere with reading
                         // threads
                         this.toNotify.add(msgToSend);
                     }
 
-//                    if (this.logger!=null && msgToSend.string!=null){
-//                        this.logger.addLogEntry(msgToSend.string, 56, "MsgSender", 0, 1, JPannelLoggerLogElement.SEVERITY_INFO);
-//                    }
-                    log.info("Sending message: NodeID: " +  msgToSend.getDestination() + "; StringID: " + msgToSend.string);
+                    // basic message sent log
+                    log.info("Sending message: NodeID: " +  msgToSend.getDestination() + "; StringID: " + msgToSend.getString());
 
                     // store last sent messages
                     this.timeLastMessageSent = System.currentTimeMillis();
+                    // sleep exact amount of time requested by particular message
+                    // if is not null, otherwise is used default/common sleep time.
+                    if (msgToSend.getPauseAfterSend()!=null){
+                        currentSleepTime = msgToSend.getPauseAfterSend();
+                    } else {
+                        currentSleepTime = this.sentSleepTime;
+                    }
                 } catch (Exception e) {
-                    log.error("Exception during message sending", e);
+                    log.error("Exception during message sending. "
+                            + "Message for: " + msgToSend.getDestination()
+                            + "; AMType: " + msgToSend.getsMsg().amType()
+                            + "; currentTime: " + System.currentTimeMillis(), e);
                 }
             }
             
             // sleep now - give connected node some time
             try {
-                Thread.sleep(this.sentSleepTime);
+                Thread.sleep(currentSleepTime);
             } catch (InterruptedException ex) {
                 log.error("Cannot sleep", ex);
             }

@@ -17,37 +17,41 @@ import net.tinyos.message.Message;
  * @author ph4r05
  */
 public class MessageToSend {
-
     /**
      * Message to send
      */
-    public net.tinyos.message.Message sMsg;
+    private net.tinyos.message.Message sMsg;
     
     /**
      * Log string - logged after send done
      */
-    public String string;
+    private String string;
     
     /**
      * source node id to send from - if multiple nodes are managed by single sender
      */
-    public int source;
+    private int source;
     
     /**
      * destination of message. Node in network
      */
-    public int destination;
+    private int destination;
 
     /**
      * Message sent listener list. After sending message are called listeners
      * contained in this list.
      */
-    public List<MessageSentListener> listener=null;
+    private List<MessageSentListener> listener=null;
 
     /**
      * Listener key for message listener to uniquely determine message
      */
-    public String listenerKey=null;
+    private String listenerKey=null;
+    
+    /**
+     * If non-null, specified amount of time is waited between next message send
+     */
+    private Long pauseAfterSend;
 
 
     public MessageToSend(net.tinyos.message.Message sMsg, int destination, String string) {
@@ -99,6 +103,16 @@ public class MessageToSend {
        return this.listener.remove(listener);
     }
 
+    /**
+     * Returns true if object has set some listeners which should be notified 
+     * when message is successfully sent. 
+     * 
+     * @return 
+     */
+    public boolean useListener(){
+        return this.listener!=null && this.listener.isEmpty()==false;
+    }
+    
     public int getDestination() {
         return destination;
     }
@@ -145,5 +159,13 @@ public class MessageToSend {
 
     public void setSource(int source) {
         this.source = source;
+    }
+
+    public Long getPauseAfterSend() {
+        return pauseAfterSend;
+    }
+
+    public void setPauseAfterSend(Long pauseAfterSend) {
+        this.pauseAfterSend = pauseAfterSend;
     }
 }
