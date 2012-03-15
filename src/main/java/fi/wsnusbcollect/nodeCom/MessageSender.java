@@ -156,8 +156,8 @@ public class MessageSender extends Thread {
         log.info("MesageSender queues was flushed");
     }
 
-    /*
-    The thread either executes tasks or sleep.
+    /**
+     * The thread either executes tasks or sleep.
      */
     @Override
     public void run() {
@@ -365,6 +365,7 @@ public class MessageSender extends Thread {
         /**
          * Main run method
          */
+        @Override
         public void run() {
             // new message to be notified
             MessageToSend tmpMessage = null;
@@ -378,7 +379,7 @@ public class MessageSender extends Thread {
                 }
                 
                 // yield for some time
-                this.pause(150);
+                this.pause(10);
                 
                 //  nulltest
                 if (toNotify==null) continue;

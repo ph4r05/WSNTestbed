@@ -7,7 +7,9 @@ package fi.wsnusbcollect.nodeCom;
 import net.tinyos.message.Message;
 
 /**
- * Message received in MyMessageListener. Stored in container (queue)
+ * Message received record for MyMessageListener. 
+ * Is queue element for each received message. Stores message itself, 
+ * destination node, timestamp of arrival to application. 
  * 
  * @author ph4r05
  */

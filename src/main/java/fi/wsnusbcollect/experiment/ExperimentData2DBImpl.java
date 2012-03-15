@@ -171,15 +171,14 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
         // @TODO: can be problem in multihop protocol
         experimentDataAliveCheck.setNode(cMsg.getSerialPacket().get_header_src());
         this.objQueue.add(experimentDataAliveCheck);
-        
-        // update last seen record
-        this.nodeReg.updateLastSeen(cMsg.getSerialPacket().get_header_src(), mili);
     }
     
     @Override
     public synchronized void messageReceived(int i, Message msg, long mili) {
         //log.info("Message received: " + msg.amType() +  "; time=" + mili + "; " + this.getName());
         
+        // update last seen record
+        this.nodeReg.updateLastSeen(msg.getSerialPacket().get_header_src(), mili);
         messageFromLastFlush+=1;
         
         // command message?
@@ -211,9 +210,6 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
             expDataNoise.setExperiment(expMeta);
             expDataNoise.setMiliFromStart(mili);
             this.objQueue.add(expDataNoise);
-            
-            // update last seen record
-            this.nodeReg.updateLastSeen(nMsg.getSerialPacket().get_header_src(), mili);
         }
         
         // report message?

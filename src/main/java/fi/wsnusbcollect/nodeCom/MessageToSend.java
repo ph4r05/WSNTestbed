@@ -10,7 +10,7 @@ import java.util.List;
 import net.tinyos.message.Message;
 
 /**
- * Queue element for each message. Uses general message interface.
+ * Queue element for each message added to send.
  * Contains string passed to logger when message is sent.
  *
  * Optional fields are event listener which is triggered on message sent.
@@ -18,13 +18,29 @@ import net.tinyos.message.Message;
  */
 public class MessageToSend {
 
+    /**
+     * Message to send
+     */
     public net.tinyos.message.Message sMsg;
-    // log string
+    
+    /**
+     * Log string - logged after send done
+     */
     public String string;
+    
+    /**
+     * source node id to send from - if multiple nodes are managed by single sender
+     */
+    public int source;
+    
+    /**
+     * destination of message. Node in network
+     */
     public int destination;
 
     /**
-     * Message sent listener
+     * Message sent listener list. After sending message are called listeners
+     * contained in this list.
      */
     public List<MessageSentListener> listener=null;
 
@@ -121,5 +137,13 @@ public class MessageToSend {
 
     public void setListenerKey(String listenerKey) {
         this.listenerKey = listenerKey;
+    }
+
+    public int getSource() {
+        return source;
+    }
+
+    public void setSource(int source) {
+        this.source = source;
     }
 }

@@ -13,6 +13,7 @@ import fi.wsnusbcollect.nodes.NodeHandler;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +26,27 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Monitors node reachability for experiment coordinator, handles node restarts, etc...
+ * 
+ * Class consists of two relatively independent components. 
+ * 1. node responsiveness monitor based on lastSeen counter from nodeHandlerRegister
+ * takes care about node alive status. If there is any "long lasting" problem with
+ * node responsivity this component provides ways how to make nodes reachable again
+ * by means of reconnecting, hw/sw reset. This component is relatively protocol/message 
+ * independent. Uses only lastSeen indicator (updated by another external classes on 
+ * message reception) for detection, then is used information from nodeHandlerRegister 
+ * for best node restart.
+ * 
+ * 2. component watches alive messages sent by nodes and detects any gaps between
+ * sequence numbers of consecutive alive messages. If gap is bigger than idSequenceMaxGap
+ * node is added to lastNodeRestarted set. It can be considered as automatically 
+ * restarted without application intervention (sequences begin from 0) or there 
+ * could occur some error in data transmission (long gap in sequence). This component
+ * is protocol/message dependent, recognizes CommandMsg IDENTIFY messages as I AM ALIVE
+ * message and watches sequence numbers here. This component can be in future 
+ * extracted to separate class, maybe more universal to support sequence watching
+ * in another message types. Now it is not necessary and it would increase code 
+ * complexity. Meeting KISS principle for now...
+ * 
  * @author ph4r05
  */
 public class NodeReachabilityMonitor implements MessageListener{
@@ -128,6 +150,11 @@ public class NodeReachabilityMonitor implements MessageListener{
     private Set<Integer> lastNodeUnreachable;
     
     /**
+     * State variable, monitor. NodeIDs of restarted nodes, but NOT unreachable...
+     */
+    private Set<Integer> lastNodeRestarted;
+    
+    /**
      * State variable, monitor. greater time of timeouted node from last monitor cycle.
      */
     private long lastMinLastSeen;
@@ -157,13 +184,20 @@ public class NodeReachabilityMonitor implements MessageListener{
         this.nodePrepared = Collections.newSetFromMap(new ConcurrentHashMap<Integer,Boolean>(this.nodeReg.size()));
         this.nodesWaiting = Collections.newSetFromMap(new ConcurrentHashMap<Integer,Boolean>(this.nodeReg.size()));
         this.lastNodeUnreachable = Collections.newSetFromMap(new ConcurrentHashMap<Integer,Boolean>(this.nodeReg.size()));
+        this.lastNodeRestarted = Collections.newSetFromMap(new ConcurrentHashMap<Integer,Boolean>(this.nodeReg.size()));
         this.lastResetSent = new ConcurrentHashMap<Integer, Long>(this.nodeReg.size());
         this.resetOutput = new StringBuilder();
     }
     
     /**
      * Blocking method tries to make nodes reachable. If waiting exceeds timeout, 
-     * collection of recovered nodes is returned,
+     * collection of dead nodes is returned. This method should be called only on
+     * nodes suspected to be unreachable/unresponsive. One should assume that after 
+     * this method ends successfully every node passed as parameter is now restarted
+     * and needs to be reinitialized if needed. 
+     * 
+     * Calling this method will remove all nodes passed as parameter from set of 
+     * reseted nodes detected via counter-sequence-gaps.
      * 
      * @param nodes
      * @param mili 
@@ -230,8 +264,12 @@ public class NodeReachabilityMonitor implements MessageListener{
             
             // update dead nodes
             deadNodes.addAll(this.nodesWaiting);
-            deadNodes.retainAll(this.nodePrepared);
+            deadNodes.removeAll(this.nodePrepared);
         }
+        
+        // prepared nodes now should be definitely considered as freshly restarted 
+        // - need reinitialization.
+        this.lastNodeRestarted.removeAll(this.nodesWaiting);
         
         return deadNodes;
     }
@@ -481,6 +519,9 @@ public class NodeReachabilityMonitor implements MessageListener{
 
         // set error state here
         if (this.lastCycleError){
+            // remove unreachable nodes from restarted ones
+            this.lastNodeRestarted.removeAll(this.lastNodeUnreachable);
+            
             this.lastError="Unreachable nodes";
             this.lastErrorDescription=sb.toString();
         }
@@ -511,17 +552,23 @@ public class NodeReachabilityMonitor implements MessageListener{
         // (node could fail sending - reconnecting) consider node as newly restarted
         if (this.lastNodeAliveCounter.containsKey(nodeIdSrc)) {
             Integer lastCounter = this.lastNodeAliveCounter.get(nodeIdSrc);
-
-            if (cMsg.get_command_id() < 10000
-                    && ((cMsg.get_command_id() - lastCounter) % 65536) > idSequenceMaxGap) {
+            int currGap = (cMsg.get_command_id() - lastCounter) % 65535;
+            if (currGap < 0) {
+                currGap += 65535;
+            }
+            
+            if (cMsg.get_command_id() < 10000 && currGap > idSequenceMaxGap) {
                 // node counter is low && gep between last recorded node and 
                 // current recorded node is too big (gap is modular - in a way
                 // of incrementing counters)
                 log.warn("Node " + nodeIdSrc + "; was probably reseted. "
-                        + "Last sequence: " + lastCounter + "; now: " + cMsg.get_command_id());
+                        + "Last sequence: " + lastCounter 
+                        + "; now: " + cMsg.get_command_id()
+                        + "; currentGap: " + currGap);
                 
                 // notify experiment coordinator
-                this.expCoord.nodeStartedFresh(nodeIdSrc);
+                //this.expCoord.nodeStartedFresh(nodeIdSrc);
+                this.lastNodeRestarted.add(nodeIdSrc);
             }
         }
         // insert current alive counter in order to detect gaps in future
@@ -531,7 +578,7 @@ public class NodeReachabilityMonitor implements MessageListener{
         // first node identification after reset? 
         // add to prepared set - indicates nodes was restarted successfully
         if (this.nodePrepared != null && this.nodePrepared.contains(nodeIdSrc) == false) {
-            log.info("NodeId: " + nodeIdSrc + " is now prepared to communicate");
+            log.info("NodeId: " + nodeIdSrc + " is now prepared to communicate, timeReceived: " + mili);
             this.nodePrepared.add(nodeIdSrc);
         }
     }
@@ -561,6 +608,21 @@ public class NodeReachabilityMonitor implements MessageListener{
     public String getResetProtocol(){
         return this.resetOutput.toString();
     }
+    
+    /**
+     * Returns set of nodes restarted in time window from previous call of this method
+     * @return 
+     */
+    public Set<Integer> getLastNodeRestarted() {
+        Set<Integer> toReturn = new HashSet<Integer>(this.lastNodeRestarted);
+        this.lastNodeRestarted.clear();
+        return toReturn;
+    }
+    
+    public void clearLastNodeRestarted(){
+        this.lastNodeRestarted.clear();
+    }
+    
 
     public ExperimentInit getExpInit() {
         return expInit;
@@ -653,4 +715,5 @@ public class NodeReachabilityMonitor implements MessageListener{
     public long getLastMonitorTime() {
         return lastMonitorTime;
     }
+        
 }

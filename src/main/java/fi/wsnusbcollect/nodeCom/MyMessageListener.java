@@ -8,8 +8,6 @@ import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.logging.Level;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import org.slf4j.Logger;
@@ -537,7 +535,8 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
     public synchronized void messageReceived(int i, Message msg) {
         // blocking?
         if (this.dropingPackets) return;
-        
+     
+        //log.info("PCKT["+System.currentTimeMillis()+"]: " + i + "; AMtype: " + msg.amType() + "; src: " + msg.getSerialPacket().get_header_src());
         // really add message to queue
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
         msgReceiveed.setTimeReceivedMili(System.currentTimeMillis());

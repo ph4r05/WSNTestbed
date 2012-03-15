@@ -297,7 +297,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // in miliseconds
         int packetDelay = 100;
         // time needed for nodes to transmit (safety zone 1 second)
-        long timeNeededForNode = packetsRequested*packetDelay + 1000;
+        long timeNeededForNode = packetsRequested*(packetDelay+20) + 1000;
         // init message sizes - should be from config file
         ArrayList<Integer> messageSizes = new ArrayList<Integer>();
         messageSizes.add(0);
@@ -315,6 +315,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         
         // instructing all nodes to collect noise floor values
         log.info("Instructing all nodes to do noise floor readings");
+        this.nodeMonitor.getLastNodeRestarted();
         for(NodeHandler nh : this.nodeReg.values()){
             this.nodeStartedFresh(nh.getNodeId());
         }
@@ -346,55 +347,90 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                     + "curTx=" + curTx + "; msgSize=" + msgSize + "; succCycles: " + succCyclesFromLastReset);            
             // now send message request
             this.sendMultiPingRequest(curNode, curTx, 0,
-                    packetsRequested, packetDelay, msgSize, true, true);
+                    packetsRequested, packetDelay, msgSize, true, false);
             // wait in node monitor here - process unreachable nodes
             boolean nodeError = false;
             while(timeWaitedSum <= timeNeededForNode){
                 // real waiting, increment waited sum
-                this.pause(200);
-                timeWaitedSum+=200;
-                
+                this.pause(1000);
+                timeWaitedSum+=1000;
+
                 // trigger node monitor
                 this.nodeMonitor.nodeMonitorCycle();
+
+                // handle only sponaneously restarted nodes
+                Set<Integer> lastNodeRestarted = this.nodeMonitor.getLastNodeRestarted();
                 
                 // inspect if node monitor failed => error occurred
-                if (this.nodeMonitor.isLastCycleError()==false){
+                if (this.nodeMonitor.isLastCycleError()==false && lastNodeRestarted.isEmpty()){
                     // node monitor OK
                     continue;
                 }
                 
-                // error occurred - reset current sending node not to overflow again
-                this.resetNode(curNode);
-                this.nodeStartedFresh(curNode);
+                // experiment revocation log
+                String monitorLastError = "";
+                String monitorLastErrorDescription = "";
+                // log time when approximately occurred timeout
+                long outOufServiceFrom = Long.MAX_VALUE;
                 
-                // if execution here, node monitor found error nodes
-                Set<Integer> unreachableNodes = this.nodeMonitor.getLastNodeUnreachable();
-                String monitorLastError = this.nodeMonitor.getLastError();
-                String monitorLastErrorDescription = this.nodeMonitor.getLastErrorDescription();
-                long monitorMinLastSeen = this.nodeMonitor.getLastMinLastSeen();
-                
-                // need to make this nodes reachable - make it available
-                Collection<Integer> reallyDeadNodes = this.nodeMonitor.makeNodesReachable(unreachableNodes, 120000, 0);
-                if (reallyDeadNodes.isEmpty()==false){
-                    log.error("Cannot recover from node unreachability - need to quit experiment!!!");
-                    for(Integer deadNodeId : reallyDeadNodes){
-                        log.error("Dead nodeId: " + deadNodeId);
+                // are there any restarted nodes?
+                if (lastNodeRestarted.isEmpty()==false){
+                    nodeError=true;
+                    monitorLastErrorDescription = "Some nodes restarted; \n";
+                    
+                    log.warn("Restarted nodes detected from previous call");
+                    for(Integer restartedNodeId : lastNodeRestarted){
+                        // reinit 
+                        log.warn("Reinitializing node after restart: " + restartedNodeId);
+                        this.nodeStartedFresh(restartedNodeId);
                     }
-                    return;
+                    
+                    if (this.lastExperimentTimes.size()>0){
+                        // try guess when error occurred
+                        outOufServiceFrom = this.lastExperimentTimes.size() >= 2 
+                                ? this.lastExperimentTimes.get(1)
+                                : this.lastExperimentTimes.get(0);
+                    }
                 }
                 
-                // reinit nodes
-                for(Integer unreachableNodeId : unreachableNodes){
-                    this.nodeStartedFresh(unreachableNodeId);
+                // node unreachability error
+                if (this.nodeMonitor.isLastCycleError()){
+                    nodeError=true;
+                    
+                    // error occurred - reset current sending node not to overflow again
+                    this.resetNode(curNode);
+                    this.nodeStartedFresh(curNode);
+
+                    // if execution here, node monitor found error nodes
+                    Set<Integer> unreachableNodes = this.nodeMonitor.getLastNodeUnreachable();
+                    monitorLastError = monitorLastError + this.nodeMonitor.getLastError();
+                    monitorLastErrorDescription = monitorLastErrorDescription + this.nodeMonitor.getLastErrorDescription();
+                    long monitorMinLastSeen = this.nodeMonitor.getLastMinLastSeen();
+
+                    // need to make this nodes reachable - make it available
+                    Collection<Integer> reallyDeadNodes = this.nodeMonitor.makeNodesReachable(unreachableNodes, 120000, 0);
+                    if (reallyDeadNodes.isEmpty()==false){
+                        log.error("Cannot recover from node unreachability - need to quit experiment!!!");
+                        for(Integer deadNodeId : reallyDeadNodes){
+                            log.error("Dead nodeId: " + deadNodeId);
+                        }
+                        return;
+                    }
+
+                    // reinit nodes
+                    for(Integer unreachableNodeId : unreachableNodes){
+                        this.nodeStartedFresh(unreachableNodeId);
+                    }
+
+                    // how long is node out of service?
+                    outOufServiceFrom = Math.min(outOufServiceFrom, monitorMinLastSeen-3500);
                 }
-                
-                // how long is node out of service?
-                long outOufServiceFrom = monitorMinLastSeen-3500;
-                
+
                 // nodes recovered, experiment revocation/rollback
                 // if here, need to repeat last X experiments
                 log.info("Need to repeat last X experiments, moving backward, outOfOrder: " + outOufServiceFrom + "; now: " + System.currentTimeMillis());
-                this.moveExperimentStateBackward(outOufServiceFrom, 1, "Nodes unreachable", monitorLastErrorDescription + "\n" + this.nodeMonitor.getResetProtocol());
+                this.moveExperimentStateBackward(outOufServiceFrom, 1, "Nodes unreachable/restarted", monitorLastErrorDescription + "\n" + this.nodeMonitor.getResetProtocol());
+                
                 succCyclesFromLastReset = 0;
                 nodeError=true;
                 break;
@@ -403,7 +439,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             // no error happened => continue
             if (nodeError==false){
                 this.sendMultiPingRequest(curNode, curTx, 0,
-                        1, 0, msgSize, true, true);
+                        1, 0, 0, true, true);
                 this.pause(1000);
                 succCyclesFromLastReset++;
             }
@@ -461,10 +497,13 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                         + "; lastExperimentTimes.size() = " + this.lastExperimentTimes.size()
                         + "; curStep = " + step);
                 step = this.lastExperimentTimes.size();
+            } else {
+                // do not repeat already repeated experiments...
+                step = Math.min(step, succCyclesFromLastReset+1);
             }
         }
         
-        log.warn("Need to revoke&repeat last " + step + " experiments");
+        log.warn("Need to revoke&repeat last " + step + " experiments. LastSucc: " + succCyclesFromLastReset);
         
         // next main loop cycle will call next(). Thus we need to move step+1 backward.
         // Problem can be if current state is 2 and we need to revoke 2 experiments, thus
@@ -572,6 +611,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         
         // was this message already handled by specific handler?
         boolean genericMessage=true;
+
+        // update last seen record
+        this.nodeReg.updateLastSeen(msg.getSerialPacket().get_header_src(), mili);
         
         // source nodeid
         int nodeIdSrc = msg.getSerialPacket().get_header_src();
