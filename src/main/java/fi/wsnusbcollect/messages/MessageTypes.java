@@ -76,6 +76,9 @@ public class MessageTypes {
   public static final int COMMAND_RADIO_SNOOPING_ENABLED = 30;
   // base station settings - address recognition? if false then mote will sniff foreign messages
   public static final int COMMAND_RADIO_ADDRESS_RECOGNITION_ENABLED = 31;
+  
+  // set node as CTP root
+  public static final int COMMAND_SET_CTP_ROOT=32;
 
   // identity types
   public static final int NODE_STATIC=1;
