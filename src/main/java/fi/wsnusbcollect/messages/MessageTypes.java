@@ -79,6 +79,25 @@ public class MessageTypes {
   
   // set node as CTP root
   public static final int COMMAND_SET_CTP_ROOT=32;
+  
+  // call CTP route recomputing command - depending on data, CtpInfo interface is used
+  // data=1 -> CtpInfo.triggerRouteUpdate()
+  // data=2 -> CtpInfo.triggerImmediateRouteUpdate()
+  // data=3 -> CtpInfo.recomputeRoutes()
+  public static final int COMMAND_CTP_ROUTE_UPDATE=33;
+  
+  // gets basic CTP info from CtpInfo interface
+  // data=0 -> returns parent, etx, neighbors count in data[0], data[1], data[2]
+  // data=1 -> info about neighbor specified in data[0]. Returned addr, link quality, route
+  //				quality, congested bit
+  public static final int COMMAND_CTP_GETINFO=34;
+  
+  // other CTP controling, can set TX power for packets
+  // data=0 -> set tx power for OUTPUT messages for CTP protocol.
+  // 				if data[0] == 1	-> set TXpower for ROUTE messages on data[1] level
+  //			 	if data[0] == 2 -> set TXpower for DATA messages on data[1] level
+  //				if data[0] == 3 -> set TXpower for both ROUTE, DATA messages on data[1] level
+  public static final int COMMAND_CTP_CONTROL=35;
 
   // identity types
   public static final int NODE_STATIC=1;
