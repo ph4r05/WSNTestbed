@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class CtpReportDataMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 27;
+    public static final int DEFAULT_MESSAGE_SIZE = 29;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 237;
 
-    /** Create a new CtpReportDataMsg of size 27. */
+    /** Create a new CtpReportDataMsg of size 29. */
     public CtpReportDataMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -135,6 +135,9 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [amSource=0x"+Long.toHexString(get_amSource())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [rssi=0x"+Long.toHexString(get_rssi())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [flags=0x"+Long.toHexString(get_flags())+"]\n";
@@ -1281,9 +1284,72 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     }
 
     /////////////////////////////////////////////////////////
+    // Accessor methods for field: rssi
+    //   Field type: int, unsigned
+    //   Offset (bits): 208
+    //   Size (bits): 16
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'rssi' is signed (false).
+     */
+    public static boolean isSigned_rssi() {
+        return false;
+    }
+
+    /**
+     * Return whether the field 'rssi' is an array (false).
+     */
+    public static boolean isArray_rssi() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'rssi'
+     */
+    public static int offset_rssi() {
+        return (208 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'rssi'
+     */
+    public static int offsetBits_rssi() {
+        return 208;
+    }
+
+    /**
+     * Return the value (as a int) of the field 'rssi'
+     */
+    public int get_rssi() {
+        return (int)getUIntBEElement(offsetBits_rssi(), 16);
+    }
+
+    /**
+     * Set the value of the field 'rssi'
+     */
+    public void set_rssi(int value) {
+        setUIntBEElement(offsetBits_rssi(), 16, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'rssi'
+     */
+    public static int size_rssi() {
+        return (16 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'rssi'
+     */
+    public static int sizeBits_rssi() {
+        return 16;
+    }
+
+    /////////////////////////////////////////////////////////
     // Accessor methods for field: flags
     //   Field type: short, unsigned
-    //   Offset (bits): 208
+    //   Offset (bits): 224
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -1305,14 +1371,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'flags'
      */
     public static int offset_flags() {
-        return (208 / 8);
+        return (224 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'flags'
      */
     public static int offsetBits_flags() {
-        return 208;
+        return 224;
     }
 
     /**
