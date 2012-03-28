@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.utils;
+package fi.wsnusbcollect.utils.stats;
 
 /**
  * Smooth input stream of data according to smotthing parameter

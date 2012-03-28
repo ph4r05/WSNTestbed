@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.utils;
+package fi.wsnusbcollect.utils.stats;
 
 import java.util.ArrayList;
 import java.util.Collection;
