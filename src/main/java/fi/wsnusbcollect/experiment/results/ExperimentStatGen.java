@@ -1,0 +1,23 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package fi.wsnusbcollect.experiment.results;
+
+import fi.wsnusbcollect.db.ExperimentMetadata;
+
+/**
+ *
+ * @author ph4r05
+ */
+public interface ExperimentStatGen {
+
+    /**
+     * Generates RSSI stats (CSV files + gnuplot scripts + gnuplot graphs)
+     * @param experiment_id
+     */
+    void generateRSSIStats(long experiment_id);
+    public ExperimentMetadata loadExperiment(long experiment_id);
+    public void generateNoiseStats(long experiment_id);
+    public void generateRSSITotalStats(long experiment_id, boolean joinTime);
+}
