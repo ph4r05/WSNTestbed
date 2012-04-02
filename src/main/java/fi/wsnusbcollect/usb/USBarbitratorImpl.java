@@ -3,6 +3,8 @@ package fi.wsnusbcollect.usb;
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.db.USBdevice;
+import fi.wsnusbcollect.nodes.ConnectedNode;
+import fi.wsnusbcollect.nodes.NodeHandler;
 import fi.wsnusbcollect.nodes.NodePlatform;
 import fi.wsnusbcollect.nodes.NodePlatformFactory;
 import java.io.BufferedReader;
@@ -20,9 +22,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.persistence.EntityManager;
@@ -1005,13 +1006,36 @@ public class USBarbitratorImpl implements USBarbitrator {
             return success;
         }
     }
+
+    @Override
+    public boolean resetNode(NodeHandler nh, Properties prop) {
+        if (nh==null || nh.getNodeObj()==null){
+            return false;
+        }
+        
+        // can reset only connected nodes
+        if (nh instanceof ConnectedNode){
+            final ConnectedNode cn = (ConnectedNode) nh;
+            String deviceAlias = cn.getNodeConfig().getDeviceAlias();
+            if (prop.containsKey("preferDevice")){
+                deviceAlias = prop.getProperty("preferDevice");
+            }
+            
+            // try to reset with HW command
+            String hwResetCommand = cn.getNodeObj().getPlatform().hwResetCommand(deviceAlias, null);
+            return this.resetNode(hwResetCommand);
+        } else {
+            return false;
+        }
+    }
     
     /**
      * Restarts node with given command, successful restart returns 0 as returnvalue
      * @param resetCommand
      * @return 
      */
-    public boolean resetNode(String resetCommand){
+    //@Override
+    protected boolean resetNode(String resetCommand){
         // info at the beggining
         
         boolean success=false;

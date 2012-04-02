@@ -75,7 +75,13 @@ public class NodePlatformTelosb extends NodePlatformGeneric{
         return "telosb";
     }
 
-    
+    /**
+     * Caution here.
+     * HW reset can be performed only if node is connected by serial (there is any
+     * device present for it)
+     * 
+     * @return 
+     */
     @Override
     public boolean canHwReset() {
         return true;

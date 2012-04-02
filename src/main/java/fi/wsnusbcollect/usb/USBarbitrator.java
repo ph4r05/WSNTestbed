@@ -6,8 +6,10 @@ package fi.wsnusbcollect.usb;
 
 import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.db.USBdevice;
+import fi.wsnusbcollect.nodes.NodeHandler;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import javax.persistence.EntityManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -166,10 +168,19 @@ public interface USBarbitrator {
     void updateNodesDatabase();
     
     /**
+     * Reset node - more global definition
+     * 
+     * @param nh
+     * @param prop
+     * @return 
+     */
+    public boolean resetNode(NodeHandler nh, Properties prop);
+    
+    /**
      * Restarts node with given command, successful restart returns 0 as returnvalue
      * @param resetCommand
      * @return 
      */
-    public boolean resetNode(String resetCommand);
+    //public boolean resetNode(String resetCommand);
     
 }

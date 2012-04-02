@@ -13,6 +13,7 @@ import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeoutException;
 import net.tinyos.message.Message;
@@ -117,6 +118,11 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     
     /**
      * Returns whether is possible to reset this node by means of hw.
+     * 
+     * @extension: in senslab we can reset node with external command executed
+     * and there is no need to be connected directly - really depends on system
+     * and on mote type.
+     * 
      * @return 
      */
     public boolean hwresetPossible(){
@@ -124,6 +130,10 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         if (this.nodeObj==null 
                 || this.nodeConfig==null 
                 || this.nodeObj.getPlatform()==null) return false;
+        
+        // is node connected physically?
+        // need to reach node directly
+        // 
         
         return this.nodeObj.getPlatform().canHwReset();
     }
@@ -139,13 +149,15 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         // disconnect all nodes
         this.disconnect();
         // reset nodes
-        String hwResetCommand = this.nodeObj.getPlatform().hwResetCommand(this.nodeConfig.getDeviceAlias(), null);
-        boolean ok = App.getRunningInstance().getUsbArbitrator().resetNode(hwResetCommand);
+        Properties properties = new Properties();
+        properties.setProperty("preferDevice", this.nodeConfig.getDeviceAlias());
+        // reset node with USB arbitrator - handles environment differences
+        boolean ok = App.getRunningInstance().getUsbArbitrator().resetNode(this, properties);
         
         if (ok){
             this.connectToNode();
         } else {
-            log.error("Cannot restart node with command: " + hwResetCommand);
+            log.error("Cannot restart node from node handler");
         }
     }
     

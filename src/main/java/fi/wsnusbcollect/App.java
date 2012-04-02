@@ -95,6 +95,9 @@ public class App {
     @Option(name = "--reprogram-nodes-with", usage = "path to node software directory to reprogram nodes with. Must contain tinyos makefile")
     private String reprogramNodesWith=null;
     
+    @Option(name = "--senslab", usage = "environment is senslab - specific mote connection")
+    private boolean senslab=false;
+    
     /**
      * Real parsed list of motes to use - uses 
      * --use-motes SERIAL1,SERIAL2,SERIAL3
@@ -520,5 +523,13 @@ public class App {
 
     public void setBenchmarkDB(boolean benchmarkDB) {
         this.benchmarkDB = benchmarkDB;
+    }
+
+    public boolean isSenslab() {
+        return senslab;
+    }
+
+    public void setSenslab(boolean senslab) {
+        this.senslab = senslab;
     }
 }

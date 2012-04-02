@@ -199,6 +199,7 @@
     <bean id="experimentInit" class="fi.wsnusbcollect.experiment.ExperimentInitImpl"/>
     <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl" lazy-init="true"/>
     <bean id="experimentData2DB" class="fi.wsnusbcollect.experiment.ExperimentData2DBImpl" scope="prototype"/>
+    <bean id="experimentStatGen" class="fi.wsnusbcollect.experiment.results.ExperimentStatGenImpl" scope="prototype"/>
     
     <bean id="emdonor" class="fi.wsnusbcollect.dbbenchmark.EMdonor" scope="prototype"/>
     <bean id="benchmark" class="fi.wsnusbcollect.dbbenchmark.BenchmarkExecutor" />
