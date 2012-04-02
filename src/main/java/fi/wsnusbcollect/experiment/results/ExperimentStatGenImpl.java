@@ -374,7 +374,12 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                 try {
                     // now can open CSV file, gnu
                     String outputFile = CSVDIR + "rssiTotal-E"+experiment_id+"-Tx"+curTx.getNode()+".csv";
-                    String outputFileDetail = CSVDIR + "rssiTotal-E"+experiment_id+"-Tx"+curTx.getNode()+".csv";
+                    String outputFileDetail = CSVDIR + "rssiTotalDetail-E"+experiment_id+"-Tx"+curTx.getNode()+".csv";
+                    if (joinTime){
+                        outputFile = CSVDIR + "rssiJoin-E"+experiment_id+"-Tx"+curTx.getNode()+".csv";
+                        outputFileDetail = CSVDIR + "rssiJoinDetail-E"+experiment_id+"-Tx"+curTx.getNode()+".csv";
+                    }
+                    
                     log.info("Output file for this record: " + outputFile);
                     log.info("Current configuration: " + curTx);
 
@@ -482,14 +487,14 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                             log.info("Loading RSSI data for configuration: " + txrxcon.toString());
 
                             // load noise measured by this node in specific interval
-                            String sqlNoise = "SELECT noise FROM experimentDataRSSI "
+                            String sqlNoise = "SELECT noise FROM experimentDataNoise "
                                     + "WHERE experiment_id=" + experiment_id + " AND connectedNode="+rxNode+" AND " + curSqlTimeCriteria;
                             log.info("Loading NOISE data with SQL: " + sqlNoise);
                             List<Integer> noiseData = this.template.queryForList(sqlNoise, Integer.class);
                             
                             // load alive counters
-                            String sqlAlive = "SELECT COUNT(*) FROM experimentDataAliveCheck"
-                                    + "WHERE experiment_id=" + experiment_id + " AND connectedNode="+rxNode+" AND " + curSqlTimeCriteria;
+                            String sqlAlive = "SELECT COUNT(*) FROM experimentDataAliveCheck "
+                                    + "WHERE experiment_id=" + experiment_id + " AND node="+rxNode+" AND " + curSqlTimeCriteria;
                             log.info("Loading ALIVE data with SQL: " + sqlAlive);
                             Integer aliveN = this.template.queryForInt(sqlAlive);
                             
