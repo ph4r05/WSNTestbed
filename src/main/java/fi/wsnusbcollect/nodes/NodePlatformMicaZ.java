@@ -54,8 +54,8 @@ public class NodePlatformMicaZ extends NodePlatformGeneric{
     }
     
     @Override
-    public String getConnectionString(String device) {
-        return "serial@" + device + ":micaz";
+    public String getConnectionStringSignature() {
+        return "micaz";
     }
 
     @Override

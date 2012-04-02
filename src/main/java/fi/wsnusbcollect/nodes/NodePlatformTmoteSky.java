@@ -55,10 +55,10 @@ public class NodePlatformTmoteSky extends NodePlatformGeneric{
     public double[] getTxOutputPower() {
         return NodePlatformTmoteSky.powerLevel;
     }
-    
+
     @Override
-    public String getConnectionString(String device) {
-        return "serial@" + device + ":tmote";
+    public String getConnectionStringSignature() {
+        return "tmote";
     }
 
     @Override

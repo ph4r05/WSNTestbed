@@ -129,4 +129,38 @@ public class NodePlatformFactory {
         
         return platform;
     }
+    
+    public final static int CONNECTION_SERIAL=1;
+    public final static int CONNECTION_SF=2;
+    public final static int CONNECTION_NETWORK=3;
+    public final static int CONNECTION_NONE=-1;
+    
+    /**
+     * Type of node connection
+     * serial@PORT:SPEED 	Serial ports                            1
+     * sf@HOST:PORT             SerialForwarder, TMote Connect          2
+     * network@HOST:PORT 	MIB 600                                 3
+     * 
+     * -1 = error
+     */
+    public static int getNodeConnection(String connectionStr){
+        if (connectionStr==null || connectionStr.isEmpty()){
+            return CONNECTION_NONE;
+        }
+        
+        if (connectionStr.startsWith("serial@")){
+            return CONNECTION_SERIAL;
+        }
+        
+        if (connectionStr.startsWith("sf@")){
+            return CONNECTION_SF;
+        }
+        
+        if (connectionStr.startsWith("network@")){
+            return CONNECTION_NETWORK;
+        }
+        
+        // default
+        return CONNECTION_NONE;
+    }
 }

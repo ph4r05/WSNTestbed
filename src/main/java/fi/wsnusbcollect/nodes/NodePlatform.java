@@ -25,6 +25,12 @@ public interface NodePlatform {
     public String getPlatformReflashId();
     
     /**
+     * Returns connection string signature for particular node
+     * @return 
+     */
+    public String getConnectionStringSignature();
+    
+    /**
      * Returns connection string that can be used with Listener to connect directly 
      * to specified device. Connection string is platform dependent.
      * 
@@ -32,6 +38,17 @@ public interface NodePlatform {
      * @return 
      */
     public String getConnectionString(String device);
+    
+    /**
+     * Returns connection string that can be used with Listener to connect directly 
+     * to specified device. Connection string is platform dependent. Depends on
+     * type of connection for node
+     * 
+     * @param device
+     * @param connection    type of connection of node (serial, sf, network)
+     * @return 
+     */
+    public String getConnectionString(String device, int connection);    
     
     /**
      * Returns whether node description returned via USB corresponds to this platform

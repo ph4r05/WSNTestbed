@@ -55,10 +55,10 @@ public class NodePlatformTelosb extends NodePlatformGeneric{
     public double[] getTxOutputPower() {
         return NodePlatformTelosb.powerLevel;
     }
-
+    
     @Override
-    public String getConnectionString(String device) {
-        return "serial@" + device + ":telosb";
+    public String getConnectionStringSignature() {
+        return "telosb";
     }
 
     @Override

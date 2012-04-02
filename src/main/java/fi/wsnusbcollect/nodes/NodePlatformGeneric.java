@@ -59,16 +59,57 @@ public class NodePlatformGeneric implements NodePlatform {
         return "NodePlatformGeneric{" + "PlatformId=" + this.getPlatformId() 
                 + "; Platform=" + this.getPlatform() + "}";
     }
+    
+    /**
+     * @see NodePlatform
+     * @return 
+     */
+    @Override
+    public String getConnectionStringSignature() {
+        log.error("Obtaining signature for connection from generic node");
+        return "micaz";
+    }
 
     /**
-     * Try connect by generic way
+     * Try connect by generic way (connection is serial by default)
      * @param device
      * @return 
      */
     @Override
     public String getConnectionString(String device) {
+        return this.getConnectionString(device, NodePlatformFactory.CONNECTION_SERIAL);
+    }
+    
+    /**
+     * @see NodePlatform
+     * @param device
+     * @param connection
+     * @return 
+     */
+    @Override
+    public String getConnectionString(String device, int connection) {
         log.warn("Determining connection string for generic node - please inspect, device: " + device);
-        return "serial@" + device;
+        String result="";
+        switch(connection){
+            default:
+            case NodePlatformFactory.CONNECTION_SERIAL:
+                result = "serial@" + device;
+                break;
+                
+            case NodePlatformFactory.CONNECTION_SF:
+                result = "sf@" + device;
+                break;
+                
+            case NodePlatformFactory.CONNECTION_NETWORK:
+                result = "network@" + device;
+                break;
+                
+            case NodePlatformFactory.CONNECTION_NONE:
+                result = device;
+                break;
+        }
+        
+        return result;
     }
 
     /**
@@ -103,6 +144,6 @@ public class NodePlatformGeneric implements NodePlatform {
     public String hwResetCommand(String device, Properties prop) {
         return null;
     }
-    
+
     
 }

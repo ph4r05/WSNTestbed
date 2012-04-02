@@ -55,8 +55,8 @@ public class NodePlatformIris extends NodePlatformGeneric {
     }
 
     @Override
-    public String getConnectionString(String device) {
-        return "serial@" + device + ":iris";
+    public String getConnectionStringSignature() {
+        return "iris";
     }
 
     @Override
