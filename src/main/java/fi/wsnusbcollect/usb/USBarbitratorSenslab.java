@@ -57,6 +57,21 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
 
     /**
      * Cannot reprogram nodes via serial forwarder
+     * @TODO: use /opt/senslab/bin/senslab-cli update 
+     *      Usage: update [options] nodes
+            Update some nodes' firmware
+
+            Options:
+              -h, --help            show this help message and exit
+              -f UPDATEFILE, --file=UPDATEFILE
+                                    update the selected nodes with this firmware.
+              -u UPLOADFILE, --upload=UPLOADFILE
+                                    upload a firmware file to the server
+              -x XFILE, --upload-update=XFILE
+                                    upload a firmware file to the server AND flash the
+                                    selected nodes with it
+              -l, --list            list the available uploaded firmwares.
+
      * 
      * @param nodes2connect
      * @param makefileDir 
@@ -67,18 +82,8 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
     }
 
     /**
-     * Cannot reset connection to node physically here
-     * @param resetCommand
-     * @return 
-     */
-    @Override
-    public boolean resetNode(String resetCommand) {
-        return false;
-    }
-
-    /**
      * In senslab we can reset node by nodeid calling python interface
-     * @TODO: finish this according to senslab manual
+     * @TODO: check this in real senslab
      * 
      * @param nh
      * @param prop
@@ -86,8 +91,11 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
      */
     @Override
     public boolean resetNode(NodeHandler nh, Properties prop) {
-        return false;
-        //return super.resetNode(nh, prop);
+        if (nh==null || nh.getNodeObj()==null){
+            return false;
+        }
+        
+        return this.resetNode("/opt/senslab/bin/senslab-cli reset " + nh.getNodeId());
     }
 
     /**
