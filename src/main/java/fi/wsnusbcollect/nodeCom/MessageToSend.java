@@ -29,8 +29,9 @@ public class MessageToSend {
     
     /**
      * source node id to send from - if multiple nodes are managed by single sender
+     * If source is null, default gateway will be used to send such message
      */
-    private int source;
+    private Integer source;
     
     /**
      * destination of message. Node in network
@@ -51,8 +52,37 @@ public class MessageToSend {
     /**
      * If non-null, specified amount of time is waited between next message send
      */
-    private Long pauseAfterSend;
+    private Long pauseAfterSend=null;
+    
+    /**
+     * Time of message arrival for sending to message sender
+     */
+    private long timeAddedToSend;
+    
+    /**
+     * cancel flag. If from some reason sender cannot send message, it can be marked
+     * as canceled and is skipped.
+     */
+    private boolean canceled=false;
+    
+    /**
+     * If true then this sending this message is synchronous - methods ends after 
+     * message is successfully sent - good choice when sending control messages
+     * to nodes and task is time sensitive. 
+     */
+    private boolean blockingSend=false;
+    
+    /**
+     * If message should be send synchronously (blockingSend==true) this field
+     * gives maximum amount of time for waiting.
+     */
+    private long blockingTimeout=3000L;
 
+    /**
+     * Maximum retry count limit for this message.
+     * If 0 packet is dropped, otherwise re-sent and decremented
+     */
+    private int resendRetryCount=3;
 
     public MessageToSend(net.tinyos.message.Message sMsg, int destination, String string) {
         this.string = string;
@@ -153,11 +183,11 @@ public class MessageToSend {
         this.listenerKey = listenerKey;
     }
 
-    public int getSource() {
+    public Integer getSource() {
         return source;
     }
 
-    public void setSource(int source) {
+    public void setSource(Integer source) {
         this.source = source;
     }
 
@@ -167,5 +197,50 @@ public class MessageToSend {
 
     public void setPauseAfterSend(Long pauseAfterSend) {
         this.pauseAfterSend = pauseAfterSend;
+    }
+
+    public boolean isBlockingSend() {
+        return blockingSend;
+    }
+
+    public void setBlockingSend(boolean blockingSend) {
+        this.blockingSend = blockingSend;
+    }
+
+    public long getBlockingTimeout() {
+        return blockingTimeout;
+    }
+
+    public void setBlockingTimeout(long blockingTimeout) {
+        this.blockingTimeout = blockingTimeout;
+    }
+
+    public int getResendRetryCount() {
+        return resendRetryCount;
+    }
+
+    public void setResendRetryCount(int resendRetryCount) {
+        this.resendRetryCount = resendRetryCount;
+    }
+
+    public long getTimeAddedToSend() {
+        return timeAddedToSend;
+    }
+
+    public void setTimeAddedToSend(long timeAddedToSend) {
+        this.timeAddedToSend = timeAddedToSend;
+    }
+
+    public boolean isCanceled() {
+        return canceled;
+    }
+
+    public void setCanceled(boolean canceled) {
+        this.canceled = canceled;
+    }
+
+    @Override
+    public String toString() {
+        return "MessageToSend{" + "sMsg=" + sMsg + ", string=" + string + ", source=" + source + ", destination=" + destination + ", listener=" + listener + ", listenerKey=" + listenerKey + ", pauseAfterSend=" + pauseAfterSend + ", timeAddedToSend=" + timeAddedToSend + ", canceled=" + canceled + ", blockingSend=" + blockingSend + ", blockingTimeout=" + blockingTimeout + ", resendRetryCount=" + resendRetryCount + '}';
     }
 }

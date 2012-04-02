@@ -4,11 +4,13 @@
  */
 package fi.wsnusbcollect.experiment;
 
+import fi.wsnusbcollect.db.ExperimentCTPReport;
 import fi.wsnusbcollect.db.ExperimentDataAliveCheck;
 import fi.wsnusbcollect.db.ExperimentDataNoise;
 import fi.wsnusbcollect.db.ExperimentDataRSSI;
 import fi.wsnusbcollect.db.ExperimentMetadata;
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.CtpReportDataMsg;
 import fi.wsnusbcollect.messages.MessageTypes;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
@@ -176,9 +178,9 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
     @Override
     public synchronized void messageReceived(int i, Message msg, long mili) {
         //log.info("Message received: " + msg.amType() +  "; time=" + mili + "; " + this.getName());
-        
         // update last seen record
-        this.nodeReg.updateLastSeen(msg.getSerialPacket().get_header_src(), mili);
+        int src = msg.getSerialPacket().get_header_src();
+        this.nodeReg.updateLastSeen(src, mili);
         messageFromLastFlush+=1;
         
         // command message?
@@ -232,6 +234,19 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
                 
                 this.objQueue.add(dataRSSI);
             }
+        }
+        
+        // CTP report message?
+        if (CtpReportDataMsg.class.isInstance(msg)){
+            final CtpReportDataMsg cMsg = (CtpReportDataMsg) msg;
+            
+            ExperimentCTPReport report = new ExperimentCTPReport();
+            report.loadFromMessage(cMsg);
+            report.setMilitime(mili);
+            report.setExperiment(expMeta);
+            report.setNode(src);
+            
+            this.objQueue.add(report);
         }
         
         this.checkQueues();

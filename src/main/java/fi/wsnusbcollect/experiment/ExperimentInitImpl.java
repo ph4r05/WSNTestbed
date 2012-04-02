@@ -8,6 +8,9 @@ import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.db.ExperimentMetadata;
 import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.CtpReportDataMsg;
+import fi.wsnusbcollect.messages.CtpResponseMsg;
+import fi.wsnusbcollect.messages.CtpSendRequestMsg;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeCom.MessageSender;
@@ -32,12 +35,10 @@ import javax.persistence.PersistenceContext;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
 import net.tinyos.packet.PhoenixSource;
-import net.tinyos.util.PrintStreamMessenger;
 import org.ini4j.Ini;
 import org.ini4j.Wini;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -341,6 +342,9 @@ public class ExperimentInitImpl implements ExperimentInit {
             cn.registerMessageListener(new CommandMsg(), dbForNode);
             cn.registerMessageListener(new NoiseFloorReadingMsg(), dbForNode);
             cn.registerMessageListener(new MultiPingResponseReportMsg(), dbForNode);
+            cn.registerMessageListener(new CtpReportDataMsg(), dbForNode);
+            cn.registerMessageListener(new CtpResponseMsg(), dbForNode);
+            cn.registerMessageListener(new CtpSendRequestMsg(), dbForNode);
             
             // add to map
             this.nodeReg.put(cn);
@@ -402,6 +406,7 @@ public class ExperimentInitImpl implements ExperimentInit {
 //        this.console = console;
 //    }
 
+    @Override
     public ExperimentMetadata getExpMeta() {
         return expMeta;
     }

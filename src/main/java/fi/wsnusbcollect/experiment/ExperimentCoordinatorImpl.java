@@ -4,14 +4,21 @@
  */
 package fi.wsnusbcollect.experiment;
 
+import fi.wsnusbcollect.experiment.results.ExperimentStatGen;
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.console.Console;
+import fi.wsnusbcollect.db.ExperimentCTPRequest;
 import fi.wsnusbcollect.db.ExperimentDataCommands;
 import fi.wsnusbcollect.db.ExperimentDataGenericMessage;
 import fi.wsnusbcollect.db.ExperimentDataLog;
 import fi.wsnusbcollect.db.ExperimentDataRevokedCycles;
 import fi.wsnusbcollect.db.ExperimentMultiPingRequest;
+import fi.wsnusbcollect.dbbenchmark.EMdonorI;
+import fi.wsnusbcollect.messages.CollectionDebugMsg;
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.CtpReportDataMsg;
+import fi.wsnusbcollect.messages.CtpResponseMsg;
+import fi.wsnusbcollect.messages.CtpSendRequestMsg;
 import fi.wsnusbcollect.messages.MessageTypes;
 import fi.wsnusbcollect.messages.MultiPingMsg;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
@@ -31,6 +38,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
@@ -45,6 +53,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -86,22 +95,43 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     @Autowired
     protected Console console;
     
+    /**
+     * Constols main experiment loop
+     */
     protected boolean running=true;
     
+    /**
+     * Initial suspend and in-experiment suspend
+     */
     protected boolean suspended=true;
     
+    /**
+     * Only informative attribute for user interface - last received message stored here
+     */
     private Message lastMsg;
     
+    /**
+     * Manual Spring transaction template to control transactions
+     */
     private TransactionTemplate transactionTemplate;
     
     /**
-     * Miliseconds when unsuspended/started
+     * Milliseconds when unsuspended/started
      */
     private Long miliStart;
     
+    /**
+     * Experiment state automaton
+     */
     private ExperimentState eState;
     
-    // beginning time of last N experiments
+    /**
+     * Start time of last N experiments
+     * Ring buffer overwrites old records when gets full. 
+     * 
+     * Used in experiment revocation - on fail need to revoke last N experiments,
+     * to do so, we need start time of such experiments
+     */
     private RingBuffer<Long> lastExperimentTimes;
     
     /**
@@ -109,9 +139,25 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      */
     private NodeReachabilityMonitor nodeMonitor;
     
-    // number of success cycles in row
+    /**
+     * number of success successor cycles from last reset
+     */
     private int succCyclesFromLastReset;
-    private long nodeAliveThreshold;
+    
+    /**
+     * Basic experiment statistics generator.
+     * Used mainly from Jython GUI to generate experiment statistics to evaluate
+     * performed experiments.
+     */
+    private ExperimentStatGen statGen;
+    
+    /**
+     * Which experiment to start after unsuspend ?
+     */
+    private int experiment2Start = 1;
+    public static final int EXPERIMENT_NONE = 1;
+    public static final int EXPERIMENT_RSSI = 2;
+    public static final int EXPERIMENT_CTP = 3;
 
     public ExperimentCoordinatorImpl(String name) {
         super(name);
@@ -124,10 +170,6 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     @PostConstruct
     public void initClass() {
         log.info("Class initialized");
-        
-        // create new entitymanager
-//        log.info("Creating entityManager for thread from factory: " + this.emf.toString());
-        //this.emThread = this.emf.createEntityManager();
     }
 
     @Override
@@ -152,12 +194,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
 
     @Override
-    public void run() {
-        // start suspended?
-        if (App.getRunningInstance().isStartSuspended()){
-            this.startSuspended();
-        }
-        
+    public void run() {        
         // main
         this.main();
     }
@@ -165,7 +202,12 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     /**
      * Holds suspended until script allows execution
      */
-    public void startSuspended(){
+    public void waitSuspended(){
+        // do not write anything if suspend is not requested
+        if (suspended==false){
+            return;
+        }
+        
         System.out.println("Waiting in suspend sleep. To start call unsuspend().");
         try {
             while(suspended){
@@ -231,33 +273,16 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.sendNoiseFloorReading(nodeId, 1000);
     }
     
-    @Transactional
+    /**
+     * Restarts all nodes before experiment and waits for them to show alive again
+     */
     @Override
-    public void main() {  
-        //
-        // INIT objects - new thread 
-        //
-        
-        // get transaction manager - programmaticall transaction management
-        this.transactionTemplate = new TransactionTemplate((PlatformTransactionManager)App.getRunningInstance().getAppContext().getBean("transactionManager"));        
-        this.me = (ExperimentCoordinator) App.getRunningInstance().getAppContext().getBean("experimentCoordinator");
-        this.em = me.getEm();
-        // here we should wait to receive identification from all nodes
-        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);       
-        this.nodeReg.setDropingReceivedPackets(false);
-        this.lastExperimentTimes = new RingBuffer<Long>(15, false);
-        this.nodeMonitor = new NodeReachabilityMonitor(nodeReg, this);
-        
+    public void restartNodesBeforeExperiment() throws TimeoutException{
         // at first reset all nodes before experiment count
         System.out.println("Restarting all nodes before experiment, "
                 + "waiting nodes to reinit (need to receive IDENTITY message from everyone)");
         // use node monitor to restart all nodes, set higher agresivity, reconnect is 
         // not enough
-        this.nodeMonitor.setResetNodesDuringWaitIfUnreachable(true);
-        this.nodeMonitor.setResetNodeDelay(4000);
-        this.nodeMonitor.setIdSequenceMaxGap(20);
-        this.nodeMonitor.setNodeAliveThreshold(6000);
-        this.nodeMonitor.setNodeDelayReconnect(5000);
         this.nodeReg.registerMessageListener(new CommandMsg(), this.nodeMonitor);
         
         Collection<Integer> deadNodes = this.nodeMonitor.makeNodesReachable(this.nodeReg.values(), 180000, 1);
@@ -267,23 +292,35 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             for(Integer deadNodeId : deadNodes){
                 log.error("Dead nodeId: " + deadNodeId);
             }
-            return;
+            
+            throw new TimeoutException("Cannot wake up nodes");
             
         } else {
             log.info("All nodes prepared, starting experiment");
             System.out.println("All nodes prepared, starting experiment");
         }
-
-        // 
-        // Experiment start
-        //        
-        this.miliStart = System.currentTimeMillis();
-        this.expInit.updateExperimentStart(miliStart);
-        log.info("Experiment started, miliseconds start: " + miliStart);        
-        // unsuspend all packet listeners to start receiving packets
-        log.info("Setting ignore received packets to FALSE to start receiving");        
-        // work, inform user that experiment is beginning
-        System.out.println("Starting main experiment logic...");       
+    }
+    
+    /**
+     * Main entry method for NONE experiment - simple wait
+     */
+    public void mainExperimentNone(){
+        while(running){
+            try {
+                Thread.sleep(250);
+                
+                // suspend pause 
+                this.waitSuspended();
+            } catch (InterruptedException ex) {
+                log.error("Cannot sleep", ex);
+            }
+        }
+    }
+    
+    /**
+     * Main entry method for RSSI map experiment
+     */
+    public void mainExperimentRSSI(){
         //
         // from configuration
         //
@@ -291,7 +328,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // how often to receive noise floor reading?
         int noiseFloorReadingTimeout=1000;
         // how many miliseconds can be node unreachable to be considered as unresponsive
-        nodeAliveThreshold=4000;
+        long nodeAliveThreshold=4000;
         // packets requested
         int packetsRequested = 100;
         // in miliseconds
@@ -328,6 +365,11 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // main running cycle, experiment can be shutted down setting running=false
         log.info("Starting main collecting cycle, one sending block: " + timeNeededForNode + " ms");
         while(running){
+            // if user wants to suspend currently running experiment here, do it
+            // user may change experiment parameters or node software and so on...
+            // (after re-flashing is needed to reset all nodes and reconnect listeners)
+            this.waitSuspended();
+            
             //
             // Experiment state
             //
@@ -444,6 +486,115 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                 succCyclesFromLastReset++;
             }
         }
+    }
+    
+    /**
+     * Main entry method for CTP experiment 
+     * NOT IMPLEMENTED YET
+     */
+    public void mainExperimentCTP(){
+        this.mainExperimentNone();
+    }
+    
+    /**
+     * After calling start() on thread it is needed to fix persistence objects
+     */
+    public void fixPersistenceAfterStart(){
+        // get transaction manager - programmaticall transaction management
+        this.transactionTemplate = new TransactionTemplate((PlatformTransactionManager)App.getRunningInstance().getAppContext().getBean("transactionManager"));
+        this.me = (ExperimentCoordinator) App.getRunningInstance().getAppContext().getBean("experimentCoordinator");
+        this.em = me.getEm();
+        
+        // create new entity manager from donor
+        // spring should create new entity manager for this prototype class
+        EMdonorI emd = (EMdonorI) App.getRunningInstance().getAppContext().getBean("emdonor");
+        this.emThread = emd.getEm();
+        TransactionTemplate threadTransactionTemplate = new TransactionTemplate((PlatformTransactionManager)App.getRunningInstance().getAppContext().getBean("transactionManager"));
+            
+        if(TransactionSynchronizationManager.hasResource(emd.getEmf())){
+            System.out.println("Has resource!");
+            TransactionSynchronizationManager.unbindResource(emd.getEmf());
+        } else {
+            try {
+                //TransactionSynchronizationManager.bindResource(emfx, new EntityManagerHolder(emx));
+            } catch(Exception e){
+                log.error("Exception when registering new em", e);
+            }
+        }
+        
+        log.info("ME object registered: " + this.em.toString());
+    }
+    
+    @Transactional
+    @Override
+    public void main() {  
+        //
+        // INIT objects - new thread 
+        //
+        
+        // need to fix persistence managers after spawning to separate thread
+        this.fixPersistenceAfterStart();    
+        
+        // stat generator
+        this.statGen = (ExperimentStatGen) App.getRunningInstance().getAppContext().getBean("experimentStatGen");
+        
+        // node reachability monitor + ring buffer for experiment start times
+        this.lastExperimentTimes = new RingBuffer<Long>(15, false);
+        this.nodeMonitor = new NodeReachabilityMonitor(nodeReg, this);
+        this.nodeMonitor.setResetNodesDuringWaitIfUnreachable(true);
+        this.nodeMonitor.setResetNodeDelay(4000);
+        this.nodeMonitor.setIdSequenceMaxGap(20);
+        this.nodeMonitor.setNodeAliveThreshold(6000);
+        this.nodeMonitor.setNodeDelayReconnect(5000);
+        
+        // start suspended?
+        if (App.getRunningInstance().isStartSuspended()){
+            this.waitSuspended();
+        }
+        
+        // here we should wait to receive identification from all nodes
+        this.nodeReg.registerMessageListener(new fi.wsnusbcollect.messages.CommandMsg(), this);       
+        this.nodeReg.registerMessageListener(new CtpResponseMsg(), this);
+        this.nodeReg.registerMessageListener(new CtpReportDataMsg(), this);
+        this.nodeReg.registerMessageListener(new CtpSendRequestMsg(), this);
+        this.nodeReg.registerMessageListener(new CollectionDebugMsg(), this);
+        this.nodeReg.setDropingReceivedPackets(false);
+        
+        // restart nodes before experiment - clean all settings to default
+        try {
+            this.restartNodesBeforeExperiment();
+        } catch (TimeoutException ex) {
+            log.error("Cannot continue with experiment, nodes timeouted. Cannot start some nodes");
+            return;
+        }
+
+        // 
+        // Experiment start
+        //        
+        this.miliStart = System.currentTimeMillis();
+        this.expInit.updateExperimentStart(miliStart);
+        log.info("Experiment started, miliseconds start: " + miliStart);        
+        // unsuspend all packet listeners to start receiving packets
+        log.info("Setting ignore received packets to FALSE to start receiving");        
+        // work, inform user that experiment is beginning
+        System.out.println("Starting main experiment logic...");     
+        
+        // decide which experiment to run now
+        switch(this.experiment2Start){
+            case ExperimentCoordinatorImpl.EXPERIMENT_RSSI:
+                this.mainExperimentRSSI();
+                break;
+                
+            case ExperimentCoordinatorImpl.EXPERIMENT_CTP:
+                this.mainExperimentCTP();
+                break;
+                
+            default:
+            case ExperimentCoordinatorImpl.EXPERIMENT_NONE:
+                this.mainExperimentNone();
+                break;
+        }
+        
         
         // shutdown all registered nodes... Deregister and shutdown listening/sending threads
         System.out.println("Shutting down all registered nodes");
@@ -629,9 +780,10 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             {            
                 // identification message is processed separately
                 this.identificationReceived(i, cMsg, mili);
+                genericMessage=false;
+            } else {
+                genericMessage=true;
             }
-            
-            genericMessage=false;
         }
         
         // report message?
@@ -660,6 +812,12 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         
         // generic message was probably not really handled -> store to protocol
         if (genericMessage){
+            log.info("Message received: " + i + "; type: " + msg.amType()
+                + "; dataLen: " + msg.dataLength() 
+                + "; hdest: " + msg.getSerialPacket().get_header_dest()
+                + "; hsrc: " + msg.getSerialPacket().get_header_src() 
+                + "; mili: " + mili 
+                + "; msg: " + msg.toString());
             this.storeGenericMessageToProtocol(msg, i, false, true);            
         }
         
@@ -763,6 +921,130 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
     
     /**
+     * Send address recognition set command to node - can disable address recognition
+     * to be able to spoof foreign messages from radio
+     * 
+     * @param nodeId
+     * @param enabled 
+     */
+    @Override
+    public synchronized void sendSetAddressRecognition(int nodeId, boolean enabled){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_RADIO_ADDRESS_RECOGNITION_ENABLED);
+        msg.set_command_data(enabled ? 1 : 0);
+        
+        this.sendCommand(msg, nodeId);
+    }
+    
+    /**
+     * Send node message to recompute its route update
+     * 
+     * @param nodeId
+     * @param routeUpdate 
+     */
+    @Override
+    public synchronized void sendCTPRouteUpdate(int nodeId, int routeUpdate){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_CTP_ROUTE_UPDATE);
+        msg.set_command_data(routeUpdate);
+        
+        this.sendCommand(msg, nodeId);
+    }
+    
+    /**
+     * Requests CTP info from node's perspective
+     * 
+     * @param nodeId
+     */
+    @Override
+    public synchronized void sendCTPGetInfo(int nodeId){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_CTP_GETINFO);
+        msg.set_command_data(0);
+        
+        this.sendCommand(msg, nodeId);
+    }
+    
+    /**
+     * Requests CTP info from node's perspective
+     * 
+     * @param nodeId
+     * @param n
+     */
+    @Override
+    public synchronized void sendCTPGetNeighInfo(int nodeId, int n){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_CTP_GETINFO);
+        msg.set_command_data(1);
+        msg.set_command_data_next(new int[] {n,0,0,0});
+        
+        this.sendCommand(msg, nodeId);
+    }
+    
+    /**
+     * Sets output TX power for CTP messages
+     * @param nodeId
+     * @param type
+     * @param txpower 
+     */
+    @Override
+    public synchronized void sendCTPTXPower(int nodeId, int type, int txpower){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_CTP_CONTROL);
+        msg.set_command_data(0);
+        msg.set_command_data_next(new int[] {type,txpower,0,0});
+        
+        this.sendCommand(msg, nodeId);
+    }
+    
+    /**
+     * Sets CTP root for given node.
+     * @param nodeId
+     * @param isRoot 
+     */
+    @Override
+    public synchronized void sendSetCTPRoot(int nodeId, boolean isRoot){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_SET_CTP_ROOT);
+        msg.set_command_data(isRoot ? 1 : 0);
+        
+        this.sendCommand(msg, nodeId);
+    }
+    
+    /**
+     * Send request to CTP reading to node
+     * @param nodeId
+     * @param packets
+     * @param delay
+     * @param dataSource
+     * @param counterStrategySuccess
+     * @param timerStrategyPeriodic 
+     */
+    @Override
+    public synchronized void sendCTPRequest(int nodeId, int packets, int delay, 
+            short dataSource, boolean counterStrategySuccess, boolean timerStrategyPeriodic){
+        
+        CtpSendRequestMsg msg = new CtpSendRequestMsg();
+        msg.set_dataSource(dataSource);
+        msg.set_delay(delay);
+        msg.set_packets(packets);
+        msg.set_counterStrategySuccess((byte)(counterStrategySuccess ? 1:0));
+        msg.set_timerStrategyPeriodic((byte)(timerStrategyPeriodic ? 1:0));
+        
+                
+        // now build database record for this request
+        ExperimentCTPRequest mpr = new ExperimentCTPRequest();
+        mpr.setMilitime(System.currentTimeMillis());
+        mpr.setExperiment(this.expInit.getExpMeta());
+        mpr.setNode(nodeId);
+        mpr.setNodeBS(nodeId);
+        mpr.loadFromMessage(msg);
+        me.storeData(mpr);
+        
+        this.sendMessageToNode(msg, nodeId, true);
+    }
+    
+    /**
      * Send selected defined packet to node.
      * Another methods may build custom command packet, it is then passed to this method
      * which sends it to all selected nodes
@@ -773,31 +1055,131 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      */    
     @Override
     public synchronized void sendMessageToNode(Message payload, int nodeId, boolean protocol){
-        try {           
-            Integer nId = Integer.valueOf(nodeId);
-            // get node from node register
-            if (this.nodeReg.containsKey(nId)==false){
-                log.error("Cannot send message to node " + nId + "; No such node found in register");
-                return;
+        // decide whether send message to all nodes 
+        if (nodeId<0){
+            Collection<NodeHandler> values = this.nodeReg.values();
+            for (NodeHandler nh : values){
+                // can add message?
+                if (nh.canAddMessage2Send()==false){
+                    log.error("From some reason message cannot be sent to this node currently, please try again later. NodeId: " + nh.getNodeId());
+                    continue;
+                }
+                
+                try {
+                    // store to protocol?
+                    if (protocol){
+                        this.storeGenericMessageToProtocol(payload, nh.getNodeId() , true, false);
+                    }
+
+                    // add to send queue
+                    log.debug("Message to send for node: " + nh.getNodeId() + "; Command: " + payload);
+                    nh.addMessage2Send(payload, null);
+                }  catch (Exception ex) {
+                    log.error("Cannot send CmdMessage to nodeId: " + nh.getNodeId() , ex);
+                }
             }
-            
-            NodeHandler nh = this.nodeReg.get(nId);
-            if (nh.canAddMessage2Send()==false){
-                log.error("From some reason message cannot be sent to this node currently, please try again later. NodeId: " + nId);
-                return;
+        } else {
+            // sending message only to specific node
+            try {           
+                Integer nId = Integer.valueOf(nodeId);
+                // get node from node register
+                if (this.nodeReg.containsKey(nId)==false){
+                    log.error("Cannot send message to node " + nId + "; No such node found in register");
+                    return;
+                }
+
+                NodeHandler nh = this.nodeReg.get(nId);
+                if (nh.canAddMessage2Send()==false){
+                    log.error("From some reason message cannot be sent to this node currently, please try again later. NodeId: " + nId);
+                    return;
+                }
+
+                // store to protocol?
+                if (protocol){
+                    this.storeGenericMessageToProtocol(payload, nodeId, true, false);
+                }
+
+                // add to send queue
+                log.debug("Message to send for node: " + nId + "; Command: " + payload);
+                nh.addMessage2Send(payload, null);
+            }  catch (Exception ex) {
+                log.error("Cannot send CmdMessage to nodeId: " + nodeId, ex);
             }
-            
-            // store to protocol?
-            if (protocol){
-                this.storeGenericMessageToProtocol(payload, nodeId, true, false);
-            }
-            
-            // add to send queue
-            log.debug("Message to send for node: " + nId + "; Command: " + payload);
-            nh.addMessage2Send(payload, null);
-        }  catch (Exception ex) {
-            log.error("Cannot send CmdMessage to nodeId: " + nodeId, ex);
         }
+    }
+    
+    /**
+     * Prints interface with comments
+     */
+    @Override
+    public void usage(){
+        System.out.println("Methodlist:");
+        System.out.println("    public void interrupt();\n" + 
+    			"    public void work();\n" + 
+    			"    public void main();\n" + 
+    			"    \n" + 
+    			"    // start suspended?\n" + 
+    			"    public void unsuspend();\n" + 
+    			"    \n" + 
+    			"    public void sendCommand(CommandMsg payload, int nodeId);\n" + 
+    			"    public void resetAllNodes();\n" + 
+    			"    public void sendMultiPingRequest(int nodeId, int txpower,\n" + 
+    			"            int channel, int packets, int delay, int size, \n" + 
+    			"            boolean counterStrategySuccess, boolean timerStrategyPeriodic);\n" + 
+    			"    \n" + 
+    			"    public void sendReset(int nodeId);\n" + 
+    			"    public void sendNoiseFloorReading(int nodeId, int delay);\n" + 
+    			"    public void sendMessageToNode(Message payload, int nodeId, boolean protocol);\n" + 
+    			"    public void sendSetAddressRecognition(int nodeId, boolean enabled);\n" + 
+    			"    public void sendSetCTPRoot(int nodeId, boolean isRoot);\n" + 
+    			"    public void sendCTPRequest(int nodeId, int packets, int delay, \n" + 
+    			"            short dataSource, boolean counterStrategySuccess, boolean timerStrategyPeriodic);\n" + 
+    			"    \n" + 
+    			"    public void sendCTPRouteUpdate(int nodeId, int routeUpdate);\n" + 
+    			"    public void sendCTPGetInfo(int nodeId);\n" + 
+    			"    public void sendCTPGetNeighInfo(int nodeId, int n);\n" + 
+    			"    public void sendCTPTXPower(int nodeId, int type, int txpower);\n" + 
+    			"    \n" + 
+    			"    public void storeGenericMessageToProtocol(Message payload, int nodeId, boolean sent, boolean external);\n" + 
+    			"    public void getNodesLastSeen();\n" + 
+    			"    public List<Integer> getNodesLastResponse(long mili);\n" + 
+    			"    public NodeHandlerRegister getNodeReg();\n" + 
+    			"    public void hwresetAllNodes();\n" + 
+    			"    public void hwresetNode(int nodeId);\n" + 
+    			"    public void resetNode(int nodeId);\n" + 
+    			"    \n" + 
+    			"    public  EntityManager getEm();\n" + 
+    			"    public JdbcTemplate getTemplate();\n" + 
+    			"    public void emRefresh(Object o);\n" + 
+    			"    public void emPersist(Object o);\n" + 
+    			"    public void emFlush();\n" + 
+    			"    public void storeData(Object o);\n" + 
+    			"    \n" + 
+    			"    public ExperimentState geteState();\n" + 
+    			"    public void seteState(ExperimentState eState);\n" + 
+    			"    \n" + 
+    			"    public ExperimentStatGen getStatGen();\n" + 
+    			"    public void usage();\n" + 
+    			"    \n" + 
+    			"    \n" + 
+    			"    public void suspendExperiment();\n" + 
+    			"    \n" + 
+    			"    /**\n" + 
+    			"     * Restarts all nodes before experiment and waits for them to show alive again\n" + 
+    			"     */\n" + 
+    			"    public void restartNodesBeforeExperiment() throws TimeoutException;\n" + 
+    			"    \n" + 
+    			"    public int getExperiment2Start();\n" + 
+    			"\n" + 
+    			"    /**\n" + 
+    			"     * Sets experiment to start after unsuspend\n" + 
+    			"     * 1=none\n" + 
+    			"     * 2=rssi\n" + 
+    			"     * 3=ctp\n" + 
+    			"     * @param experiment2Start \n" + 
+    			"     */\n" + 
+    			"    public void setExperiment2Start(int experiment2Start);");
+        
     }
     
     /**
@@ -944,6 +1326,16 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.suspended=false;
     }
 
+    
+    /**
+     * Suspends after finishing atomic cycle of experiment
+     */
+    @Override
+    public synchronized void suspendExperiment(){
+        this.suspended=true;
+    }
+    
+    
     /**
      * Gets last received message - for console use. 
      * Has no special purpose in main logic, only informative output
@@ -1022,6 +1414,19 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     public void seteState(ExperimentState eState) {
         this.eState = eState;
     }
-    
-    
+
+    @Override
+    public ExperimentStatGen getStatGen() {
+        return statGen;
+    }
+
+    @Override
+    public int getExperiment2Start() {
+        return experiment2Start;
+    }
+
+    @Override
+    public void setExperiment2Start(int experiment2Start) {
+        this.experiment2Start = experiment2Start;
+    }    
 }

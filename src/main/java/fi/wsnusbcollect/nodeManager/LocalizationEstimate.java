@@ -4,7 +4,7 @@
  */
 package fi.wsnusbcollect.nodeManager;
 
-import fi.wsnusbcollect.utils.TextHistogramData;
+import fi.wsnusbcollect.utils.stats.TextHistogramData;
 import java.util.Map;
 
 /**

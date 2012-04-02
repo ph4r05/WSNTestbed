@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import fi.wsnusbcollect.utils.DataSmoother;
+import fi.wsnusbcollect.utils.stats.DataSmoother;
 
 /**
  * Each mobile node has own instance of this

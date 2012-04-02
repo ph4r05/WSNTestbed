@@ -14,6 +14,7 @@ import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeoutException;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
@@ -213,7 +214,11 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
         }
-        msgSender.add(msg);
+        try {
+            msgSender.add(msg);
+        } catch (TimeoutException ex) {
+            log.error("Cannot add message", ex);
+        }
     }
 
     /**

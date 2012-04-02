@@ -39,11 +39,18 @@ package fi.wsnusbcollect.nodeCom;
  * @author Dusan Klinec (ph4r05) - extended basic idea
  * 
  */
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 import net.tinyos.message.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,22 +70,29 @@ import org.slf4j.LoggerFactory;
  *
  * @author ph4r05
  */
-public class MessageSender extends Thread {
+public class MessageSender extends Thread implements MessageSentListener{
     private static final Logger log = LoggerFactory.getLogger(MessageSender.class);
     
     /**
      * maximum number of notify threads in fixed size thread pool
      */
-    private static final int MAX_NOTIFY_THREADS=1;
+    private int notifyThreads=1;
 
+    /**
+     * Message queue to send
+     */
     private ConcurrentLinkedQueue<MessageToSend> queue;
     private MessageToSend msgToSend;
+    
+    /**
+     * Default gateway
+     */
     private MoteIF gateway;
 
     /**
      * Thread pool
      */
-    protected ExecutorService tasks;
+    protected ExecutorService tasksNotifiers;
 
     /**
      * To notify queue for notifier threads
@@ -104,7 +118,22 @@ public class MessageSender extends Thread {
      * Delay between two sent messages from queue
      */
     private int sentSleepTime=100;
+    
+    /**
+     * Map of messages that are needed to be send synchronously
+     */
+    private Map<String, MessageToSend> blockingSendMessage;
+    
+    /**
+     * Successfully sent message in blocking mode
+     */
+    private Set<String> blockingMessageSent;
 
+    /**
+     * Time of last cleanup performed - costly operation + has to be valid 
+     * for some amount of time.
+     */
+    private long lastBlockingCleanup;
     /**
      *
      * @param gateway
@@ -112,18 +141,20 @@ public class MessageSender extends Thread {
      */
     public MessageSender(MoteIF gateway) {
         super("MessageSender");
-        queue = new ConcurrentLinkedQueue<MessageToSend>();
-        toNotify = new ConcurrentLinkedQueue<MessageToSend>();
+        this.queue = new ConcurrentLinkedQueue<MessageToSend>();
+        this.toNotify = new ConcurrentLinkedQueue<MessageToSend>();
+        this.blockingSendMessage = new ConcurrentHashMap<String, MessageToSend>();
+        this.blockingMessageSent = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
         this.gateway = gateway;
 
         // delivery guarantor
         this.messageDeliveryGuarantor = new MessageDeliveryGuarantor(this);
 
-        // instantiate thread pool
-        tasks = Executors.newFixedThreadPool(MAX_NOTIFY_THREADS);
+        // instantiate thread pool        
+        tasksNotifiers = Executors.newFixedThreadPool(notifyThreads);
         // create notify threads
-        for(int i=0; i<MAX_NOTIFY_THREADS; i++){
-            tasks.execute(new MessageSenderNotifyWorker());
+        for(int i=0; i<notifyThreads; i++){
+            tasksNotifiers.execute(new MessageSenderNotifyWorker());
         }
     }
 
@@ -133,7 +164,7 @@ public class MessageSender extends Thread {
     public synchronized void shutdown(){
         this.shutdown = true;
         this.reset();
-        this.tasks.shutdown();
+        this.tasksNotifiers.shutdown();
     }
     
     /**
@@ -161,23 +192,30 @@ public class MessageSender extends Thread {
     }
 
     /**
-     * The thread either executes tasks or sleep.
+     * The thread either executes tasksNotifiers or sleep.
      */
     @Override
     public void run() {
          // do in infitite loop
          while(true){
-             // current sleep time can be changed by each message
-             long currentSleepTime = this.sentSleepTime;
+            // current sleep time can be changed by each message
+            long currentSleepTime = this.sentSleepTime;
+            long currTime = System.currentTimeMillis();
              
             // yield for some time
             this.pause(20);
-
+            
+            // cleaning for blocking operaions?
+            if (currTime-this.lastBlockingCleanup > 60000){
+                this.blockingMessageCleanup();
+                this.lastBlockingCleanup = currTime;
+            }
+            
             // shutdown
             if (this.shutdown == true){
                 log.info("Message sender shutdown");
                 
-                this.tasks.shutdown();
+                this.tasksNotifiers.shutdown();
                 return;
             }
 
@@ -237,6 +275,7 @@ public class MessageSender extends Thread {
     //                    msgToSend.listener.messageSent(msgToSend.getListenerKey(), msgToSend.getsMsg(), msgToSend.getDestination());
     //                }
 
+                    msgToSend.setResendRetryCount(msgToSend.getResendRetryCount()-1);
                     // add message to tonotify queue if needed
                     if (msgToSend.useListener()){
                         // do it in sycnhronized block not to interfere with reading
@@ -313,19 +352,126 @@ public class MessageSender extends Thread {
 
         this.queue.add(msgRecord);
     }
-
+    
+    /**
+     * Adds more messages at time. Can be blocking...
+     * All messages are added to sending queue + if there are blocking messages
+     * method waits for finishing it.
+     * 
+     * @param msgs
+     * @return  list of failed blocking messages 
+     * @throws TimeoutException 
+     */
+    public Collection<MessageToSend> add(Collection<MessageToSend> msgs) throws TimeoutException {
+        List<MessageToSend> failedMessages = new LinkedList<MessageToSend>();
+        
+        
+        
+        
+        return failedMessages;
+    }
+    
     /**
      * Adds initialized message to send to send queue.
      * @param msg
      */
-    public void add(MessageToSend msg){
+    public void add(MessageToSend msg) throws TimeoutException{
         if (this.canAdd()==false){
             throw new NullPointerException("Cannot add message to send queue since gateway is null");
         }
         
-        this.queue.add(msg);
+        // if message should be send in bocking way, handle it
+        if (msg.isBlockingSend()){
+            // message should be sent synchronously
+            // unique message identifier expected here
+            if (this.blockingSendMessage.containsKey(msg.getListenerKey())){
+                throw new IllegalArgumentException("Such message is already in "
+                        + "wait queue, listener key: " + msg.getListenerKey());
+            }
+            
+            // message listener key is now unique - set time of message sending
+            long timeStart = System.currentTimeMillis();
+            msg.setTimeAddedToSend(timeStart);
+            String msgKey = msg.getListenerKey();
+            
+            // set myself as message watcher for successfull sending event
+            msg.addListener(this);
+            
+            // add to blocking send message queue
+            this.blockingSendMessage.put(msgKey, msg);
+            this.queue.add(msg);
+            
+            // repeatedly check if is message already sent - 
+            while(true){
+                long currentTime = System.currentTimeMillis();
+                if ((currentTime-timeStart) > msg.getBlockingTimeout()){
+                    // timeout, message was not sent...
+                    log.warn("Message cannot be send, timeouted. Key: " + msgKey);
+                    log.debug("Failed message: " + msg.toString());
+                    throw new TimeoutException("Message was not send - timeout");
+                }
+                
+                // message was sent - check set queue?
+                if (this.blockingMessageSent.contains(msgKey)){
+                    // key was found => message was sent successfully, cleanup records.
+                    // and return from blocking operation
+                    this.blockingMessageSent.remove(msgKey);
+                    this.blockingSendMessage.remove(msgKey);
+                    return;
+                }
+                
+                // message was not found...                
+                
+                // sleep small amount of time - CPU
+                this.pause(10);
+            }
+        } else {
+            this.queue.add(msg);
+        }
     }
 
+    /**
+     * Watch message sent event for blocking message sending
+     * @param listenerKey
+     * @param msg
+     * @param destination 
+     */
+    @Override
+    public void messageSent(String listenerKey, Message msg, int destination) {
+        // just add to set...
+        if (this.blockingSendMessage.containsKey(listenerKey)){
+            this.blockingMessageSent.add(listenerKey);
+        }
+    }
+    
+    /**
+     * Iterates over map values and cleans unused values, then set is flushed 
+     * according to map keys
+     */
+    protected void blockingMessageCleanup(){
+        long currTime = System.currentTimeMillis();
+        Iterator<MessageToSend> iterator = this.blockingSendMessage.values().iterator();
+        while(iterator.hasNext()){
+            MessageToSend m2s = iterator.next();
+            
+            // is over limit?
+            if ((currTime - (m2s.getTimeAddedToSend() + m2s.getBlockingTimeout())) > 60000){
+                this.blockingMessageSent.remove(m2s.getListenerKey());
+                iterator.remove();
+            }
+        }
+        
+        // iterate over orphaned entities in set
+        Iterator<String> iterator1 = this.blockingMessageSent.iterator();
+        while(iterator1.hasNext()){
+            String key = iterator1.next();
+            if (this.blockingSendMessage.containsKey(key)) continue;
+            
+            // remove only orphaned messages
+            iterator1.remove();
+        }
+    }
+    
     /**
      * Return size of message queue to send
      *
@@ -484,7 +630,7 @@ public class MessageSender extends Thread {
     }
 
     public ExecutorService getTasks() {
-        return tasks;
+        return tasksNotifiers;
     }
 
     public long getTimeLastMessageSent() {
@@ -513,5 +659,13 @@ public class MessageSender extends Thread {
 
     public void setSentSleepTime(int sentSleepTime) {
         this.sentSleepTime = sentSleepTime;
+    }
+
+    public int getNotifyThreads() {
+        return notifyThreads;
+    }
+
+    public void setNotifyThreads(int notifyThreads) {
+        this.notifyThreads = notifyThreads;
     }
 }

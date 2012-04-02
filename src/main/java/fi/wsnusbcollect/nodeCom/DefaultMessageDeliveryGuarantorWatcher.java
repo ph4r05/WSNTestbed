@@ -8,6 +8,7 @@ package fi.wsnusbcollect.nodeCom;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.tinyos.message.Message;
@@ -113,7 +114,11 @@ public class DefaultMessageDeliveryGuarantorWatcher implements MessageDeliveryGu
         
         // add to send queue, add myself as message sent listener
         this.msgToSend.addListener(this);
-        this.getGuarantor().getMsgSender().add(this.msgToSend);
+        try {
+            this.getGuarantor().getMsgSender().add(this.msgToSend);
+        } catch (TimeoutException ex) {
+            Logger.getLogger(DefaultMessageDeliveryGuarantorWatcher.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     /**
