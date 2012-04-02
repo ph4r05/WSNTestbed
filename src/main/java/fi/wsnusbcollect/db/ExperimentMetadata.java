@@ -156,4 +156,31 @@ public class ExperimentMetadata implements Serializable {
     public void setConnectedNodesUsed(List<String> connectedNodesUsed) {
         this.connectedNodesUsed = connectedNodesUsed;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final ExperimentMetadata other = (ExperimentMetadata) obj;
+        if (this.id != other.id && (this.id == null || !this.id.equals(other.id))) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 97 * hash + (this.id != null ? this.id.hashCode() : 0);
+        return hash;
+    }
+    
+    @Override
+    public String toString() {
+        return "ExperimentMetadata{" + "id=" + id + ", experimentGroup=" + experimentGroup + ", name=" + name + ", datestart=" + datestart + ", datestop=" + datestop + ", miliStart=" + miliStart + ", description=" + description + ", keywords=" + keywords + ", nodeConfiguration=" + nodeConfiguration + ", owner=" + owner + ", configFile=" + configFile + ", connectedNodesUsed=" + connectedNodesUsed + '}';
+    }
 }
