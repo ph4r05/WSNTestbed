@@ -93,7 +93,7 @@ public class NodePlatformGeneric implements NodePlatform {
         switch(connection){
             default:
             case NodePlatformFactory.CONNECTION_SERIAL:
-                result = "serial@" + device;
+                result = "serial@" + device + ":" + this.getConnectionStringSignature();
                 break;
                 
             case NodePlatformFactory.CONNECTION_SF:

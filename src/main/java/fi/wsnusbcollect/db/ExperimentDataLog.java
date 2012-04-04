@@ -35,6 +35,9 @@ public class ExperimentDataLog implements Serializable {
     
     @Lob
     private String reasonData;
+    
+    @Lob
+    private String description;
 
     public ExperimentMetadata getExperiment() {
         return experiment;
@@ -90,5 +93,13 @@ public class ExperimentDataLog implements Serializable {
 
     public void setSeverity(String severity) {
         this.severity = severity;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

@@ -4,7 +4,9 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
 import fi.wsnusbcollect.messages.CtpSendRequestMsg;
+import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -17,7 +19,7 @@ import javax.persistence.ManyToOne;
  * @author ph4r05
  */
 @Entity
-public class ExperimentCTPRequest implements Serializable {
+public class ExperimentCTPRequest implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -53,6 +55,9 @@ public class ExperimentCTPRequest implements Serializable {
     // if false new mesage is sent after previous message was successfully sent in 
     // sendDone()
     private boolean timerStrategyPeriodic;
+    
+    // if TRUE then node should send unlimited number of packets (no finish criteria)
+    private boolean packetsUnlimited;
 
     /**
      * loads contents from message body
@@ -60,11 +65,12 @@ public class ExperimentCTPRequest implements Serializable {
      */
     public void loadFromMessage(CtpSendRequestMsg msg){
         this.counter = msg.get_counter();
-        this.counterStrategySuccess = msg.get_counterStrategySuccess() > 0;
+        this.counterStrategySuccess = (msg.get_flags() & 0x1) > 0;
         this.dataSource = msg.get_dataSource();
         this.delay = msg.get_delay();
         this.packet_size = msg.get_size();
-        this.timerStrategyPeriodic = msg.get_timerStrategyPeriodic() > 0;
+        this.timerStrategyPeriodic = (msg.get_flags() & 0x2) > 0;
+        this.packetsUnlimited = (msg.get_flags() & 0x4) > 0;
     }
     
     public int getCounter() {
@@ -163,6 +169,14 @@ public class ExperimentCTPRequest implements Serializable {
         this.timerStrategyPeriodic = timerStrategyPeriodic;
     }
 
+    public boolean isPacketsUnlimited() {
+        return packetsUnlimited;
+    }
+
+    public void setPacketsUnlimited(boolean packetsUnlimited) {
+        this.packetsUnlimited = packetsUnlimited;
+    }
+    
     @Override
     public String toString() {
         return "ExperimentCTPRequest{" + "id=" + id + ", experiment=" + experiment + ", militime=" + militime + ", node=" + node + ", nodeBS=" + nodeBS + ", counter=" + counter + ", packets=" + packets + ", delay=" + delay + ", packet_size=" + packet_size + ", dataSource=" + dataSource + ", counterStrategySuccess=" + counterStrategySuccess + ", timerStrategyPeriodic=" + timerStrategyPeriodic + '}';
@@ -188,5 +202,43 @@ public class ExperimentCTPRequest implements Serializable {
         int hash = 5;
         hash = 13 * hash + (this.id != null ? this.id.hashCode() : 0);
         return hash;
+    }
+
+    @Override
+    public String getCSVname() {
+        return "ctpRequest";
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write(String.valueOf(this.experiment.getId()));
+        csvOutput.write(String.valueOf(this.militime));
+        csvOutput.write(String.valueOf(this.node));
+        csvOutput.write(String.valueOf(this.nodeBS));
+        
+        csvOutput.write(String.valueOf(this.counter));
+        csvOutput.write(String.valueOf(this.packets));
+        csvOutput.write(String.valueOf(this.delay));
+        csvOutput.write(String.valueOf(this.packet_size));
+        csvOutput.write(String.valueOf(this.dataSource));
+        csvOutput.write(String.valueOf(this.counterStrategySuccess));
+        csvOutput.write(String.valueOf(this.timerStrategyPeriodic));
+        csvOutput.write(String.valueOf(this.packetsUnlimited));
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("experiment");
+        csvOutput.write("militime");
+        csvOutput.write("node");
+        csvOutput.write("nodeBS");
+        csvOutput.write("counter");
+        csvOutput.write("packets");
+        csvOutput.write("delay");
+        csvOutput.write("packet_size");
+        csvOutput.write("dataSource");
+        csvOutput.write("counterStrategySuccess");
+        csvOutput.write("timerStrategyPeriodic");
+        csvOutput.write("packetsUnlimited");
     }
 }

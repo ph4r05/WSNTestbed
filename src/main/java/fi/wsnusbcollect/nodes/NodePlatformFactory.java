@@ -29,6 +29,7 @@ public class NodePlatformFactory {
     public static final int NODE_PLATFORM_IRIS = 2;
     public static final int NODE_PLATFORM_MICAZ = 3;
     public static final int NODE_PLATFORM_TMOTE = 4;
+    public static final int NODE_PLATFORM_WSN430 = 5;
     public static final int NODE_PLATFORM_GENERIC = 0;
     
     // all registered platforms here
@@ -55,6 +56,7 @@ public class NodePlatformFactory {
         platforms.put(Integer.valueOf(NODE_PLATFORM_MICAZ), new NodePlatformMicaZ());
         platforms.put(Integer.valueOf(NODE_PLATFORM_TELOSB), new NodePlatformTelosb());
         platforms.put(Integer.valueOf(NODE_PLATFORM_TMOTE), new NodePlatformTmoteSky());
+        platforms.put(Integer.valueOf(NODE_PLATFORM_WSN430), new NodePlatformWSN430());
     }
     
     /**
@@ -119,11 +121,14 @@ public class NodePlatformFactory {
                 platform = new NodePlatformIris();
                 break;              
             case NODE_PLATFORM_GENERIC:
-                platform = new NodePlatformIris();
+                platform = new NodePlatformGeneric();
+                break;
+            case NODE_PLATFORM_WSN430:
+                platform = new NodePlatformWSN430();
                 break;
             default:
                 log.warn("SPecified platformId was not bound to platform. PlatformID: " + i);
-                platform = new NodePlatformIris();
+                platform = new NodePlatformGeneric();
                 break;
         }
         

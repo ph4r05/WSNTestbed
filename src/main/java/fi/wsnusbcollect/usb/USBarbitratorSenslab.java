@@ -5,6 +5,8 @@
 package fi.wsnusbcollect.usb;
 
 import fi.wsnusbcollect.nodes.NodeHandler;
+import fi.wsnusbcollect.nodes.NodePlatformFactory;
+import fi.wsnusbcollect.nodes.NodePlatformWSN430;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class USBarbitratorSenslab extends USBarbitratorImpl{
 
+    private NodeSearchMap moteListPrivate;
+    
     public USBarbitratorSenslab() {
     }
 
@@ -49,10 +53,15 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
         //super.detectConnectedNodes();
     }
 
+    /**
+     * There is probably no way to obtain list of connected nodes
+     * @return 
+     */
     @Override
     public Map<String, NodeConfigRecord> getConnectedNodes() {
         //return super.getConnectedNodes();
-        return new HashMap<String, NodeConfigRecord>();
+        return this.moteListPrivate;
+        //return new HashMap<String, NodeConfigRecord>();
     }
 
     /**
@@ -105,14 +114,83 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
     public void checkActiveConfiguration() {
         //super.checkActiveConfiguration();
     }
+
+    /**
+     * We dont want to check config nodes to connected
+     * @return 
+     */
+    @Override
+    public boolean isCheckConfigNodesToConnected() {
+        return false;
+    }
+
+    /**
+     * Call parent method and add all new node records to motelist
+     * @param includeString
+     * @param excludeString
+     * @return 
+     */
+    @Override
+    public List<NodeConfigRecord> getNodes2connect(String includeString, String excludeString) {
+        List<NodeConfigRecord> nodes2connect = super.getNodes2connect(includeString, excludeString);
+        
+        // add all nodes to motelist
+        this.moteListPrivate = new NodeSearchMap();
+        this.moteList = new NodeSearchMap();
+        for(NodeConfigRecord ncr : nodes2connect){
+            this.moteListPrivate.put(ncr);
+            this.moteList.put(ncr);
+        }
+        
+        return nodes2connect;
+    }
+
     
     
-    
-     
-    
-    
-    
-    
+    /**
+     * Create by default new
+     * @param id
+     * @return 
+     */
+    @Override
+    public NodeConfigRecord getNodeById(Integer id) {
+        if (this.moteList!=null && this.moteList.containsKeyNodeId(id)){
+            return this.moteList.getByNodeId(id);
+        }
+        
+        // platform is strictly defined = WSN
+        NodePlatformWSN430 platform = new NodePlatformWSN430();
+        
+        NodeConfigRecord ncr = new NodeConfigRecord();
+        ncr.setNodeId(id);
+        ncr.setPhysicallyConnected(false);
+        ncr.setPlatformId(platform.getPlatformId());
+        ncr.setDescription(platform.getPlatform());
+        ncr.setSerial(id.toString());
+        ncr.setConnectionString(platform.getConnectionString("experiment:" + (30000 + id), NodePlatformFactory.CONNECTION_SF));
+        return ncr;
+    }
+
+    /**
+     * No directly connected node
+     * @param path
+     * @return 
+     */
+    @Override
+    public NodeConfigRecord getNodeByPath(String path) {
+        return null;
+    }
+
+    /**
+     * Cannot have serial
+     * 
+     * @param serial
+     * @return 
+     */
+    @Override
+    public NodeConfigRecord getNodeBySerial(String serial) {
+        return this.getNodeById(Integer.parseInt(serial));
+    }
     
     
     

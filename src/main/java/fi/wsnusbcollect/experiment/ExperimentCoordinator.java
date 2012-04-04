@@ -36,8 +36,19 @@ public interface ExperimentCoordinator extends Runnable{
     public void sendMessageToNode(Message payload, int nodeId, boolean protocol);
     public void sendSetAddressRecognition(int nodeId, boolean enabled);
     public void sendSetCTPRoot(int nodeId, boolean isRoot);
-    public void sendCTPRequest(int nodeId, int packets, int delay, 
-            short dataSource, boolean counterStrategySuccess, boolean timerStrategyPeriodic);
+    
+        /**
+     * Send request to CTP reading to node
+     * @param nodeId            
+     * @param packets           number of packets to be send
+     * @param delay             delay between two consecutive packets send
+     * @param variability       percentual +- variability in packet delay, works only if timerStrategyPeriodic==false
+     * @param dataSource        
+     * @param counterStrategySuccess    
+     * @param timerStrategyPeriodic 
+     */
+    public void sendCTPRequest(int nodeId, int packets, int delay, double variability, 
+            short dataSource, boolean counterStrategySuccess, boolean timerStrategyPeriodic, boolean unlimitedPackets);
     
     public void sendCTPRouteUpdate(int nodeId, int routeUpdate);
     public void sendCTPGetInfo(int nodeId);
@@ -83,4 +94,9 @@ public interface ExperimentCoordinator extends Runnable{
      * @param experiment2Start 
      */
     public void setExperiment2Start(int experiment2Start);
+    
+    public ExperimentCtp getExpCTP();
+    public NodeReachabilityMonitor getNodeMonitor();
+    
+    public ExperimentRSSIConfiguration getRSSIExperimentConfig();
 }

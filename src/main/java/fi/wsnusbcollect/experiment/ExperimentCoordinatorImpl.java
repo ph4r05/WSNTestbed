@@ -46,6 +46,8 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceContext;
 import javax.persistence.PersistenceUnit;
 import net.tinyos.message.Message;
+import org.ini4j.Ini;
+import org.ini4j.Wini;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -158,6 +160,16 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     public static final int EXPERIMENT_NONE = 1;
     public static final int EXPERIMENT_RSSI = 2;
     public static final int EXPERIMENT_CTP = 3;
+    
+    /**
+     * RSSI experiment config
+     */
+    ExperimentRSSIConfiguration rssiConfig;
+    
+    /**
+     * CTP experiment handle
+     */
+    private ExperimentCtp expCTP;
 
     public ExperimentCoordinatorImpl(String name) {
         super(name);
@@ -268,9 +280,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      */
     public void nodeStartedFresh(int nodeId){        
         log.info("Sending node " + nodeId + " instruction to start noise floor "
-                + "reading every " + 1000 + " miliseconds");
-        this.add2experimentLog("INFO", 4, "Node fresh init: " + nodeId, "Starting noise floor reading, 1000ms");
-        this.sendNoiseFloorReading(nodeId, 1000);
+                + "reading every " + this.rssiConfig.getNoiseFloorReadingTimeout() + " miliseconds");
+        this.add2experimentLog("INFO", 4, "Node fresh init: " + nodeId, "Starting noise floor reading, "+this.rssiConfig.getNoiseFloorReadingTimeout()+"ms");
+        this.sendNoiseFloorReading(nodeId, this.rssiConfig.getNoiseFloorReadingTimeout());
     }
     
     /**
@@ -318,23 +330,77 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
     
     /**
+     * Gets rssi configuration from config file
+     * @return 
+     */
+    @Override
+    public ExperimentRSSIConfiguration getRSSIExperimentConfig(){
+        ExperimentRSSIConfiguration configRSSI = new ExperimentRSSIConfiguration();
+        
+        // set defaults
+        configRSSI.setNoiseFloorReadingTimeout(1000);
+        configRSSI.setNodeAliveThreshold(4000);
+        configRSSI.setPacketsRequested(100);
+        configRSSI.setPacketDelay(100);
+        
+        // read config file
+        Wini config = App.getRunningInstance().getIni();
+        if (config!=null){
+            // read experiment metadata - to be stored in database
+            if (config.containsKey("rssiMap")==false){
+                return configRSSI;
+            }
+            
+            // get metadata section from ini file
+            Ini.Section metadata = config.get("rssiMap");
+            
+            if (metadata.containsKey("NoiseFloorReadingTimeout")){
+                try {
+                    configRSSI.setNoiseFloorReadingTimeout(Integer.parseInt(metadata.get("NoiseFloorReadingTimeout")));
+                } catch(NumberFormatException e){
+                    log.error("Cannot parse noise floor reading timeout",e);
+                }
+            }
+            
+            if (metadata.containsKey("NodeAliveThreshold")){
+                try {
+                    configRSSI.setNoiseFloorReadingTimeout(Integer.parseInt(metadata.get("NodeAliveThreshold")));
+                } catch(NumberFormatException e){
+                    log.error("Cannot parse NodeAliveThreshold",e);
+                }
+            }
+            
+            if (metadata.containsKey("PacketsRequested")){
+                try {
+                    configRSSI.setNoiseFloorReadingTimeout(Integer.parseInt(metadata.get("PacketsRequested")));
+                } catch(NumberFormatException e){
+                    log.error("Cannot parse PacketsRequested",e);
+                }
+            }
+            
+            if (metadata.containsKey("PacketDelay")){
+                try {
+                    configRSSI.setNoiseFloorReadingTimeout(Integer.parseInt(metadata.get("PacketDelay")));
+                } catch(NumberFormatException e){
+                    log.error("Cannot parse PacketDelay",e);
+                }
+            }
+        }
+        
+        return configRSSI;
+    }
+    
+    /**
      * Main entry method for RSSI map experiment
      */
     public void mainExperimentRSSI(){
         //
         // from configuration
         //
-        
-        // how often to receive noise floor reading?
-        int noiseFloorReadingTimeout=1000;
-        // how many miliseconds can be node unreachable to be considered as unresponsive
-        long nodeAliveThreshold=4000;
-        // packets requested
-        int packetsRequested = 100;
-        // in miliseconds
-        int packetDelay = 100;
+        this.rssiConfig = this.getRSSIExperimentConfig();
+       
         // time needed for nodes to transmit (safety zone 1 second)
-        long timeNeededForNode = packetsRequested*(packetDelay+20) + 1000;
+        long timeNeededForNode = rssiConfig.getPacketsRequested()*(rssiConfig.getPacketDelay()+20) + 1000;
         // init message sizes - should be from config file
         ArrayList<Integer> messageSizes = new ArrayList<Integer>();
         messageSizes.add(0);
@@ -344,8 +410,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         
         // init experiment state
         this.eState = new ExperimentState();
-        this.eState.setPacketDelay(packetDelay);
-        this.eState.setPacketsRequested(packetsRequested);
+        this.eState.setPacketDelay(rssiConfig.getPacketDelay());
+        this.eState.setPacketsRequested(rssiConfig.getPacketsRequested());
         this.eState.setNodeReg(nodeReg);
         this.eState.setMessageSizes(messageSizes);
         this.eState.setTimeNeededForNode(timeNeededForNode);
@@ -389,7 +455,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                     + "curTx=" + curTx + "; msgSize=" + msgSize + "; succCycles: " + succCyclesFromLastReset);            
             // now send message request
             this.sendMultiPingRequest(curNode, curTx, 0,
-                    packetsRequested, packetDelay, msgSize, true, false);
+                    rssiConfig.getPacketsRequested(), rssiConfig.getPacketDelay(), msgSize, true, false);
             // wait in node monitor here - process unreachable nodes
             boolean nodeError = false;
             while(timeWaitedSum <= timeNeededForNode){
@@ -490,10 +556,124 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     
     /**
      * Main entry method for CTP experiment 
-     * NOT IMPLEMENTED YET
+     * Experiment is started from command line!
+     * 
+     * Experiment description:
+     *  each node sends each X seconds +- variability single CTP message to root
+     *  of CTP tree. Every another node snoop on media and write everything received
+     *  to UART. 
+     * 
+     *  Each sent message should be reported by sending node to UART - to be able 
+     *  to detect message send decision (variability)
+     * 
+     * Thus experiment logic is following:
+     *  - select CTP root node
+     *  - instruct node to start CTP send procedure with specified delay and variability
+     *  - on node freeze - reset node
+     *  - on node reset/restart instruct node to start sending, if it was root
+     *  
      */
-    public void mainExperimentCTP(){
-        this.mainExperimentNone();
+    public void mainExperimentCTP(){ 
+        // number of successfully finished cycles from last reset
+        // when moving backwards (node freeze) it helps not to repeat older and older 
+        // experiments
+        succCyclesFromLastReset = 0;
+
+        // main running cycle, experiment can be shutted down setting running=false
+        log.info("Starting main cycle");
+        while (running) {
+            boolean nodeError = false;
+            
+            // if user wants to suspend currently running experiment here, do it
+            // user may change experiment parameters or node software and so on...
+            // (after re-flashing is needed to reset all nodes and reconnect listeners)
+            this.waitSuspended();
+            
+            // avoid cpu hogging
+            try {
+                Thread.sleep(500);
+            } catch(Exception e){
+                log.error("Cannot sleep", e);
+            }
+
+            // trigger node monitor
+            this.nodeMonitor.nodeMonitorCycle();
+
+            // handle only sponaneously restarted nodes
+            Set<Integer> lastNodeRestarted = this.nodeMonitor.getLastNodeRestarted();
+
+            // inspect if node monitor failed => error occurred
+            if (this.nodeMonitor.isLastCycleError() == false && lastNodeRestarted.isEmpty()) {
+                // node monitor OK
+                continue;
+            }
+
+            // experiment revocation log
+            String monitorLastError = "";
+            String monitorLastErrorDescription = "";
+            // log time when approximately occurred timeout
+            long outOufServiceFrom = Long.MAX_VALUE;
+
+            // are there any restarted nodes?
+            if (lastNodeRestarted.isEmpty() == false) {
+                monitorLastErrorDescription = "Some nodes restarted; \n";
+                log.warn("Restarted nodes detected from previous call");
+            }
+            
+            // node unreachability error
+            if (this.nodeMonitor.isLastCycleError()) {
+                // error occurred - reset current sending node not to overflow again
+                // ...
+
+                // if execution here, node monitor found error nodes
+                Set<Integer> unreachableNodes = this.nodeMonitor.getLastNodeUnreachable();
+                monitorLastError = monitorLastError + this.nodeMonitor.getLastError();
+                monitorLastErrorDescription = monitorLastErrorDescription + this.nodeMonitor.getLastErrorDescription();
+                long monitorMinLastSeen = this.nodeMonitor.getLastMinLastSeen();
+
+                // need to make this nodes reachable - make it available
+                Collection<Integer> reallyDeadNodes = this.nodeMonitor.makeNodesReachable(unreachableNodes, 999999, 0);
+                if (reallyDeadNodes.isEmpty() == false) {
+                    log.error("Cannot recover from node unreachability - need to quit experiment!!!");
+                    for (Integer deadNodeId : reallyDeadNodes) {
+                        log.error("Dead nodeId: " + deadNodeId);
+                    }
+                    return;
+                }
+
+                // join together with restarted nodes to reinit together
+                lastNodeRestarted.addAll(unreachableNodes);
+
+                // how long is node out of service?
+                outOufServiceFrom = Math.min(outOufServiceFrom, monitorMinLastSeen - 3500);
+            }
+            
+            // are there some nodes to reinit?
+            if (lastNodeRestarted.isEmpty()==false){
+                this.expCTP.nodeRestarted(lastNodeRestarted);
+                
+                // only logging piece of code
+                StringBuilder sb2 = new StringBuilder();
+                sb2.append("Nodes to restart: lastNodeRestarted[");
+                int tmpi=0;
+                for(Integer nid :  lastNodeRestarted){
+                    tmpi+=1;
+                    if (tmpi>1) sb2.append(", ");
+                    sb2.append(nid);
+                }
+                
+                sb2.append("]");
+                monitorLastErrorDescription = monitorLastErrorDescription + sb2.toString();
+            }
+
+            // nodes recovered, experiment revocation/rollback
+            // if here, need to repeat last X experiments
+            log.info("Storing info about interruption, outOfOrder: " + outOufServiceFrom + "; now: " + System.currentTimeMillis());
+            this.add2experimentLog("WARN", 5, "Nodes unreachable/restarted", monitorLastErrorDescription);
+
+            succCyclesFromLastReset = 0;
+            break;
+        }
     }
     
     /**
@@ -538,14 +718,24 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // stat generator
         this.statGen = (ExperimentStatGen) App.getRunningInstance().getAppContext().getBean("experimentStatGen");
         
-        // node reachability monitor + ring buffer for experiment start times
+        // ring buffer for experiment start times
         this.lastExperimentTimes = new RingBuffer<Long>(15, false);
+        
+        // node reachability monitor
         this.nodeMonitor = new NodeReachabilityMonitor(nodeReg, this);
         this.nodeMonitor.setResetNodesDuringWaitIfUnreachable(true);
         this.nodeMonitor.setResetNodeDelay(4000);
         this.nodeMonitor.setIdSequenceMaxGap(20);
         this.nodeMonitor.setNodeAliveThreshold(6000);
         this.nodeMonitor.setNodeDelayReconnect(5000);
+        
+        // ctp experiment
+        this.expCTP = new ExperimentCtp();
+        this.expCTP.setExpCoord(this);
+        this.expCTP.postConstruct();
+        
+        // rssi config
+        this.rssiConfig = new ExperimentRSSIConfiguration();
         
         // start suspended?
         if (App.getRunningInstance().isStartSuspended()){
@@ -706,6 +896,18 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         edl.setReasonCode(code);
         edl.setReasonName(reason);
         edl.setReasonData(reasonDesc);
+        edl.setSeverity(severity);
+        me.storeData(edl);
+    }
+    
+    public synchronized void add2experimentLog(String severity, int code, String reason, String reasonDesc, String desc){
+        ExperimentDataLog edl = new ExperimentDataLog();
+        edl.setExperiment(this.expInit.getExpMeta());
+        edl.setMiliEventTime(System.currentTimeMillis());
+        edl.setReasonCode(code);
+        edl.setReasonName(reason);
+        edl.setReasonData(reasonDesc);
+        edl.setDescription(desc);
         edl.setSeverity(severity);
         me.storeData(edl);
     }
@@ -1013,24 +1215,28 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     
     /**
      * Send request to CTP reading to node
-     * @param nodeId
-     * @param packets
-     * @param delay
-     * @param dataSource
-     * @param counterStrategySuccess
+     * @param nodeId            
+     * @param packets           number of packets to be send
+     * @param delay             delay between two consecutive packets send
+     * @param variability       percentual +- variability in packet delay, works only if timerStrategyPeriodic==false
+     * @param dataSource        
+     * @param counterStrategySuccess    
      * @param timerStrategyPeriodic 
      */
     @Override
-    public synchronized void sendCTPRequest(int nodeId, int packets, int delay, 
-            short dataSource, boolean counterStrategySuccess, boolean timerStrategyPeriodic){
+    public synchronized void sendCTPRequest(int nodeId, int packets, int delay, double variability, 
+            short dataSource, boolean counterStrategySuccess, boolean timerStrategyPeriodic, boolean unlimitedPackets){
         
         CtpSendRequestMsg msg = new CtpSendRequestMsg();
         msg.set_dataSource(dataSource);
         msg.set_delay(delay);
         msg.set_packets(packets);
-        msg.set_counterStrategySuccess((byte)(counterStrategySuccess ? 1:0));
-        msg.set_timerStrategyPeriodic((byte)(timerStrategyPeriodic ? 1:0));
         
+        int flags = 0;
+        flags |= counterStrategySuccess ? 0x1 : 0x0;
+        flags |= timerStrategyPeriodic ? 0x2 : 0x0;
+        flags |= unlimitedPackets ? 0x4 : 0x0;
+        msg.set_flags(flags);
                 
         // now build database record for this request
         ExperimentCTPRequest mpr = new ExperimentCTPRequest();
@@ -1178,7 +1384,10 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     			"     * 3=ctp\n" + 
     			"     * @param experiment2Start \n" + 
     			"     */\n" + 
-    			"    public void setExperiment2Start(int experiment2Start);");
+    			"    public void setExperiment2Start(int experiment2Start);" +
+    			"\n" +
+    			"    public ExperimentCtp getExpCTP();\n" + 
+    			"    public NodeReachabilityMonitor getNodeMonitor();");
         
     }
     
@@ -1428,5 +1637,15 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     @Override
     public void setExperiment2Start(int experiment2Start) {
         this.experiment2Start = experiment2Start;
-    }    
+    }
+
+    public ExperimentCtp getExpCTP() {
+        return expCTP;
+    }
+
+    public NodeReachabilityMonitor getNodeMonitor() {
+        return nodeMonitor;
+    }
+    
+    
 }

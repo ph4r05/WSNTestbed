@@ -26,6 +26,7 @@ public class NodeConfigRecord {
     private Integer nodeId;
     private String connectionString;
     private int platformId;
+    private boolean physicallyConnected;
 
     public String getBus() {
         return bus;
@@ -105,6 +106,14 @@ public class NodeConfigRecord {
 
     public void setPlatformId(int platformId) {
         this.platformId = platformId;
+    }
+
+    public boolean isPhysicallyConnected() {
+        return physicallyConnected;
+    }
+
+    public void setPhysicallyConnected(boolean physicallyConnected) {
+        this.physicallyConnected = physicallyConnected;
     }
 
     @Override

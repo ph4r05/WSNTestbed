@@ -4,6 +4,8 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
+import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -18,7 +20,7 @@ import javax.persistence.Table;
  */
 @Entity
 @Table(name="experimentDataAliveCheck")
-public class ExperimentDataAliveCheck implements Serializable {
+public class ExperimentDataAliveCheck implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -107,5 +109,36 @@ public class ExperimentDataAliveCheck implements Serializable {
 
     public void setAliveFails(int aliveFails) {
         this.aliveFails = aliveFails;
-    }    
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("experiment");
+        csvOutput.write("militime");
+        csvOutput.write("node");
+        
+        csvOutput.write("counter");
+        csvOutput.write("radioQueueFree");
+        csvOutput.write("serialQueueFree");
+        csvOutput.write("serialFails");
+        csvOutput.write("aliveFails");
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write(String.valueOf(this.experiment));
+        csvOutput.write(String.valueOf(this.miliFromStart));
+        csvOutput.write(String.valueOf(this.node));
+        
+        csvOutput.write(String.valueOf(this.counter));
+        csvOutput.write(String.valueOf(this.radioQueueFree));
+        csvOutput.write(String.valueOf(this.serialQueueFree));
+        csvOutput.write(String.valueOf(this.serialFails));
+        csvOutput.write(String.valueOf(this.aliveFails));
+    }
+
+    @Override
+    public String getCSVname() {
+        return "dataAlive";
+    }
 }

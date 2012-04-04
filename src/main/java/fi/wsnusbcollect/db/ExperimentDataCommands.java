@@ -4,7 +4,9 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
 import fi.wsnusbcollect.messages.CommandMsg;
+import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -19,7 +21,7 @@ import javax.persistence.Table;
  */
 @Entity
 @Table(name="experimentDataCommands")
-public class ExperimentDataCommands implements Serializable {
+public class ExperimentDataCommands implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -234,6 +236,51 @@ public class ExperimentDataCommands implements Serializable {
     @Override
     public String toString() {
         return "ExperimentDataCommands{" + "id=" + id + ", experiment=" + experiment + ", militime=" + militime + ", node=" + node + ", nodeBS=" + nodeBS + ", sent=" + sent + ", command_code=" + command_code + ", command_version=" + command_version + ", command_id=" + command_id + ", reply_on_command=" + reply_on_command + ", reply_on_command_id=" + reply_on_command_id + ", command_data=" + command_data + ", command_data_next1=" + command_data_next1 + ", command_data_next2=" + command_data_next2 + ", command_data_next3=" + command_data_next3 + ", command_data_next4=" + command_data_next4 + '}';
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("experiment");
+        csvOutput.write("militime");
+        csvOutput.write("node");
+        csvOutput.write("nodeBS");
+        
+        csvOutput.write("sent");
+        csvOutput.write("command_code");
+        csvOutput.write("command_version");
+        csvOutput.write("command_id");
+        csvOutput.write("reply_on_command");
+        csvOutput.write("reply_on_command_id");
+        csvOutput.write("command_data");
+        csvOutput.write("command_data_next1");
+        csvOutput.write("command_data_next2");
+        csvOutput.write("command_data_next3");
+        csvOutput.write("command_data_next4");
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write(String.valueOf(this.experiment));
+        csvOutput.write(String.valueOf(this.militime));
+        csvOutput.write(String.valueOf(this.node));
+        csvOutput.write(String.valueOf(this.nodeBS));
+        
+        csvOutput.write(String.valueOf(this.sent));
+        csvOutput.write(String.valueOf(this.command_code));
+        csvOutput.write(String.valueOf(this.command_version));
+        csvOutput.write(String.valueOf(this.command_id));
+        csvOutput.write(String.valueOf(this.reply_on_command));
+        csvOutput.write(String.valueOf(this.reply_on_command_id));
+        csvOutput.write(String.valueOf(this.command_data));
+        csvOutput.write(String.valueOf(this.command_data_next1));
+        csvOutput.write(String.valueOf(this.command_data_next2));
+        csvOutput.write(String.valueOf(this.command_data_next3));
+        csvOutput.write(String.valueOf(this.command_data_next4));
+    }
+
+    @Override
+    public String getCSVname() {
+        return "commands";
     }
     
     

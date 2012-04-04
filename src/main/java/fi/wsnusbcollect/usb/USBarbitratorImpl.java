@@ -51,24 +51,31 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 @Transactional
 public class USBarbitratorImpl implements USBarbitrator {
-    private static final Logger log = LoggerFactory.getLogger(USBarbitratorImpl.class);
-    private static final String UDEV_RULES_LINE_PATTERN = "^ATTRS\\{serial\\}\\s*==\\s*\\\"([0-9a-zA-Z_]+)\\\",\\s*NAME\\s*=\\s*\\\"([0-9a-zA-Z_]+)\\\".*";
-    private static final String NODE_ID_PATTERN = ".*?([0-9]+)$";
-    private static final String MAKE="/usr/bin/make";
+    protected static final Logger log = LoggerFactory.getLogger(USBarbitratorImpl.class);
+    protected static final String UDEV_RULES_LINE_PATTERN = "^ATTRS\\{serial\\}\\s*==\\s*\\\"([0-9a-zA-Z_]+)\\\",\\s*NAME\\s*=\\s*\\\"([0-9a-zA-Z_]+)\\\".*";
+    protected static final String NODE_ID_PATTERN = ".*?([0-9]+)$";
+    protected static final String NODEID_INTERVAL_PATTERN = "^#([0-9]+)-([0-9]+)$";
+    protected static final String MAKE="/usr/bin/make";
     
     @PersistenceContext
-    private EntityManager em;
+    protected EntityManager em;
     
     @Autowired
-    private JdbcTemplate template;
+    protected JdbcTemplate template;
     
     // serial->motelist record association
     // here is hidden multikey map for easy node searching by serial, nodeid, devpath
-    private NodeSearchMap moteList = null;
+    protected NodeSearchMap moteList = null;
     
     // current USB configuration for this run
-    private USBconfiguration curUSBconfig;
+    protected USBconfiguration curUSBconfig;
 
+    /**
+     * Whether we want to check node list from config string to really connected
+     * nodes
+     */
+    protected boolean checkConfigNodesToConnected=true;
+    
     /**
      * Returns current USB configuration
      * If no configuration exists, new one is created from currently connected nodes.
@@ -592,7 +599,7 @@ public class USBarbitratorImpl implements USBarbitrator {
      * 
      * @return Mapping USB serial -> node file
      */
-    private Map<String, NodeConfigRecordLocal> loadUdevRules() throws FileNotFoundException, IOException{
+    protected Map<String, NodeConfigRecordLocal> loadUdevRules() throws FileNotFoundException, IOException{
         String udevRulesFilePath = App.getRunningInstance().getProps().getProperty("moteUdevRules");
         if (udevRulesFilePath==null || udevRulesFilePath.isEmpty()){
             log.warn("udev rules file path is empty, cannot detect alias nodes");
@@ -746,6 +753,8 @@ public class USBarbitratorImpl implements USBarbitrator {
      * Parses node selector string and returns corresponding records for 
      * currently connected nodes.
      * 
+     * Interval available for node id
+     * 
      * @param selector
      * @return 
      */
@@ -755,6 +764,8 @@ public class USBarbitratorImpl implements USBarbitrator {
         if (selector==null){
             throw new NullPointerException("Node selector cannot be null");
         }
+        
+        Pattern nodeIdIntervalPattern = Pattern.compile(NODEID_INTERVAL_PATTERN, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
         
         // trim first
         selector = selector.trim();
@@ -790,14 +801,61 @@ public class USBarbitratorImpl implements USBarbitrator {
             if (id.startsWith("/")){
                 // device string
                 // find by device string - here use advantages o NodeSearchMap
-                if (this.moteList.containsKeyDevPath(id)){
+                NodeConfigRecord ncr = this.getNodeByPath(id);
+                if (ncr!=null){
                     // contains
-                    nodes2return.add(this.moteList.getByDevPath(id));
+                    nodes2return.add(ncr);
                 } else {
                     log.warn("Device path: " + id + " cannot be found among connected nodes");
                     continue;
                 }
             } else if (id.startsWith("#")){
+                // is interval #low-high ?
+                // matches pattern?
+                Matcher m = nodeIdIntervalPattern.matcher(id);
+            
+                if (m.matches()){
+                    // matched, extract data
+                    String group = m.group();           
+                    if (group==null 
+                            || group.isEmpty() 
+                            || m.group(1)==null 
+                            || m.group(2)==null){
+                        // mallformed, error
+                        log.warn("Cannot parse this line of nodeId interval record: " + id);
+                        continue;
+                    }
+                    
+                    // get limits, assure min/max
+                    Integer nodeIdIntervalLow = null;
+                    Integer nodeIdIntervalHigh = null;
+                    try {
+                        nodeIdIntervalLow = Integer.parseInt(m.group(1));
+                        nodeIdIntervalHigh = Integer.parseInt(m.group(2));
+                        
+                        int low = Math.min(nodeIdIntervalLow, nodeIdIntervalHigh);
+                        int high = Math.max(nodeIdIntervalLow, nodeIdIntervalHigh);
+                        nodeIdIntervalLow = low;
+                        nodeIdIntervalHigh = high;
+                        
+                    } catch(NumberFormatException e){
+                        log.error("Cannot convert nodeId interval string: [" + m.group() + "]", e);
+                        continue;
+                    }
+                    
+                    // iterate over interval
+                    for(int cNode = nodeIdIntervalLow; cNode <= nodeIdIntervalHigh; cNode++){
+                        // find by id - here use advantages of NodeSearchMap
+                        NodeConfigRecord ncr = this.getNodeById(cNode);
+                        if (ncr!=null){
+                            // contains
+                            nodes2return.add(ncr);
+                        } else {
+                            log.warn("NodeId: " + cNode + " cannot be found among connected nodes");
+                        }
+                    }
+                }
+                
                 // node id
                 // need to parse string to integer
                 String newId = id.substring(1);
@@ -809,16 +867,24 @@ public class USBarbitratorImpl implements USBarbitrator {
                     continue;
                 }
                 
-                // find by id - here use advantages o NodeSearchMap
-                if (this.moteList.containsKeyNodeId(nodeId)){
+                // find by id - here use advantages of NodeSearchMap
+                NodeConfigRecord ncr = this.getNodeById(nodeId);
+                if (ncr!=null){
                     // contains
-                    nodes2return.add(this.moteList.getByNodeId(nodeId));
+                    nodes2return.add(ncr);
                 } else {
                     log.warn("NodeId: " + nodeId + " cannot be found among connected nodes");
                 }
             } else if (id.equals("ALL")){
                 // ALL nodes, add every node
                 if (this.moteList==null || this.moteList.isEmpty()){
+                    continue;
+                }
+                
+                // ALL option is meaningless unless we know detect connected nodes
+                // otherwise we don't know what does mean ALL...
+                if (this.ableToDetectConnectedNodes()==false){
+                    log.warn("Cannot add ALL nodes - cannot detect connected nodes");
                     continue;
                 }
                 
@@ -829,8 +895,9 @@ public class USBarbitratorImpl implements USBarbitrator {
                 }
             } else {
                 // node serial, quick mapping
-                if (this.moteList.containsKey(id)){
-                    nodes2return.add(this.moteList.get(id));
+                NodeConfigRecord ncr = this.getNodeBySerial(id);
+                if (ncr!=null){
+                    nodes2return.add(ncr);
                 } else {
                     // node does not exists
                     log.warn("Node with serial: [" + id + "] was not found in list, "
@@ -840,6 +907,29 @@ public class USBarbitratorImpl implements USBarbitrator {
         }
         
         return nodes2return;
+    }
+
+    @Override
+    public NodeConfigRecord getNodeById(Integer id) {
+        if (this.moteList==null || this.moteList.containsKeyNodeId(id)==false) return null;
+        return this.moteList.getByNodeId(id);
+    }
+
+    @Override
+    public NodeConfigRecord getNodeByPath(String path) {
+        if (this.moteList==null || this.moteList.containsKeyDevPath(path) ==false) return null;
+        return this.moteList.getByDevPath(path);
+    }
+
+    @Override
+    public NodeConfigRecord getNodeBySerial(String serial) {
+        if (this.moteList==null || this.moteList.containsKey(serial)) return null;
+        return this.moteList.getBySerial(serial);
+    }
+    
+    @Override
+    public boolean ableToDetectConnectedNodes() {
+        return true;
     }
     
     /**
@@ -968,6 +1058,11 @@ public class USBarbitratorImpl implements USBarbitrator {
         } else {
             System.out.println("All nodes flashed successfully!");
         }
+    }
+
+    @Override
+    public void postConstruct() {
+        
     }
     
     /**
@@ -1111,11 +1206,20 @@ public class USBarbitratorImpl implements USBarbitrator {
     public void setTemplate(JdbcTemplate template) {
         this.template = template;
     }
+
+    @Override
+    public boolean isCheckConfigNodesToConnected() {
+        return checkConfigNodesToConnected;
+    }
+
+    public void setCheckConfigNodesToConnected(boolean checkConfigNodesToConnected) {
+        this.checkConfigNodesToConnected = checkConfigNodesToConnected;
+    }
     
     /**
      * Private helper class - holds info from parsing udev file
      */
-    private class NodeConfigRecordLocal{
+    protected class NodeConfigRecordLocal{
         private String device;
         private Integer nodeid;
 

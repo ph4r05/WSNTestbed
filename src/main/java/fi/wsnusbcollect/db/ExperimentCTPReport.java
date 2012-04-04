@@ -4,7 +4,9 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
 import fi.wsnusbcollect.messages.CtpReportDataMsg;
+import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -17,7 +19,7 @@ import javax.persistence.ManyToOne;
  * @author ph4r05
  */
 @Entity
-public class ExperimentCTPReport implements Serializable {
+public class ExperimentCTPReport implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -51,14 +53,16 @@ public class ExperimentCTPReport implements Serializable {
     private int rssi;
     private boolean spoofed;
     private boolean regularCTP;
+    private boolean sent;
 
     /**
      * Loads entity from command message
      */
     public void loadFromMessage(CtpReportDataMsg msg){
         this.amSource = msg.get_amSource();
-        this.spoofed = (msg.get_flags() & 1) > 0;
-        this.regularCTP = (msg.get_flags() & 2) > 0;
+        this.spoofed = (msg.get_flags() & 0x1) > 0;
+        this.regularCTP = (msg.get_flags() & 0x2) > 0;
+        this.sent = (msg.get_flags() & 0x4) > 0;
         this.rssi = msg.get_rssi();
         
         this.data_data = msg.get_response_data();
@@ -271,6 +275,10 @@ public class ExperimentCTPReport implements Serializable {
         this.spoofed = spoofed;
     }
 
+    public void setSent(boolean sent) {
+        this.sent = sent;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj == null) {
@@ -296,5 +304,76 @@ public class ExperimentCTPReport implements Serializable {
     @Override
     public String toString() {
         return "ExperimentCTPReport{" + "id=" + id + ", experiment=" + experiment + ", militime=" + militime + ", node=" + node + ", nodeBS=" + nodeBS + ", data_origin=" + data_origin + ", data_seqno=" + data_seqno + ", data_parent=" + data_parent + ", data_metric=" + data_metric + ", data_dataType=" + data_dataType + ", data_data=" + data_data + ", data_hopcount=" + data_hopcount + ", data_sendCount=" + data_sendCount + ", data_sendSuccessCount=" + data_sendSuccessCount + ", header_options=" + header_options + ", header_thl=" + header_thl + ", header_etx=" + header_etx + ", header_origin=" + header_origin + ", header_originSeqNo=" + header_originSeqNo + ", header_type=" + header_type + ", amSource=" + amSource + ", rssi=" + rssi + ", spoofed=" + spoofed + ", regularCTP=" + regularCTP + '}';
-    }   
+    }
+
+    @Override
+    public String getCSVname() {
+        return "ctpReport";
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write(String.valueOf(this.experiment.getId()));
+        csvOutput.write(String.valueOf(this.militime));
+        csvOutput.write(String.valueOf(this.node));
+        csvOutput.write(String.valueOf(this.nodeBS));
+        
+        csvOutput.write(String.valueOf(this.data_origin));
+        csvOutput.write(String.valueOf(this.data_seqno));
+        csvOutput.write(String.valueOf(this.data_parent));
+        csvOutput.write(String.valueOf(this.data_metric));
+        csvOutput.write(String.valueOf(this.data_dataType));
+        csvOutput.write(String.valueOf(this.data_data));
+        csvOutput.write(String.valueOf(this.data_hopcount));
+        csvOutput.write(String.valueOf(this.data_sendCount));
+        csvOutput.write(String.valueOf(this.data_sendSuccessCount));
+
+        csvOutput.write(String.valueOf(this.header_options));
+        csvOutput.write(String.valueOf(this.header_thl));
+        csvOutput.write(String.valueOf(this.header_etx));
+        csvOutput.write(String.valueOf(this.header_origin));
+        csvOutput.write(String.valueOf(this.header_originSeqNo));
+        csvOutput.write(String.valueOf(this.header_type));
+
+        // source of message
+        csvOutput.write(String.valueOf(this.amSource));
+        // rssi of received packet
+        csvOutput.write(String.valueOf(this.rssi));
+        csvOutput.write(String.valueOf(this.spoofed));
+        csvOutput.write(String.valueOf(this.regularCTP));
+        csvOutput.write(String.valueOf(this.sent));
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("experiment");
+        csvOutput.write("militime");
+        csvOutput.write("node");
+        csvOutput.write("nodeBS");
+        
+        csvOutput.write("data_origin");
+        csvOutput.write("data_seqno");
+        csvOutput.write("data_parent");
+        csvOutput.write("data_metric");
+        csvOutput.write("data_dataType");
+        csvOutput.write("data_data");
+        csvOutput.write("data_hopcount");
+        csvOutput.write("data_sendCount");
+        csvOutput.write("data_sendSuccessCount");
+
+        csvOutput.write("header_options");
+        csvOutput.write("header_thl");
+        csvOutput.write("header_etx");
+        csvOutput.write("header_origin");
+        csvOutput.write("header_originSeqNo");
+        csvOutput.write("header_type");
+
+        // source of message
+        csvOutput.write("amSource");
+        // rssi of received packet
+        csvOutput.write("rssi");
+        csvOutput.write("spoofed");
+        csvOutput.write("regularCTP");
+        csvOutput.write("sent");
+    }
 }

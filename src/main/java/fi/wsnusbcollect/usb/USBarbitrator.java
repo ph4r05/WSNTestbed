@@ -6,6 +6,7 @@ package fi.wsnusbcollect.usb;
 
 import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.db.USBdevice;
+import fi.wsnusbcollect.main.PostConstructable;
 import fi.wsnusbcollect.nodes.NodeHandler;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *
  * @author ph4r05
  */
-public interface USBarbitrator {
+public interface USBarbitrator extends PostConstructable{
 
     /**
      * Checks whether current config corresponds to database.
@@ -182,5 +183,22 @@ public interface USBarbitrator {
      * @return 
      */
     //public boolean resetNode(String resetCommand);
+    
+    /**
+     * Returns true if USBarbitrator is able to detect connected nodes directly
+     * Is used by config reader to work only with connected nodes
+     * @return 
+     */
+    public boolean ableToDetectConnectedNodes();
+    
+    /**
+     * Whether to check configured node list with really connected ones (not connected are skipped)
+     * @return 
+     */
+    public boolean isCheckConfigNodesToConnected();
+    
+    public NodeConfigRecord getNodeById(Integer id);
+    public NodeConfigRecord getNodeBySerial(String serial);
+    public NodeConfigRecord getNodeByPath(String path);
     
 }

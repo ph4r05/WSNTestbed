@@ -4,6 +4,8 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
+import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -19,7 +21,7 @@ import javax.persistence.Table;
  */
 @Entity
 @Table(name="experimentDataGenericMessage")
-public class ExperimentDataGenericMessage implements Serializable {
+public class ExperimentDataGenericMessage implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -42,7 +44,7 @@ public class ExperimentDataGenericMessage implements Serializable {
     
     @Lob
     private String stringDump;
-    
+
 
     public ExperimentMetadata getExperiment() {
         return experiment;
@@ -119,5 +121,36 @@ public class ExperimentDataGenericMessage implements Serializable {
     @Override
     public String toString() {
         return "ExperimentDataGenericMessage{" + "id=" + id + ", experiment=" + experiment + ", militime=" + militime + ", node=" + node + ", nodeBS=" + nodeBS + ", sent=" + sent + ", len=" + len + ", amtype=" + amtype + ", stringDump=" + stringDump + '}';
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("experiment");
+        csvOutput.write("militime");
+        csvOutput.write("node");
+        csvOutput.write("nodeBS");
+        
+        csvOutput.write("sent");
+        csvOutput.write("len");
+        csvOutput.write("amtype");
+        csvOutput.write("stringDump");
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write(String.valueOf(this.experiment));
+        csvOutput.write(String.valueOf(this.militime));
+        csvOutput.write(String.valueOf(this.node));
+        csvOutput.write(String.valueOf(this.nodeBS));
+        
+        csvOutput.write(String.valueOf(this.sent));
+        csvOutput.write(String.valueOf(this.len));
+        csvOutput.write(String.valueOf(this.amtype));
+        csvOutput.write(this.stringDump);
+    }
+
+    @Override
+    public String getCSVname() {
+        return "genericMsg";
     }
 }
