@@ -32,7 +32,7 @@ public class ExperimentCtp implements PostConstructable {
     /**
      * txpower for every node in experiment - CTP node scaling
      */
-    private int txpower;
+    private int txpower=3;
     
     /**
      * TX power for individual nodes
@@ -191,22 +191,22 @@ public class ExperimentCtp implements PostConstructable {
      */
     public synchronized void ctpSetRoot(Collection<Integer> nodes){
         // 1. restart nodes before experiment - clean all settings to default
-        try {
-            this.expCoord.restartNodesBeforeExperiment();
-        } catch (TimeoutException ex) {
-            log.error("Cannot continue with experiment, nodes timeouted. Cannot start some nodes", ex);
-            return;
-        }
+        log.info("Restarting nodes before experiment");
+        this.expCoord.resetAllNodes();
         
         // has meaning only if root node is nonempty list
         if (nodes!=null && nodes.isEmpty()==false){
+            log.info("Updating CTP roots");
             // 2. 
+            this.ctpRoots.clear();
             this.ctpRoots.addAll(nodes);
             
             // 3. 
+            log.info("Restarting CTP roots");
             this.ctpRootRestarted(nodes);
         } else {
             // no root
+            log.info("Just restart txpower for network");
             this.nodeRestartedTXpower();
         }
     }

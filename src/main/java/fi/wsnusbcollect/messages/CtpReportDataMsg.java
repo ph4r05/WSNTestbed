@@ -1285,7 +1285,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
 
     /////////////////////////////////////////////////////////
     // Accessor methods for field: rssi
-    //   Field type: int, unsigned
+    //   Field type: short, unsigned
     //   Offset (bits): 208
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
@@ -1294,7 +1294,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return whether the field 'rssi' is signed (false).
      */
     public static boolean isSigned_rssi() {
-        return false;
+        return true;
     }
 
     /**
@@ -1319,17 +1319,17 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     }
 
     /**
-     * Return the value (as a int) of the field 'rssi'
+     * Return the value (as a short) of the field 'rssi'
      */
-    public int get_rssi() {
-        return (int)getUIntBEElement(offsetBits_rssi(), 16);
+    public short get_rssi() {
+        return (short)getSIntBEElement(offsetBits_rssi(), 16);
     }
 
     /**
      * Set the value of the field 'rssi'
      */
-    public void set_rssi(int value) {
-        setUIntBEElement(offsetBits_rssi(), 16, value);
+    public void set_rssi(short value) {
+        setSIntBEElement(offsetBits_rssi(), 16, value);
     }
 
     /**

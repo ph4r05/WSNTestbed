@@ -672,7 +672,6 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             this.add2experimentLog("WARN", 5, "Nodes unreachable/restarted", monitorLastErrorDescription);
 
             succCyclesFromLastReset = 0;
-            break;
         }
     }
     

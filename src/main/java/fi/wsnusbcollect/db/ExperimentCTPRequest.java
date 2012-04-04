@@ -38,6 +38,9 @@ public class ExperimentCTPRequest implements Serializable, DataCSVWritable {
 
     // timer delay between message send in ms
     private int delay;
+    
+    // delay variability
+    private double variability;
 
     // desired packet size in bytes
     private int packet_size;
@@ -68,6 +71,7 @@ public class ExperimentCTPRequest implements Serializable, DataCSVWritable {
         this.counterStrategySuccess = (msg.get_flags() & 0x1) > 0;
         this.dataSource = msg.get_dataSource();
         this.delay = msg.get_delay();
+        this.variability = msg.get_delayVariability();
         this.packet_size = msg.get_size();
         this.timerStrategyPeriodic = (msg.get_flags() & 0x2) > 0;
         this.packetsUnlimited = (msg.get_flags() & 0x4) > 0;
@@ -176,6 +180,14 @@ public class ExperimentCTPRequest implements Serializable, DataCSVWritable {
     public void setPacketsUnlimited(boolean packetsUnlimited) {
         this.packetsUnlimited = packetsUnlimited;
     }
+
+    public double getVariability() {
+        return variability;
+    }
+
+    public void setVariability(double variability) {
+        this.variability = variability;
+    }
     
     @Override
     public String toString() {
@@ -219,6 +231,7 @@ public class ExperimentCTPRequest implements Serializable, DataCSVWritable {
         csvOutput.write(String.valueOf(this.counter));
         csvOutput.write(String.valueOf(this.packets));
         csvOutput.write(String.valueOf(this.delay));
+        csvOutput.write(String.valueOf(this.variability));
         csvOutput.write(String.valueOf(this.packet_size));
         csvOutput.write(String.valueOf(this.dataSource));
         csvOutput.write(String.valueOf(this.counterStrategySuccess));
@@ -235,6 +248,7 @@ public class ExperimentCTPRequest implements Serializable, DataCSVWritable {
         csvOutput.write("counter");
         csvOutput.write("packets");
         csvOutput.write("delay");
+        csvOutput.write("variability");
         csvOutput.write("packet_size");
         csvOutput.write("dataSource");
         csvOutput.write("counterStrategySuccess");
