@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeoutException;
 import javax.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +52,11 @@ public class ExperimentCtp implements PostConstructable {
      * Start CTP sending?
      */
     private boolean ctpSend=true;
+    
+    /**
+     * If true then node monitor ignores any node restarts - assume normal
+     */
+    private boolean ignoreNodeRestart = false;
     
     private ExperimentCoordinator expCoord;
     
@@ -170,6 +174,20 @@ public class ExperimentCtp implements PostConstructable {
         
         log.info("CTP TX reset");
         this.nodeRestartedTXpower();
+        
+        log.info("Re-enalbe CTP roots: " + nodes);
+        for(Integer nodeId : nodes){
+            this.expCoord.sendSetCTPRoot(nodeId, true);
+        }
+        this.pause(1000);
+        this.expCoord.sendCTPRouteUpdate(-1, 2);
+        this.pause(1000);
+        this.expCoord.sendCTPRouteUpdate(-1, 2);
+        this.pause(1000);
+        
+        log.info("Sending CTP route recompute command");
+        this.expCoord.sendCTPRouteUpdate(-1, 3);
+        this.pause(1000);
     }
     
     /**
@@ -190,6 +208,8 @@ public class ExperimentCtp implements PostConstructable {
      *  3. restart network with new roots
      */
     public synchronized void ctpSetRoot(Collection<Integer> nodes){
+        this.ignoreNodeRestart=true;
+        
         // 1. restart nodes before experiment - clean all settings to default
         log.info("Restarting nodes before experiment");
         this.expCoord.resetAllNodes();
@@ -209,6 +229,8 @@ public class ExperimentCtp implements PostConstructable {
             log.info("Just restart txpower for network");
             this.nodeRestartedTXpower();
         }
+        
+        this.ignoreNodeRestart=false;
     }
     
     /**
@@ -282,5 +304,13 @@ public class ExperimentCtp implements PostConstructable {
     @Override
     public String toString() {
         return "ExperimentCtp{" + "ctpRoots=" + ctpRoots + ", txpower=" + txpower + ", txpowerIndividuals=" + txpowerIndividuals + ", delay=" + delay + ", variability=" + variability + ", ctpSend=" + ctpSend + ", expCoord=" + expCoord + '}';
+    }
+
+    public boolean isIgnoreNodeRestart() {
+        return ignoreNodeRestart;
+    }
+
+    public void setIgnoreNodeRestart(boolean ignoreNodeRestart) {
+        this.ignoreNodeRestart = ignoreNodeRestart;
     }
 }

@@ -607,6 +607,11 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                 // node monitor OK
                 continue;
             }
+            
+            // ignoring node restart - probably intended by module
+            if (this.expCTP.isIgnoreNodeRestart()){
+                continue;
+            }
 
             // experiment revocation log
             String monitorLastError = "";

@@ -1294,7 +1294,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return whether the field 'rssi' is signed (false).
      */
     public static boolean isSigned_rssi() {
-        return true;
+        return false;
     }
 
     /**

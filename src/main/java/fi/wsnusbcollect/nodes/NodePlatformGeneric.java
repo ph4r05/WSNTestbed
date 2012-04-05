@@ -88,7 +88,6 @@ public class NodePlatformGeneric implements NodePlatform {
      */
     @Override
     public String getConnectionString(String device, int connection) {
-        log.warn("Determining connection string for generic node - please inspect, device: " + device);
         String result="";
         switch(connection){
             default:
