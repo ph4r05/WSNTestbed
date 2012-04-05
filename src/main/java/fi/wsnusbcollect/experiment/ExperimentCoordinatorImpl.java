@@ -428,6 +428,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // experiments
         succCyclesFromLastReset=0;
         
+        // experiment counter to determine replied packets relation to requests
+        int experimentCounter = 0;
+        
         // main running cycle, experiment can be shutted down setting running=false
         log.info("Starting main collecting cycle, one sending block: " + timeNeededForNode + " ms");
         while(running){
@@ -435,6 +438,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             // user may change experiment parameters or node software and so on...
             // (after re-flashing is needed to reset all nodes and reconnect listeners)
             this.waitSuspended();
+            experimentCounter+=1;
+            if (experimentCounter >= Integer.MAX_VALUE) experimentCounter=1;
             
             //
             // Experiment state
@@ -454,7 +459,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             log.info("Sending new ping request for node " + curNode + "; "
                     + "curTx=" + curTx + "; msgSize=" + msgSize + "; succCycles: " + succCyclesFromLastReset);            
             // now send message request
-            this.sendMultiPingRequest(curNode, curTx, 0,
+            this.sendMultiPingRequest(curNode, curTx, experimentCounter,
                     rssiConfig.getPacketsRequested(), rssiConfig.getPacketDelay(), msgSize, true, false);
             // wait in node monitor here - process unreachable nodes
             boolean nodeError = false;
@@ -546,7 +551,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             
             // no error happened => continue
             if (nodeError==false){
-                this.sendMultiPingRequest(curNode, curTx, 0,
+                this.sendMultiPingRequest(curNode, curTx, experimentCounter,
                         1, 0, 0, true, true);
                 this.pause(1000);
                 succCyclesFromLastReset++;
@@ -1050,13 +1055,13 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     @Transactional
     @Override
     public synchronized void sendMultiPingRequest(int nodeId, int txpower,
-            int channel, int packets, int delay, int size, 
+            int counter, int packets, int delay, int size, 
             boolean counterStrategySuccess, boolean timerStrategyPeriodic){
 
 	MultiPingMsg msg = new MultiPingMsg();
         msg.set_destination(MessageTypes.AM_BROADCAST_ADDR);
-        msg.set_channel((short)channel);
-        msg.set_counter(0);
+        msg.set_channel((short)0);
+        msg.set_counter(counter);
         msg.set_counterStrategySuccess((byte) (counterStrategySuccess ? 1:0));
         msg.set_delay(delay);
         msg.set_packets(packets);
