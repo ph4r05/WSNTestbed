@@ -62,4 +62,6 @@ public interface Console {
 
     void setUsbArbitrator(USBarbitrator usbArbitrator);
     
+    public void setShellAlias(String aliasName, Object obj);
+    
 }

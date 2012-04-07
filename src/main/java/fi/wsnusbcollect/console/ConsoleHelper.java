@@ -60,4 +60,6 @@ public interface ConsoleHelper {
 
     void setTemplate(JdbcTemplate template);
     
+    //void addAlias(String varName, Object obj);
+    void executeCommand(String command);
 }

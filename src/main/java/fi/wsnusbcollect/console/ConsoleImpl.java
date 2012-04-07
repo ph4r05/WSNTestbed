@@ -97,6 +97,15 @@ public class ConsoleImpl implements Console {
     }
     
     /**
+     * 
+     * @param aliasName
+     * @param obj 
+     */
+    public void setShellAlias(String aliasName, Object obj){
+        setShellParamObject(aliasName, Py.java2py(obj));
+    }
+    
+    /**
      * Method starts new initialized Jython shell for user
      */
     @Override
