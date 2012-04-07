@@ -17,6 +17,8 @@
     <class>fi.wsnusbcollect.db.ExperimentDataRevokedCycles</class>
     <class>fi.wsnusbcollect.db.ExperimentCTPReport</class>
     <class>fi.wsnusbcollect.db.ExperimentCTPRequest</class>
+    <class>fi.wsnusbcollect.db.ExperimentCTPInfoStatus</class>
+    <class>fi.wsnusbcollect.db.ExperimentCTPDebug</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="hibernate.cache.provider_class" value="org.hibernate.cache.NoCacheProvider"/>
