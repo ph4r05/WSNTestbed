@@ -68,7 +68,7 @@ public class ExperimentCTPDebug implements Serializable {
         // GENERATED FROM c header file with regex:
         // SEARCH: ([a-zA-Z0-9_]+)\s*=\s*(0x[0-9a-fA-F]+),[ ]*(//([^\n]+))?
         // REPLACE: case $2: this.anot = "$1 $3"; break;
-        switch(this.arg){
+        switch(this.type){
             case 0xDE:
                 this.anot = "NET_C_DEBUG_STARTED ";
                 break;
