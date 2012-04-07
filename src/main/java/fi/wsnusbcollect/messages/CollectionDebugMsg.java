@@ -96,13 +96,13 @@ public class CollectionDebugMsg extends net.tinyos.message.Message {
         s += "  [data.msg.msg_uid=0x"+Long.toHexString(get_data_msg_msg_uid())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.msg.origin=0x"+Long.toHexString(get_data_msg_origin())+"]\n";
+        s += "  [data.msg.origin="+(get_data_msg_origin())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.msg.other_node=0x"+Long.toHexString(get_data_msg_other_node())+"]\n";
+        s += "  [data.msg.other_node="+(get_data_msg_other_node())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.route_info.parent=0x"+Long.toHexString(get_data_route_info_parent())+"]\n";
+        s += "  [data.route_info.parent="+(get_data_route_info_parent())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [data.route_info.hopcount=0x"+Long.toHexString(get_data_route_info_hopcount())+"]\n";
