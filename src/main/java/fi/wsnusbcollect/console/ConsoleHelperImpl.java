@@ -185,18 +185,4 @@ public class ConsoleHelperImpl implements ConsoleHelper {
     public void setAppInstance(App appInstance) {
         this.appInstance = appInstance;
     }
-
-    @Override
-    public void executeCommand(String command) {
-        if (interp==null){
-            throw new NullPointerException("Passed empty jython console instance");
-        }
-        
-        if (command==null){
-            throw new NullPointerException("Null command cannot be executed");
-        }
-        
-        // enable autocomplete by default:)
-        interp.exec(command);
-    }
 }

@@ -59,7 +59,4 @@ public interface ConsoleHelper {
     void setEm(EntityManager em);
 
     void setTemplate(JdbcTemplate template);
-    
-    //void addAlias(String varName, Object obj);
-    void executeCommand(String command);
 }

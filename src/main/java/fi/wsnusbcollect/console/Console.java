@@ -64,4 +64,5 @@ public interface Console {
     
     public void setShellAlias(String aliasName, Object obj);
     
+    void executeCommand(String command);
 }

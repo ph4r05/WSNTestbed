@@ -101,8 +101,23 @@ public class ConsoleImpl implements Console {
      * @param aliasName
      * @param obj 
      */
+    @Override
     public void setShellAlias(String aliasName, Object obj){
         setShellParamObject(aliasName, Py.java2py(obj));
+    }
+    
+    @Override
+    public void executeCommand(String command) {
+        if (interp==null){
+            throw new NullPointerException("Passed empty jython console instance");
+        }
+        
+        if (command==null){
+            throw new NullPointerException("Null command cannot be executed");
+        }
+        
+        // enable autocomplete by default:)
+        interp.exec(command);
     }
     
     /**
