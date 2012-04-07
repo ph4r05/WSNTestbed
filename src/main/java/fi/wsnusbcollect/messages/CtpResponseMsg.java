@@ -87,13 +87,13 @@ public class CtpResponseMsg extends net.tinyos.message.Message {
     public String toString() {
       String s = "Message <CtpResponseMsg> \n";
       try {
-        s += "  [origin=0x"+Long.toHexString(get_origin())+"]\n";
+        s += "  [origin="+(get_origin())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [seqno=0x"+Long.toHexString(get_seqno())+"]\n";
+        s += "  [seqno="+(get_seqno())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [parent=0x"+Long.toHexString(get_parent())+"]\n";
+        s += "  [parent="+(get_parent())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [metric=0x"+Long.toHexString(get_metric())+"]\n";

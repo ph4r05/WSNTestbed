@@ -87,13 +87,13 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     public String toString() {
       String s = "Message <CtpReportDataMsg> \n";
       try {
-        s += "  [response.origin=0x"+Long.toHexString(get_response_origin())+"]\n";
+        s += "  [response.origin="+(get_response_origin())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [response.seqno=0x"+Long.toHexString(get_response_seqno())+"]\n";
+        s += "  [response.seqno="+(get_response_seqno())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [response.parent=0x"+Long.toHexString(get_response_parent())+"]\n";
+        s += "  [response.parent="+(get_response_parent())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [response.metric=0x"+Long.toHexString(get_response_metric())+"]\n";
@@ -108,7 +108,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
         s += "  [response.hopcount=0x"+Long.toHexString(get_response_hopcount())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [response.sendCount=0x"+Long.toHexString(get_response_sendCount())+"]\n";
+        s += "  [response.sendCount="+(get_response_sendCount())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [response.sendSuccessCount=0x"+Long.toHexString(get_response_sendSuccessCount())+"]\n";
@@ -123,7 +123,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
         s += "  [ctpDataHeader.etx=0x"+Long.toHexString(get_ctpDataHeader_etx())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [ctpDataHeader.origin=0x"+Long.toHexString(get_ctpDataHeader_origin())+"]\n";
+        s += "  [ctpDataHeader.origin="+(get_ctpDataHeader_origin())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [ctpDataHeader.originSeqNo=0x"+Long.toHexString(get_ctpDataHeader_originSeqNo())+"]\n";
@@ -134,10 +134,10 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
       try {
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [amSource=0x"+Long.toHexString(get_amSource())+"]\n";
+        s += "  [amSource="+(get_amSource())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [rssi=0x"+Long.toHexString(get_rssi())+"]\n";
+        s += "  [rssi="+(get_rssi())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [flags=0x"+Long.toHexString(get_flags())+"]\n";
