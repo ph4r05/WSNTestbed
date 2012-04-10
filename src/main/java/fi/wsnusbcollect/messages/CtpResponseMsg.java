@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class CtpResponseMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 16;
+    public static final int DEFAULT_MESSAGE_SIZE = 11;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 239;
 
-    /** Create a new CtpResponseMsg of size 16. */
+    /** Create a new CtpResponseMsg of size 11. */
     public CtpResponseMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -103,15 +103,6 @@ public class CtpResponseMsg extends net.tinyos.message.Message {
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [data=0x"+Long.toHexString(get_data())+"]\n";
-      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
-      try {
-        s += "  [hopcount=0x"+Long.toHexString(get_hopcount())+"]\n";
-      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
-      try {
-        s += "  [sendCount=0x"+Long.toHexString(get_sendCount())+"]\n";
-      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
-      try {
-        s += "  [sendSuccessCount=0x"+Long.toHexString(get_sendSuccessCount())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       return s;
     }
@@ -493,195 +484,6 @@ public class CtpResponseMsg extends net.tinyos.message.Message {
      * Return the size, in bits, of the field 'data'
      */
     public static int sizeBits_data() {
-        return 16;
-    }
-
-    /////////////////////////////////////////////////////////
-    // Accessor methods for field: hopcount
-    //   Field type: short, unsigned
-    //   Offset (bits): 88
-    //   Size (bits): 8
-    /////////////////////////////////////////////////////////
-
-    /**
-     * Return whether the field 'hopcount' is signed (false).
-     */
-    public static boolean isSigned_hopcount() {
-        return false;
-    }
-
-    /**
-     * Return whether the field 'hopcount' is an array (false).
-     */
-    public static boolean isArray_hopcount() {
-        return false;
-    }
-
-    /**
-     * Return the offset (in bytes) of the field 'hopcount'
-     */
-    public static int offset_hopcount() {
-        return (88 / 8);
-    }
-
-    /**
-     * Return the offset (in bits) of the field 'hopcount'
-     */
-    public static int offsetBits_hopcount() {
-        return 88;
-    }
-
-    /**
-     * Return the value (as a short) of the field 'hopcount'
-     */
-    public short get_hopcount() {
-        return (short)getUIntBEElement(offsetBits_hopcount(), 8);
-    }
-
-    /**
-     * Set the value of the field 'hopcount'
-     */
-    public void set_hopcount(short value) {
-        setUIntBEElement(offsetBits_hopcount(), 8, value);
-    }
-
-    /**
-     * Return the size, in bytes, of the field 'hopcount'
-     */
-    public static int size_hopcount() {
-        return (8 / 8);
-    }
-
-    /**
-     * Return the size, in bits, of the field 'hopcount'
-     */
-    public static int sizeBits_hopcount() {
-        return 8;
-    }
-
-    /////////////////////////////////////////////////////////
-    // Accessor methods for field: sendCount
-    //   Field type: int, unsigned
-    //   Offset (bits): 96
-    //   Size (bits): 16
-    /////////////////////////////////////////////////////////
-
-    /**
-     * Return whether the field 'sendCount' is signed (false).
-     */
-    public static boolean isSigned_sendCount() {
-        return false;
-    }
-
-    /**
-     * Return whether the field 'sendCount' is an array (false).
-     */
-    public static boolean isArray_sendCount() {
-        return false;
-    }
-
-    /**
-     * Return the offset (in bytes) of the field 'sendCount'
-     */
-    public static int offset_sendCount() {
-        return (96 / 8);
-    }
-
-    /**
-     * Return the offset (in bits) of the field 'sendCount'
-     */
-    public static int offsetBits_sendCount() {
-        return 96;
-    }
-
-    /**
-     * Return the value (as a int) of the field 'sendCount'
-     */
-    public int get_sendCount() {
-        return (int)getUIntBEElement(offsetBits_sendCount(), 16);
-    }
-
-    /**
-     * Set the value of the field 'sendCount'
-     */
-    public void set_sendCount(int value) {
-        setUIntBEElement(offsetBits_sendCount(), 16, value);
-    }
-
-    /**
-     * Return the size, in bytes, of the field 'sendCount'
-     */
-    public static int size_sendCount() {
-        return (16 / 8);
-    }
-
-    /**
-     * Return the size, in bits, of the field 'sendCount'
-     */
-    public static int sizeBits_sendCount() {
-        return 16;
-    }
-
-    /////////////////////////////////////////////////////////
-    // Accessor methods for field: sendSuccessCount
-    //   Field type: int, unsigned
-    //   Offset (bits): 112
-    //   Size (bits): 16
-    /////////////////////////////////////////////////////////
-
-    /**
-     * Return whether the field 'sendSuccessCount' is signed (false).
-     */
-    public static boolean isSigned_sendSuccessCount() {
-        return false;
-    }
-
-    /**
-     * Return whether the field 'sendSuccessCount' is an array (false).
-     */
-    public static boolean isArray_sendSuccessCount() {
-        return false;
-    }
-
-    /**
-     * Return the offset (in bytes) of the field 'sendSuccessCount'
-     */
-    public static int offset_sendSuccessCount() {
-        return (112 / 8);
-    }
-
-    /**
-     * Return the offset (in bits) of the field 'sendSuccessCount'
-     */
-    public static int offsetBits_sendSuccessCount() {
-        return 112;
-    }
-
-    /**
-     * Return the value (as a int) of the field 'sendSuccessCount'
-     */
-    public int get_sendSuccessCount() {
-        return (int)getUIntBEElement(offsetBits_sendSuccessCount(), 16);
-    }
-
-    /**
-     * Set the value of the field 'sendSuccessCount'
-     */
-    public void set_sendSuccessCount(int value) {
-        setUIntBEElement(offsetBits_sendSuccessCount(), 16, value);
-    }
-
-    /**
-     * Return the size, in bytes, of the field 'sendSuccessCount'
-     */
-    public static int size_sendSuccessCount() {
-        return (16 / 8);
-    }
-
-    /**
-     * Return the size, in bits, of the field 'sendSuccessCount'
-     */
-    public static int sizeBits_sendSuccessCount() {
         return 16;
     }
 

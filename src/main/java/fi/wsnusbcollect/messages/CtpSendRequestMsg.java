@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class CtpSendRequestMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 14;
+    public static final int DEFAULT_MESSAGE_SIZE = 12;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 238;
 
-    /** Create a new CtpSendRequestMsg of size 14. */
+    /** Create a new CtpSendRequestMsg of size 12. */
     public CtpSendRequestMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -87,22 +87,22 @@ public class CtpSendRequestMsg extends net.tinyos.message.Message {
     public String toString() {
       String s = "Message <CtpSendRequestMsg> \n";
       try {
-        s += "  [counter=0x"+Long.toHexString(get_counter())+"]\n";
+        s += "  [counter="+(get_counter())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [packets=0x"+Long.toHexString(get_packets())+"]\n";
+        s += "  [packets="+(get_packets())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [delay=0x"+Long.toHexString(get_delay())+"]\n";
+        s += "  [delay="+(get_delay())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [delayVariability="+Float.toString(get_delayVariability())+"]\n";
+        s += "  [delayVariability="+(get_delayVariability())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [size=0x"+Long.toHexString(get_size())+"]\n";
+        s += "  [size="+(get_size())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [dataSource=0x"+Long.toHexString(get_dataSource())+"]\n";
+        s += "  [dataSource="+(get_dataSource())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [flags=0x"+Long.toHexString(get_flags())+"]\n";
@@ -303,9 +303,9 @@ public class CtpSendRequestMsg extends net.tinyos.message.Message {
 
     /////////////////////////////////////////////////////////
     // Accessor methods for field: delayVariability
-    //   Field type: float, unsigned
+    //   Field type: int, unsigned
     //   Offset (bits): 48
-    //   Size (bits): 32
+    //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
     /**
@@ -337,37 +337,37 @@ public class CtpSendRequestMsg extends net.tinyos.message.Message {
     }
 
     /**
-     * Return the value (as a float) of the field 'delayVariability'
+     * Return the value (as a int) of the field 'delayVariability'
      */
-    public float get_delayVariability() {
-        return (float)getFloatElement(offsetBits_delayVariability(), 32);
+    public int get_delayVariability() {
+        return (int)getUIntBEElement(offsetBits_delayVariability(), 16);
     }
 
     /**
      * Set the value of the field 'delayVariability'
      */
-    public void set_delayVariability(float value) {
-        setFloatElement(offsetBits_delayVariability(), 32, value);
+    public void set_delayVariability(int value) {
+        setUIntBEElement(offsetBits_delayVariability(), 16, value);
     }
 
     /**
      * Return the size, in bytes, of the field 'delayVariability'
      */
     public static int size_delayVariability() {
-        return (32 / 8);
+        return (16 / 8);
     }
 
     /**
      * Return the size, in bits, of the field 'delayVariability'
      */
     public static int sizeBits_delayVariability() {
-        return 32;
+        return 16;
     }
 
     /////////////////////////////////////////////////////////
     // Accessor methods for field: size
     //   Field type: short, unsigned
-    //   Offset (bits): 80
+    //   Offset (bits): 64
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -389,14 +389,14 @@ public class CtpSendRequestMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'size'
      */
     public static int offset_size() {
-        return (80 / 8);
+        return (64 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'size'
      */
     public static int offsetBits_size() {
-        return 80;
+        return 64;
     }
 
     /**
@@ -430,7 +430,7 @@ public class CtpSendRequestMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: dataSource
     //   Field type: short, unsigned
-    //   Offset (bits): 88
+    //   Offset (bits): 72
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -452,14 +452,14 @@ public class CtpSendRequestMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'dataSource'
      */
     public static int offset_dataSource() {
-        return (88 / 8);
+        return (72 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'dataSource'
      */
     public static int offsetBits_dataSource() {
-        return 88;
+        return 72;
     }
 
     /**
@@ -493,7 +493,7 @@ public class CtpSendRequestMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: flags
     //   Field type: int, unsigned
-    //   Offset (bits): 96
+    //   Offset (bits): 80
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -515,14 +515,14 @@ public class CtpSendRequestMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'flags'
      */
     public static int offset_flags() {
-        return (96 / 8);
+        return (80 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'flags'
      */
     public static int offsetBits_flags() {
-        return 96;
+        return 80;
     }
 
     /**

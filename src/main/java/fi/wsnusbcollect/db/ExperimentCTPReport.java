@@ -29,16 +29,12 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
     private int node;
     private int nodeBS;
     
-    
     private int data_origin;
     private int data_seqno;
     private int data_parent;
     private int data_metric;
     private int data_dataType;
     private int data_data;
-    private int data_hopcount;
-    private int data_sendCount;
-    private int data_sendSuccessCount;
     
     private int header_options;
     private int header_thl;
@@ -67,13 +63,10 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         
         this.data_data = msg.get_response_data();
         this.data_dataType = msg.get_response_dataType();
-        this.data_hopcount = msg.get_response_hopcount();
         this.data_metric = msg.get_response_metric();
         this.data_origin = msg.get_response_origin();
         this.data_parent = msg.get_response_parent();
-        this.data_sendCount = msg.get_response_sendCount();
         this.data_seqno = msg.get_response_seqno();
-        this.data_sendSuccessCount = msg.get_response_sendSuccessCount();
         
         this.header_etx = msg.get_ctpDataHeader_etx();
         this.header_options = msg.get_ctpDataHeader_options();
@@ -107,14 +100,6 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         this.data_dataType = data_dataType;
     }
 
-    public int getData_hopcount() {
-        return data_hopcount;
-    }
-
-    public void setData_hopcount(int data_hopcount) {
-        this.data_hopcount = data_hopcount;
-    }
-
     public int getData_metric() {
         return data_metric;
     }
@@ -137,22 +122,6 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
 
     public void setData_parent(int data_parent) {
         this.data_parent = data_parent;
-    }
-
-    public int getData_sendCount() {
-        return data_sendCount;
-    }
-
-    public void setData_sendCount(int data_sendCount) {
-        this.data_sendCount = data_sendCount;
-    }
-
-    public int getData_sendSuccessCount() {
-        return data_sendSuccessCount;
-    }
-
-    public void setData_sendSuccessCount(int data_sendSuccessCount) {
-        this.data_sendSuccessCount = data_sendSuccessCount;
     }
 
     public int getData_seqno() {
@@ -303,7 +272,7 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
 
     @Override
     public String toString() {
-        return "ExperimentCTPReport{" + "id=" + id + ", experiment=" + experiment + ", militime=" + militime + ", node=" + node + ", nodeBS=" + nodeBS + ", data_origin=" + data_origin + ", data_seqno=" + data_seqno + ", data_parent=" + data_parent + ", data_metric=" + data_metric + ", data_dataType=" + data_dataType + ", data_data=" + data_data + ", data_hopcount=" + data_hopcount + ", data_sendCount=" + data_sendCount + ", data_sendSuccessCount=" + data_sendSuccessCount + ", header_options=" + header_options + ", header_thl=" + header_thl + ", header_etx=" + header_etx + ", header_origin=" + header_origin + ", header_originSeqNo=" + header_originSeqNo + ", header_type=" + header_type + ", amSource=" + amSource + ", rssi=" + rssi + ", spoofed=" + spoofed + ", regularCTP=" + regularCTP + '}';
+        return "ExperimentCTPReport{" + "id=" + id + ", experiment=" + experiment + ", militime=" + militime + ", node=" + node + ", nodeBS=" + nodeBS + ", data_origin=" + data_origin + ", data_seqno=" + data_seqno + ", data_parent=" + data_parent + ", data_metric=" + data_metric + ", data_dataType=" + data_dataType + ", data_data=" + data_data + ", header_options=" + header_options + ", header_thl=" + header_thl + ", header_etx=" + header_etx + ", header_origin=" + header_origin + ", header_originSeqNo=" + header_originSeqNo + ", header_type=" + header_type + ", amSource=" + amSource + ", rssi=" + rssi + ", spoofed=" + spoofed + ", regularCTP=" + regularCTP + ", sent=" + sent + '}';
     }
 
     @Override
@@ -324,9 +293,6 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         csvOutput.write(String.valueOf(this.data_metric));
         csvOutput.write(String.valueOf(this.data_dataType));
         csvOutput.write(String.valueOf(this.data_data));
-        csvOutput.write(String.valueOf(this.data_hopcount));
-        csvOutput.write(String.valueOf(this.data_sendCount));
-        csvOutput.write(String.valueOf(this.data_sendSuccessCount));
 
         csvOutput.write(String.valueOf(this.header_options));
         csvOutput.write(String.valueOf(this.header_thl));
@@ -357,9 +323,6 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         csvOutput.write("data_metric");
         csvOutput.write("data_dataType");
         csvOutput.write("data_data");
-        csvOutput.write("data_hopcount");
-        csvOutput.write("data_sendCount");
-        csvOutput.write("data_sendSuccessCount");
 
         csvOutput.write("header_options");
         csvOutput.write("header_thl");
