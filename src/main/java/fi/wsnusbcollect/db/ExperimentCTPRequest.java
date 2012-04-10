@@ -40,7 +40,7 @@ public class ExperimentCTPRequest implements Serializable, DataCSVWritable {
     private int delay;
     
     // delay variability
-    private double variability;
+    private int variability;
 
     // desired packet size in bytes
     private int packet_size;
@@ -181,11 +181,11 @@ public class ExperimentCTPRequest implements Serializable, DataCSVWritable {
         this.packetsUnlimited = packetsUnlimited;
     }
 
-    public double getVariability() {
+    public int getVariability() {
         return variability;
     }
 
-    public void setVariability(double variability) {
+    public void setVariability(int variability) {
         this.variability = variability;
     }
     

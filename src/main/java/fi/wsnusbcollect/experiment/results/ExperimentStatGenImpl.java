@@ -151,9 +151,9 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                                 @Override
                                 public ExperimentDataNoise mapRow(ResultSet rs, int i) throws SQLException {
                                     ExperimentDataNoise r = new ExperimentDataNoise();
-                                    r.setCounter(rs.getLong("counter"));
+                                    r.setCounter(rs.getInt("counter"));
                                     r.setMiliFromStart(rs.getLong("miliFromStart"));
-                                    r.setNoise(rs.getLong("noise"));                                  
+                                    r.setNoise(rs.getInt("noise"));                                  
                                     return r;
                                 }
                             });

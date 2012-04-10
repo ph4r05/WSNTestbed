@@ -227,11 +227,31 @@ public class ExperimentCTPInfoStatus implements Serializable, DataCSVWritable {
 
     @Override
     public void writeCSVdata(CsvWriter csvOutput) throws IOException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        csvOutput.write(String.valueOf(this.experiment.getId()));
+        csvOutput.write(String.valueOf(this.militime));
+        csvOutput.write(String.valueOf(this.node));
+        csvOutput.write(String.valueOf(this.nodeBS));
+        
+        csvOutput.write(String.valueOf(this.parent));
+        csvOutput.write(String.valueOf(this.etx));
+        csvOutput.write(String.valueOf(this.neighbors));
+        csvOutput.write(String.valueOf(this.serialQueueSize));
+        csvOutput.write(String.valueOf(this.ctpBusyCount));
+        csvOutput.write(String.valueOf(this.ctpBusy));
     }
 
     @Override
-    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {   
+        csvOutput.write("experiment");
+        csvOutput.write("militime");
+        csvOutput.write("node");
+        csvOutput.write("nodeBS");
+        
+        csvOutput.write("parent");
+        csvOutput.write("etx");
+        csvOutput.write("neighbors");
+        csvOutput.write("serialQueueSize");
+        csvOutput.write("ctpBusyCount");
+        csvOutput.write("ctpBusy");
     }
 }

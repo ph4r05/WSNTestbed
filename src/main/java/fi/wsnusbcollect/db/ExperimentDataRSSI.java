@@ -4,6 +4,8 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import javax.persistence.Entity;
@@ -20,7 +22,7 @@ import javax.persistence.Table;
  */
 @Entity
 @Table(name="experimentDataRSSI")
-public class ExperimentDataRSSI implements Serializable {
+public class ExperimentDataRSSI implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -35,11 +37,11 @@ public class ExperimentDataRSSI implements Serializable {
     
     private int sendingNode;
     
-    private long sendingNodeCounter;
+    private int sendingNodeCounter;
     
-    private long connectedNodeCounter;
+    private int connectedNodeCounter;
     
-    private long rssi;
+    private int rssi;
     
     private short len;
     
@@ -109,11 +111,19 @@ public class ExperimentDataRSSI implements Serializable {
         this.miliFromStart = miliFromStart;
     }
 
-    public long getRssi() {
+    public int getConnectedNodeCounter() {
+        return connectedNodeCounter;
+    }
+
+    public void setConnectedNodeCounter(int connectedNodeCounter) {
+        this.connectedNodeCounter = connectedNodeCounter;
+    }
+
+    public int getRssi() {
         return rssi;
     }
 
-    public void setRssi(long rssi) {
+    public void setRssi(int rssi) {
         this.rssi = rssi;
     }
 
@@ -125,19 +135,11 @@ public class ExperimentDataRSSI implements Serializable {
         this.sendingNode = sendingNode;
     }
 
-    public long getConnectedNodeCounter() {
-        return connectedNodeCounter;
-    }
-
-    public void setConnectedNodeCounter(long connectedNodeCounter) {
-        this.connectedNodeCounter = connectedNodeCounter;
-    }
-
-    public long getSendingNodeCounter() {
+    public int getSendingNodeCounter() {
         return sendingNodeCounter;
     }
 
-    public void setSendingNodeCounter(long sendingNodeCounter) {
+    public void setSendingNodeCounter(int sendingNodeCounter) {
         this.sendingNodeCounter = sendingNodeCounter;
     }
 
@@ -148,4 +150,33 @@ public class ExperimentDataRSSI implements Serializable {
     public void setLen(short len) {
         this.len = len;
     } 
+    
+    @Override
+    public String getCSVname() {
+        return "rssi";
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {    
+        csvOutput.write(String.valueOf(this.experiment.getId()));
+        csvOutput.write(String.valueOf(this.miliFromStart));
+        csvOutput.write(String.valueOf(this.connectedNode));
+        csvOutput.write(String.valueOf(this.sendingNode));
+        csvOutput.write(String.valueOf(this.sendingNodeCounter));
+        csvOutput.write(String.valueOf(this.connectedNodeCounter));
+        csvOutput.write(String.valueOf(this.rssi));
+        csvOutput.write(String.valueOf(this.len));
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {       
+        csvOutput.write("experiment");
+        csvOutput.write("militime");
+        csvOutput.write("connectedNode");
+        csvOutput.write("sendingNode");
+        csvOutput.write("sendingNodeCounter");
+        csvOutput.write("connectedNodeCounter");
+        csvOutput.write("rssi");
+        csvOutput.write("len");
+    }
 }

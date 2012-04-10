@@ -4,6 +4,8 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
+import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -18,7 +20,7 @@ import javax.persistence.Table;
  */
 @Entity
 @Table(name="experimentDataNoise")
-public class ExperimentDataNoise implements Serializable {
+public class ExperimentDataNoise implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -30,9 +32,9 @@ public class ExperimentDataNoise implements Serializable {
     
     private int connectedNode;
     
-    private long counter;
+    private int counter;
     
-    private long noise;
+    private int noise;
     
     public Long getId() {
         return id;
@@ -58,12 +60,12 @@ public class ExperimentDataNoise implements Serializable {
         this.miliFromStart = miliFromStart;
     }
 
-    public long getNoise() {
-        return noise;
+    public int getCounter() {
+        return counter;
     }
 
-    public void setNoise(long noise) {
-        this.noise = noise;
+    public void setCounter(int counter) {
+        this.counter = counter;
     }
 
     public ExperimentMetadata getExperiment() {
@@ -74,11 +76,34 @@ public class ExperimentDataNoise implements Serializable {
         this.experiment = experiment;
     }
 
-    public long getCounter() {
-        return counter;
+    public int getNoise() {
+        return noise;
     }
 
-    public void setCounter(long counter) {
-        this.counter = counter;
+    public void setNoise(int noise) {
+        this.noise = noise;
     }
+    
+    @Override
+    public String getCSVname() {
+        return "noise";
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {    
+        csvOutput.write(String.valueOf(this.experiment.getId()));
+        csvOutput.write(String.valueOf(this.miliFromStart));
+        csvOutput.write(String.valueOf(this.connectedNode));
+        csvOutput.write(String.valueOf(this.counter));
+        csvOutput.write(String.valueOf(this.noise));
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {   
+        csvOutput.write("experiment");
+        csvOutput.write("militime");
+        csvOutput.write("connectedNode");
+        csvOutput.write("counter");
+        csvOutput.write("noise");
+    }    
 }

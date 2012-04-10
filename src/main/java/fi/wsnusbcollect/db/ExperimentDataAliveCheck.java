@@ -32,18 +32,18 @@ public class ExperimentDataAliveCheck implements Serializable, DataCSVWritable {
     
     private int node;
     
-    private long counter;
+    private int counter;
     
     private int radioQueueFree;
     private int serialQueueFree;
     private int serialFails;
     private int aliveFails;
 
-    public long getCounter() {
+    public int getCounter() {
         return counter;
     }
 
-    public void setCounter(long counter) {
+    public void setCounter(int counter) {
         this.counter = counter;
     }
 
