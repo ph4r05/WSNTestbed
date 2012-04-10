@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class CtpReportDataMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 29;
+    public static final int DEFAULT_MESSAGE_SIZE = 24;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 237;
 
-    /** Create a new CtpReportDataMsg of size 29. */
+    /** Create a new CtpReportDataMsg of size 24. */
     public CtpReportDataMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -103,15 +103,6 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [response.data=0x"+Long.toHexString(get_response_data())+"]\n";
-      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
-      try {
-        s += "  [response.hopcount=0x"+Long.toHexString(get_response_hopcount())+"]\n";
-      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
-      try {
-        s += "  [response.sendCount="+(get_response_sendCount())+"]\n";
-      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
-      try {
-        s += "  [response.sendSuccessCount=0x"+Long.toHexString(get_response_sendSuccessCount())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [ctpDataHeader.options=0x"+Long.toHexString(get_ctpDataHeader_options())+"]\n";
@@ -526,198 +517,9 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     }
 
     /////////////////////////////////////////////////////////
-    // Accessor methods for field: response.hopcount
-    //   Field type: short, unsigned
-    //   Offset (bits): 88
-    //   Size (bits): 8
-    /////////////////////////////////////////////////////////
-
-    /**
-     * Return whether the field 'response.hopcount' is signed (false).
-     */
-    public static boolean isSigned_response_hopcount() {
-        return false;
-    }
-
-    /**
-     * Return whether the field 'response.hopcount' is an array (false).
-     */
-    public static boolean isArray_response_hopcount() {
-        return false;
-    }
-
-    /**
-     * Return the offset (in bytes) of the field 'response.hopcount'
-     */
-    public static int offset_response_hopcount() {
-        return (88 / 8);
-    }
-
-    /**
-     * Return the offset (in bits) of the field 'response.hopcount'
-     */
-    public static int offsetBits_response_hopcount() {
-        return 88;
-    }
-
-    /**
-     * Return the value (as a short) of the field 'response.hopcount'
-     */
-    public short get_response_hopcount() {
-        return (short)getUIntBEElement(offsetBits_response_hopcount(), 8);
-    }
-
-    /**
-     * Set the value of the field 'response.hopcount'
-     */
-    public void set_response_hopcount(short value) {
-        setUIntBEElement(offsetBits_response_hopcount(), 8, value);
-    }
-
-    /**
-     * Return the size, in bytes, of the field 'response.hopcount'
-     */
-    public static int size_response_hopcount() {
-        return (8 / 8);
-    }
-
-    /**
-     * Return the size, in bits, of the field 'response.hopcount'
-     */
-    public static int sizeBits_response_hopcount() {
-        return 8;
-    }
-
-    /////////////////////////////////////////////////////////
-    // Accessor methods for field: response.sendCount
-    //   Field type: int, unsigned
-    //   Offset (bits): 96
-    //   Size (bits): 16
-    /////////////////////////////////////////////////////////
-
-    /**
-     * Return whether the field 'response.sendCount' is signed (false).
-     */
-    public static boolean isSigned_response_sendCount() {
-        return false;
-    }
-
-    /**
-     * Return whether the field 'response.sendCount' is an array (false).
-     */
-    public static boolean isArray_response_sendCount() {
-        return false;
-    }
-
-    /**
-     * Return the offset (in bytes) of the field 'response.sendCount'
-     */
-    public static int offset_response_sendCount() {
-        return (96 / 8);
-    }
-
-    /**
-     * Return the offset (in bits) of the field 'response.sendCount'
-     */
-    public static int offsetBits_response_sendCount() {
-        return 96;
-    }
-
-    /**
-     * Return the value (as a int) of the field 'response.sendCount'
-     */
-    public int get_response_sendCount() {
-        return (int)getUIntBEElement(offsetBits_response_sendCount(), 16);
-    }
-
-    /**
-     * Set the value of the field 'response.sendCount'
-     */
-    public void set_response_sendCount(int value) {
-        setUIntBEElement(offsetBits_response_sendCount(), 16, value);
-    }
-
-    /**
-     * Return the size, in bytes, of the field 'response.sendCount'
-     */
-    public static int size_response_sendCount() {
-        return (16 / 8);
-    }
-
-    /**
-     * Return the size, in bits, of the field 'response.sendCount'
-     */
-    public static int sizeBits_response_sendCount() {
-        return 16;
-    }
-
-    /////////////////////////////////////////////////////////
-    // Accessor methods for field: response.sendSuccessCount
-    //   Field type: int, unsigned
-    //   Offset (bits): 112
-    //   Size (bits): 16
-    /////////////////////////////////////////////////////////
-
-    /**
-     * Return whether the field 'response.sendSuccessCount' is signed (false).
-     */
-    public static boolean isSigned_response_sendSuccessCount() {
-        return false;
-    }
-
-    /**
-     * Return whether the field 'response.sendSuccessCount' is an array (false).
-     */
-    public static boolean isArray_response_sendSuccessCount() {
-        return false;
-    }
-
-    /**
-     * Return the offset (in bytes) of the field 'response.sendSuccessCount'
-     */
-    public static int offset_response_sendSuccessCount() {
-        return (112 / 8);
-    }
-
-    /**
-     * Return the offset (in bits) of the field 'response.sendSuccessCount'
-     */
-    public static int offsetBits_response_sendSuccessCount() {
-        return 112;
-    }
-
-    /**
-     * Return the value (as a int) of the field 'response.sendSuccessCount'
-     */
-    public int get_response_sendSuccessCount() {
-        return (int)getUIntBEElement(offsetBits_response_sendSuccessCount(), 16);
-    }
-
-    /**
-     * Set the value of the field 'response.sendSuccessCount'
-     */
-    public void set_response_sendSuccessCount(int value) {
-        setUIntBEElement(offsetBits_response_sendSuccessCount(), 16, value);
-    }
-
-    /**
-     * Return the size, in bytes, of the field 'response.sendSuccessCount'
-     */
-    public static int size_response_sendSuccessCount() {
-        return (16 / 8);
-    }
-
-    /**
-     * Return the size, in bits, of the field 'response.sendSuccessCount'
-     */
-    public static int sizeBits_response_sendSuccessCount() {
-        return 16;
-    }
-
-    /////////////////////////////////////////////////////////
     // Accessor methods for field: ctpDataHeader.options
     //   Field type: short, unsigned
-    //   Offset (bits): 128
+    //   Offset (bits): 88
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -739,14 +541,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'ctpDataHeader.options'
      */
     public static int offset_ctpDataHeader_options() {
-        return (128 / 8);
+        return (88 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'ctpDataHeader.options'
      */
     public static int offsetBits_ctpDataHeader_options() {
-        return 128;
+        return 88;
     }
 
     /**
@@ -780,7 +582,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: ctpDataHeader.thl
     //   Field type: short, unsigned
-    //   Offset (bits): 136
+    //   Offset (bits): 96
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -802,14 +604,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'ctpDataHeader.thl'
      */
     public static int offset_ctpDataHeader_thl() {
-        return (136 / 8);
+        return (96 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'ctpDataHeader.thl'
      */
     public static int offsetBits_ctpDataHeader_thl() {
-        return 136;
+        return 96;
     }
 
     /**
@@ -843,7 +645,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: ctpDataHeader.etx
     //   Field type: int, unsigned
-    //   Offset (bits): 144
+    //   Offset (bits): 104
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -865,14 +667,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'ctpDataHeader.etx'
      */
     public static int offset_ctpDataHeader_etx() {
-        return (144 / 8);
+        return (104 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'ctpDataHeader.etx'
      */
     public static int offsetBits_ctpDataHeader_etx() {
-        return 144;
+        return 104;
     }
 
     /**
@@ -906,7 +708,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: ctpDataHeader.origin
     //   Field type: int, unsigned
-    //   Offset (bits): 160
+    //   Offset (bits): 120
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -928,14 +730,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'ctpDataHeader.origin'
      */
     public static int offset_ctpDataHeader_origin() {
-        return (160 / 8);
+        return (120 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'ctpDataHeader.origin'
      */
     public static int offsetBits_ctpDataHeader_origin() {
-        return 160;
+        return 120;
     }
 
     /**
@@ -969,7 +771,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: ctpDataHeader.originSeqNo
     //   Field type: short, unsigned
-    //   Offset (bits): 176
+    //   Offset (bits): 136
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -991,14 +793,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'ctpDataHeader.originSeqNo'
      */
     public static int offset_ctpDataHeader_originSeqNo() {
-        return (176 / 8);
+        return (136 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'ctpDataHeader.originSeqNo'
      */
     public static int offsetBits_ctpDataHeader_originSeqNo() {
-        return 176;
+        return 136;
     }
 
     /**
@@ -1032,7 +834,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: ctpDataHeader.type
     //   Field type: short, unsigned
-    //   Offset (bits): 184
+    //   Offset (bits): 144
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -1054,14 +856,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'ctpDataHeader.type'
      */
     public static int offset_ctpDataHeader_type() {
-        return (184 / 8);
+        return (144 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'ctpDataHeader.type'
      */
     public static int offsetBits_ctpDataHeader_type() {
-        return 184;
+        return 144;
     }
 
     /**
@@ -1095,7 +897,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: ctpDataHeader.data
     //   Field type: short[], unsigned
-    //   Offset (bits): 192
+    //   Offset (bits): 152
     //   Size of each element (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -1117,7 +919,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'ctpDataHeader.data'
      */
     public static int offset_ctpDataHeader_data(int index1) {
-        int offset = 192;
+        int offset = 152;
         if (index1 < 0) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 8;
         return (offset / 8);
@@ -1127,7 +929,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bits) of the field 'ctpDataHeader.data'
      */
     public static int offsetBits_ctpDataHeader_data(int index1) {
-        int offset = 192;
+        int offset = 152;
         if (index1 < 0) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 8;
         return offset;
@@ -1223,7 +1025,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: amSource
     //   Field type: int, unsigned
-    //   Offset (bits): 192
+    //   Offset (bits): 152
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -1245,14 +1047,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'amSource'
      */
     public static int offset_amSource() {
-        return (192 / 8);
+        return (152 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'amSource'
      */
     public static int offsetBits_amSource() {
-        return 192;
+        return 152;
     }
 
     /**
@@ -1286,7 +1088,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: rssi
     //   Field type: short, unsigned
-    //   Offset (bits): 208
+    //   Offset (bits): 168
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -1308,14 +1110,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'rssi'
      */
     public static int offset_rssi() {
-        return (208 / 8);
+        return (168 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'rssi'
      */
     public static int offsetBits_rssi() {
-        return 208;
+        return 168;
     }
 
     /**
@@ -1349,7 +1151,7 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: flags
     //   Field type: short, unsigned
-    //   Offset (bits): 224
+    //   Offset (bits): 184
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -1371,14 +1173,14 @@ public class CtpReportDataMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'flags'
      */
     public static int offset_flags() {
-        return (224 / 8);
+        return (184 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'flags'
      */
     public static int offsetBits_flags() {
-        return 224;
+        return 184;
     }
 
     /**
