@@ -62,6 +62,8 @@ public class MessageToSend {
     /**
      * cancel flag. If from some reason sender cannot send message, it can be marked
      * as canceled and is skipped.
+     * 
+     * This flag is also used if message was already sent out of order (previous could not be sent)
      */
     private boolean canceled=false;
     
@@ -243,4 +245,6 @@ public class MessageToSend {
     public String toString() {
         return "MessageToSend{" + "sMsg=" + sMsg + ", string=" + string + ", source=" + source + ", destination=" + destination + ", listener=" + listener + ", listenerKey=" + listenerKey + ", pauseAfterSend=" + pauseAfterSend + ", timeAddedToSend=" + timeAddedToSend + ", canceled=" + canceled + ", blockingSend=" + blockingSend + ", blockingTimeout=" + blockingTimeout + ", resendRetryCount=" + resendRetryCount + '}';
     }
+    
+    
 }

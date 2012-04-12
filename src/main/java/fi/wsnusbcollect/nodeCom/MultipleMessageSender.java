@@ -41,7 +41,9 @@ package fi.wsnusbcollect.nodeCom;
  */
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -70,13 +72,18 @@ import org.slf4j.LoggerFactory;
  *
  * @author ph4r05
  */
-public class MessageSender extends Thread implements MessageSentListener{
+public class MultipleMessageSender extends Thread implements MessageSentListener{
     private static final Logger log = LoggerFactory.getLogger(MessageSender.class);
     
     /**
      * maximum number of notify threads in fixed size thread pool
      */
     private int notifyThreads=1;
+    
+    /**
+     * Number of sender threads
+     */
+    private int senderThreads=0;
 
     /**
      * Message queue to send
@@ -87,12 +94,27 @@ public class MessageSender extends Thread implements MessageSentListener{
     /**
      * Default gateway
      */
-    private MoteIF gateway;
+    private Integer gateway;
+    
+    /**
+     * Another connected gateways trough which messages can be send
+     */
+    private ConcurrentHashMap<Integer, MoteIF> connectedGateways = new ConcurrentHashMap<Integer, MoteIF>();
+    
+    /**
+     * Hashmap GatewayID -> time when is node available for next message (maybe delayed after previous message)
+     */
+    private ConcurrentHashMap<Integer, Long> preparedTimeGateway = new ConcurrentHashMap<Integer, Long>();
 
     /**
      * Thread pool
      */
     protected ExecutorService tasksNotifiers;
+    
+    /**
+     * Thread pool for message senders
+     */
+    protected ExecutorService tasksSenders;
 
     /**
      * To notify queue for notifier threads
@@ -139,18 +161,22 @@ public class MessageSender extends Thread implements MessageSentListener{
      * @param gateway
      * @param logger
      */
-    public MessageSender(MoteIF gateway) {
+    public MultipleMessageSender(Integer gatewayId, MoteIF gateway) {
         super("MessageSender");
         this.queue = new ConcurrentLinkedQueue<MessageToSend>();
         this.toNotify = new ConcurrentLinkedQueue<MessageToSend>();
         this.blockingSendMessage = new ConcurrentHashMap<String, MessageToSend>();
         this.blockingMessageSent = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-        this.gateway = gateway;
+        this.preparedTimeGateway = new ConcurrentHashMap<Integer, Long>();
+        this.connectedGateways = new ConcurrentHashMap<Integer, MoteIF>();
+        this.connectedGateways.put(gatewayId, gateway);
+        this.gateway = gatewayId;
 
         // delivery guarantor
-        this.messageDeliveryGuarantor = new MessageDeliveryGuarantor(this);
+        //this.messageDeliveryGuarantor = new MessageDeliveryGuarantor(this);
 
-        // instantiate thread pool        
+        // instantiate thread pool
+        tasksSenders = Executors.newFixedThreadPool(senderThreads);
         tasksNotifiers = Executors.newFixedThreadPool(notifyThreads);
         // create notify threads
         for(int i=0; i<notifyThreads; i++){
@@ -198,12 +224,9 @@ public class MessageSender extends Thread implements MessageSentListener{
     public void run() {
          // do in infitite loop
          while(true){
-            // current sleep time can be changed by each message
-            long currentSleepTime = this.sentSleepTime;
+            // yield for some time, avoid CPU hogging
+            this.pause(10);
             long currTime = System.currentTimeMillis();
-             
-            // yield for some time
-            this.pause(20);
             
             // cleaning for blocking operaions?
             if (currTime-this.lastBlockingCleanup > 60000){
@@ -226,7 +249,7 @@ public class MessageSender extends Thread implements MessageSentListener{
                 
                 continue;
             }
-
+            
             // perform tick on DeliveryGuarantor
             if (this.messageDeliveryGuarantor!=null){
                 try{
@@ -238,12 +261,76 @@ public class MessageSender extends Thread implements MessageSentListener{
 
             // test queue to send
             if (this.queue.isEmpty()){
+                // nothing to do, queue is empty
                 msgToSend=null;
+                continue;
             }
-            else {
-                msgToSend=queue.remove();
+            
+            // now we need to select next message 4 send.
+            // we need to take under consideration timeout limit after message sent 
+            // (previous message could be reset for particular gateway thus we don't want
+            // to send message to same node again very quickly)
+            
+            // now examine queue elements and delete those canceled
+            while(queue.isEmpty()==false){
+                MessageToSend peekedMessage = queue.peek();
+                if (peekedMessage.isCanceled()==false){
+                    // regular message, continue
+                    break;
+                }
+                
+                // throw away, canceled message
+                queue.poll();
             }
-           
+            
+            Integer gateway2SendId = null;
+            MoteIF gateway2Send = null;
+            
+            // determine which message to use, can be send only if gateway is prepared now
+            int index=0;
+            for(Iterator<MessageToSend> iterator = queue.iterator(); iterator.hasNext(); index++){
+                // iterate over whole send queue and find message to send
+                // has to be able to send message - source of message (gateway) need
+                // to be prepared - time is OK
+                MessageToSend nextMessage = iterator.next();
+                
+                // determine wanted gateway for current message - if not specified, use default gateway
+                Integer wantedGateway = nextMessage.getSource() != null ? nextMessage.getSource() : this.gateway;
+                
+                // is wanted gateway in set of gateways I am managing?
+                if (this.connectedGateways.contains(wantedGateway)==false){
+                    // no -> need to remove message
+                    log.warn("Need to throw message away - gateway " + wantedGateway + " is not available here.", nextMessage);
+                    iterator.remove();
+                    continue;
+                }
+                
+                // is wanted gateway prepared4sending? check times when will be prepared
+                // if no record in map -> is prepared immediatelly, can continue 2 send
+                if (this.preparedTimeGateway.contains(wantedGateway)){
+                    // here prepared time is in map, check if is greater than current time
+                    // if yes -> will be prepared in future -> cannot send via this gateway
+                    Long preparedTime = this.preparedTimeGateway.get(wantedGateway);
+                    if (preparedTime > currTime){
+                        continue;
+                    }
+                }
+                
+                // time is OK here or no limitation is set for wanted gateway
+                gateway2SendId = wantedGateway;
+                msgToSend = nextMessage;
+                break;
+            }
+            
+            // check if we have something to send, if no, continue
+            if (gateway2SendId==null || msgToSend==null){
+                continue;
+            }
+            
+            // gateway is choosen as well as msgToSend
+            gateway2Send = this.connectedGateways.get(gateway2SendId);
+            // remove from queue
+            this.queue.remove(msgToSend);
 
             synchronized(this){
                 // if message was null, continue to sleep
@@ -251,7 +338,7 @@ public class MessageSender extends Thread implements MessageSentListener{
 
                 try {
                     // send message
-                    gateway.send(msgToSend.getDestination(), msgToSend.getsMsg());
+                    gateway2Send.send(msgToSend.getDestination(), msgToSend.getsMsg());
 
                     // message was sent here, notify listener if exists
                     // QUESTION to think about: When I now call listener, how does it
@@ -275,25 +362,25 @@ public class MessageSender extends Thread implements MessageSentListener{
     //                    msgToSend.listener.messageSent(msgToSend.getListenerKey(), msgToSend.getsMsg(), msgToSend.getDestination());
     //                }
 
-                    msgToSend.setResendRetryCount(msgToSend.getResendRetryCount()-1);
                     // add message to tonotify queue if needed
                     if (msgToSend.useListener()){
                         // do it in sycnhronized block not to interfere with reading
                         // threads
                         this.toNotify.add(msgToSend);
                     }
-
+                    
                     // basic message sent log
                     log.info("Sending message: NodeID: " +  msgToSend.getDestination() + "; StringID: " + msgToSend.getString());
 
-                    // store last sent messages
+                    // store last sent messages, global for every connected gateway
                     this.timeLastMessageSent = System.currentTimeMillis();
+                    
                     // sleep exact amount of time requested by particular message
-                    // if is not null, otherwise is used default/common sleep time.
+                    // for particular gateway
                     if (msgToSend.getPauseAfterSend()!=null){
-                        currentSleepTime = msgToSend.getPauseAfterSend();
+                        this.preparedTimeGateway.put(gateway2SendId, currTime + msgToSend.getPauseAfterSend());
                     } else {
-                        currentSleepTime = this.sentSleepTime;
+                        this.preparedTimeGateway.put(gateway2SendId, currTime + this.sentSleepTime);
                     }
                 } catch (Exception e) {
                     log.error("Exception during message sending. "
@@ -301,13 +388,6 @@ public class MessageSender extends Thread implements MessageSentListener{
                             + "; AMType: " + msgToSend.getsMsg().amType()
                             + "; currentTime: " + System.currentTimeMillis(), e);
                 }
-            }
-            
-            // sleep now - give connected node some time
-            try {
-                Thread.sleep(currentSleepTime);
-            } catch (InterruptedException ex) {
-                log.error("Cannot sleep", ex);
             }
         }
     }
@@ -687,16 +767,17 @@ public class MessageSender extends Thread implements MessageSentListener{
      * =========================================================================
      */
     
-    public MoteIF getGateway() {
-        return gateway;
+    public MoteIF getGateway() {        
+        return this.connectedGateways!=null && this.connectedGateways.contains(gateway) ? this.connectedGateways.get(gateway) : null;
     }
 
-    public synchronized void setGateway(MoteIF gateway){
-        this.setGateway(gateway, true);
+    public synchronized void setGateway(Integer gatewayId, MoteIF gateway){
+        this.setGateway(gatewayId, gateway, true);
     }
     
-    public synchronized void setGateway(MoteIF gateway, boolean reset) {
-        this.gateway = gateway;
+    public synchronized void setGateway(Integer gatewayId, MoteIF gateway, boolean reset) {
+        this.connectedGateways.put(gatewayId, gateway);
+        this.gateway = gatewayId;
         if (reset){
             this.reset();
         }
@@ -708,6 +789,31 @@ public class MessageSender extends Thread implements MessageSentListener{
         log.info("Gateway changed for MessageSender, queues flushed");
     }
 
+    /**
+     * Sets all gateways maintained by this class
+     * 
+     * @param gateways
+     * @param defaultGateway
+     * @param reset 
+     */
+    public synchronized void setAllGateways(Map<Integer, MoteIF> gateways, Integer defaultGateway, boolean reset){
+        // need to reset state maps & variables
+        this.preparedTimeGateway.clear();
+        this.connectedGateways.clear();
+        this.lastBlockingCleanup=0;
+        
+        this.connectedGateways.putAll(gateways);
+        this.gateway = defaultGateway;
+
+        if (reset){
+            this.reset();
+        }
+        
+        if (this.messageDeliveryGuarantor!=null){
+            this.messageDeliveryGuarantor.registerListeners();
+        }
+    }
+    
     public ConcurrentLinkedQueue<MessageToSend> getQueue() {
         return queue;
     }
@@ -750,5 +856,21 @@ public class MessageSender extends Thread implements MessageSentListener{
 
     public void setNotifyThreads(int notifyThreads) {
         this.notifyThreads = notifyThreads;
+    }
+
+    public int getSenderThreads() {
+        return senderThreads;
+    }
+
+    public void setSenderThreads(int senderThreads) {
+        this.senderThreads = senderThreads;
+    }
+
+    public ConcurrentHashMap<Integer, MoteIF> getConnectedGateways() {
+        return connectedGateways;
+    }
+
+    public void setConnectedGateways(ConcurrentHashMap<Integer, MoteIF> connectedGateways) {
+        this.connectedGateways = connectedGateways;
     }
 }
