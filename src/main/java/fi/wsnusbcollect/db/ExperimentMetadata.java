@@ -4,6 +4,8 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
@@ -23,7 +25,7 @@ import javax.persistence.TemporalType;
  * @author ph4r05
  */
 @Entity
-public class ExperimentMetadata implements Serializable {
+public class ExperimentMetadata implements Serializable, DataCSVWritable {
      // node id record, configuration ID
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -182,5 +184,49 @@ public class ExperimentMetadata implements Serializable {
     @Override
     public String toString() {
         return "ExperimentMetadata{" + "id=" + id + ", experimentGroup=" + experimentGroup + ", name=" + name + ", datestart=" + datestart + ", datestop=" + datestop + ", miliStart=" + miliStart + ", description=" + description + ", keywords=" + keywords + ", nodeConfiguration=" + nodeConfiguration + ", owner=" + owner + ", configFile=" + configFile + ", connectedNodesUsed=" + connectedNodesUsed + '}';
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("id");
+        csvOutput.write("experimentGroup");
+        csvOutput.write("name");
+        csvOutput.write("datestart");
+        csvOutput.write("datestop");
+        csvOutput.write("miliStart");
+        csvOutput.write("owner");
+        csvOutput.write("nodes");
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write(String.valueOf(this.id));
+        csvOutput.write((this.experimentGroup));
+        csvOutput.write((this.name));
+        csvOutput.write(String.valueOf(this.datestart));
+        csvOutput.write(String.valueOf(this.datestop));
+        csvOutput.write(String.valueOf(this.miliStart));
+        csvOutput.write((this.owner));
+        
+        // serialize inline - nodes
+        if (this.connectedNodesUsed==null){
+            csvOutput.write("");
+        } else {
+            StringBuilder sb = new StringBuilder();
+            int i=0;
+            for(String curNode : this.connectedNodesUsed){
+                i+=1;
+                if (i>1) sb.append(" ");
+                sb.append(curNode);
+            }
+            
+            csvOutput.write(sb.toString());
+        }
+        
+    }
+
+    @Override
+    public String getCSVname() {
+        return "expMetadata";
     }
 }

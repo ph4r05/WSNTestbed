@@ -4,21 +4,22 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
 import fi.wsnusbcollect.messages.MultiPingMsg;
+import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
-import javax.persistence.TableGenerator;
 
 /**
  * Protocoling entity, only sent messages are stored here
  * @author ph4r05
  */
 @Entity
-public class ExperimentMultiPingRequest implements Serializable {
+public class ExperimentMultiPingRequest implements Serializable, DataCSVWritable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
@@ -38,28 +39,28 @@ public class ExperimentMultiPingRequest implements Serializable {
     //************************* END OF COMMON HEADER
     
     // where to send ping message? single node or broadcast
-    int destination;
+    private int destination;
     // SEQ number ot this request
-    int counter;
+    private int counter;
     // tx power of destination
-    int txpower;
+    private int txpower;
     // channel at which to send
-    int channel;
+    private int channel;
     // number of packets to send
-    int packets;
+    private int packets;
     // timer delay between message send in ms
-    int delay;
+    private int delay;
     // desired packet size in bytes
-    int packetSize;
+    private int packetSize;
     // target = packets. CurPacket is incremented when:
     // TRUE => only on succ sent packet => sendDone()==SUCC
     // FALSE => on every Send()==SUCC
-    short counterStrategySuccess;
+    private short counterStrategySuccess;
     // if true then timer is started periodically and at each timer tick
     // message is sent 
     // if false new mesage is sent after previous message was successfully sent in 
     // sendDone()
-    short timerStrategyPeriodic;
+    private short timerStrategyPeriodic;
 
     /**
      * Initializes variables from message
@@ -221,5 +222,44 @@ public class ExperimentMultiPingRequest implements Serializable {
         int hash = 7;
         hash = 97 * hash + (this.id != null ? this.id.hashCode() : 0);
         return hash;
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("experiment");
+        csvOutput.write("miliFromStart");
+        csvOutput.write("node");
+        csvOutput.write("nodeBS");
+        csvOutput.write("miliStart");
+        csvOutput.write("destination");
+        csvOutput.write("txpower");
+        csvOutput.write("channel");
+        csvOutput.write("packets");
+        csvOutput.write("delay");
+        csvOutput.write("packetSize");
+        csvOutput.write("counterStrategySuccess");
+        csvOutput.write("timerStrategyPeriodic");
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write(String.valueOf(this.experiment.getId()));
+        csvOutput.write(String.valueOf(this.miliFromStart));
+        csvOutput.write(String.valueOf(this.node));
+        csvOutput.write(String.valueOf(this.nodeBS));
+        csvOutput.write(String.valueOf(this.miliFromStart));
+        csvOutput.write(String.valueOf(this.destination));
+        csvOutput.write(String.valueOf(this.txpower));
+        csvOutput.write(String.valueOf(this.channel));
+        csvOutput.write(String.valueOf(this.packets));
+        csvOutput.write(String.valueOf(this.delay));
+        csvOutput.write(String.valueOf(this.packetSize));
+        csvOutput.write(String.valueOf(this.counterStrategySuccess));
+        csvOutput.write(String.valueOf(this.timerStrategyPeriodic));
+    }
+
+    @Override
+    public String getCSVname() {
+        return "multiPingReq";
     }
 }

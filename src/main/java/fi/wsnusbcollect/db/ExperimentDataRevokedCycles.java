@@ -4,6 +4,8 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
+import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -19,7 +21,7 @@ import javax.persistence.ManyToOne;
  * @author ph4r05
  */
 @Entity
-public class ExperimentDataRevokedCycles implements Serializable {
+public class ExperimentDataRevokedCycles implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -90,5 +92,28 @@ public class ExperimentDataRevokedCycles implements Serializable {
 
     public void setReasonName(String reasonName) {
         this.reasonName = reasonName;
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("experiment");
+        csvOutput.write("miliStart");
+        csvOutput.write("miliEnd");
+        csvOutput.write("reasonCode");
+        csvOutput.write("reasonName");    
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write(String.valueOf(this.experiment.getId()));
+        csvOutput.write(String.valueOf(this.miliStart));
+        csvOutput.write(String.valueOf(this.miliEnd));
+        csvOutput.write(String.valueOf(this.reasonCode));
+        csvOutput.write((this.reasonName)); 
+    }
+
+    @Override
+    public String getCSVname() {
+        return "revokedCycles";
     }
 }

@@ -4,11 +4,11 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Date;
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
@@ -21,7 +21,7 @@ import javax.persistence.TemporalType;
  * @author ph4r05
  */
 @Entity
-public class USBdevice implements Serializable{
+public class USBdevice implements Serializable, DataCSVWritable{
     private static final long serialVersionUID = 112312352;
     
     // node id record, this is record id, not node id!
@@ -210,5 +210,36 @@ public class USBdevice implements Serializable{
     @Override
     public String toString() {
         return "USBdevice{" + "usbconfig=" + usbconfig + ", bus=" + bus + ", usbPath=" + usbPath + ", serial=" + serial + ", devicePath=" + devicePath + ", deviceAlias=" + deviceAlias + ", nodeId=" + nodeId + ", description=" + description + ", disabled=" + disabled + ", connectionString=" + connectionString + ", platformId=" + platformId + ", lastModification=" + lastModification + '}';
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("bus");
+        csvOutput.write("usbPath");
+        csvOutput.write("serial");
+        csvOutput.write("devicePath");
+        csvOutput.write("deviceAlias");
+        csvOutput.write("nodeId");
+        csvOutput.write("disabled");
+        csvOutput.write("connectionString");
+        csvOutput.write("platformId");
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write((this.bus));
+        csvOutput.write((this.usbPath));
+        csvOutput.write((this.serial));
+        csvOutput.write((this.devicePath));
+        csvOutput.write((this.deviceAlias));
+        csvOutput.write(String.valueOf(this.nodeId));
+        csvOutput.write(String.valueOf(this.disabled));
+        csvOutput.write((this.connectionString));
+        csvOutput.write(String.valueOf(this.platformId));
+    }
+
+    @Override
+    public String getCSVname() {
+        return "device";
     }
 }

@@ -4,7 +4,9 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.csvreader.CsvWriter;
 import fi.wsnusbcollect.messages.CollectionDebugMsg;
+import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -17,7 +19,7 @@ import javax.persistence.ManyToOne;
  * @author ph4r05
  */
 @Entity
-public class ExperimentCTPDebug implements Serializable {
+public class ExperimentCTPDebug implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -392,6 +394,65 @@ public class ExperimentCTPDebug implements Serializable {
         int hash = 7;
         hash = 97 * hash + (this.id != null ? this.id.hashCode() : 0);
         return hash;
+    }
+
+    @Override
+    public void writeCSVheader(CsvWriter csvOutput) throws IOException {
+        csvOutput.write("experiment");
+        csvOutput.write("militime");
+        csvOutput.write("node");
+        csvOutput.write("nodeBS");
+  
+        csvOutput.write("type");
+        csvOutput.write("arg");
+        csvOutput.write("msg_msg_uid");  
+        csvOutput.write("msg_origin");
+        csvOutput.write("msg_other_node");
+
+        csvOutput.write("route_info_parent");
+        csvOutput.write("route_info_hopcount");
+        csvOutput.write("route_info_metric");
+
+        csvOutput.write("dbg_a");
+        csvOutput.write("dbg_b");
+        csvOutput.write("dbg_c");
+
+        csvOutput.write("seqno");
+
+        // string annotation
+        csvOutput.write("anot");
+    }
+
+    @Override
+    public void writeCSVdata(CsvWriter csvOutput) throws IOException {
+        csvOutput.write(String.valueOf(this.experiment.getId()));
+        csvOutput.write(String.valueOf(this.militime));
+        csvOutput.write(String.valueOf(this.node));
+        csvOutput.write(String.valueOf(this.nodeBS));
+  
+        csvOutput.write(String.valueOf(this.type));
+        csvOutput.write(String.valueOf(this.arg));
+        csvOutput.write(String.valueOf(this.msg_msg_uid));  
+        csvOutput.write(String.valueOf(this.msg_origin));
+        csvOutput.write(String.valueOf(this.msg_other_node));
+
+        csvOutput.write(String.valueOf(this.route_info_parent));
+        csvOutput.write(String.valueOf(this.route_info_hopcount));
+        csvOutput.write(String.valueOf(this.route_info_metric));
+
+        csvOutput.write(String.valueOf(this.dbg_a));
+        csvOutput.write(String.valueOf(this.dbg_b));
+        csvOutput.write(String.valueOf(this.dbg_c));
+
+        csvOutput.write(String.valueOf(this.seqno));
+
+        // string annotation
+        csvOutput.write(this.anot);
+    }
+
+    @Override
+    public String getCSVname() {
+        return "ctpDebug";
     }
      
 }
