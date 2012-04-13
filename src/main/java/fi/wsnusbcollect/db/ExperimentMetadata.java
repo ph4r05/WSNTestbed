@@ -229,4 +229,9 @@ public class ExperimentMetadata implements Serializable, DataCSVWritable {
     public String getCSVname() {
         return "expMetadata";
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.XML;
+    }
 }

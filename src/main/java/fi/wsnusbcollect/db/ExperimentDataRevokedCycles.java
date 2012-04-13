@@ -116,4 +116,11 @@ public class ExperimentDataRevokedCycles implements Serializable, DataCSVWritabl
     public String getCSVname() {
         return "revokedCycles";
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
+    
+    
 }

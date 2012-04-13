@@ -5,6 +5,8 @@
 package fi.wsnusbcollect.db;
 
 import com.csvreader.CsvWriter;
+import com.thoughtworks.xstream.annotations.XStreamConverter;
+import fi.wsnusbcollect.dbManager.ExperimentConverter;
 import java.io.IOException;
 import java.io.Serializable;
 import javax.persistence.Entity;
@@ -26,6 +28,7 @@ public class ExperimentDataGenericMessage implements Serializable, DataCSVWritab
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
     
+    @XStreamConverter(ExperimentConverter.class)
     @ManyToOne
     private ExperimentMetadata experiment;
     
@@ -153,4 +156,11 @@ public class ExperimentDataGenericMessage implements Serializable, DataCSVWritab
     public String getCSVname() {
         return "genericMsg";
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.XML;
+    }
+    
+    
 }

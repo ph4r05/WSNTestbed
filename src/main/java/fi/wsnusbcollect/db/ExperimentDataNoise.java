@@ -105,5 +105,12 @@ public class ExperimentDataNoise implements Serializable, DataCSVWritable {
         csvOutput.write("connectedNode");
         csvOutput.write("counter");
         csvOutput.write("noise");
-    }    
+    }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
+    
+    
 }

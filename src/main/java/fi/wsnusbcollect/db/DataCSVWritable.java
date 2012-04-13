@@ -11,7 +11,7 @@ import java.io.IOException;
  *
  * @author ph4r05
  */
-public interface DataCSVWritable {
+public interface DataCSVWritable extends FileWritable{
     public void writeCSVheader(CsvWriter csvOutput) throws IOException;
     public void writeCSVdata(CsvWriter csvOutput) throws IOException;
     public String getCSVname();

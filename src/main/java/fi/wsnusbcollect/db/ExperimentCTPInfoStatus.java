@@ -254,4 +254,11 @@ public class ExperimentCTPInfoStatus implements Serializable, DataCSVWritable {
         csvOutput.write("ctpBusyCount");
         csvOutput.write("ctpBusy");
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
+    
+    
 }

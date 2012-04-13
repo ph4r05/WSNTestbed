@@ -4,6 +4,8 @@
  */
 package fi.wsnusbcollect.db;
 
+import com.thoughtworks.xstream.annotations.XStreamConverter;
+import fi.wsnusbcollect.dbManager.ExperimentConverter;
 import java.io.Serializable;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -16,12 +18,13 @@ import javax.persistence.ManyToOne;
  * @author ph4r05
  */
 @Entity
-public class ExperimentDataParameters implements Serializable {
+public class ExperimentDataParameters implements Serializable, FileWritable {
      // node id record, configuration ID
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
     
+    @XStreamConverter(ExperimentConverter.class)
     @ManyToOne
     private ExperimentMetadata experiment;
     
@@ -70,4 +73,11 @@ public class ExperimentDataParameters implements Serializable {
     public void setParameterValue(String parameterValue) {
         this.parameterValue = parameterValue;
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.XML;
+    }
+    
+    
 }

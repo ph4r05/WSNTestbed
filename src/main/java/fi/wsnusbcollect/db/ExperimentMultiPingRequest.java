@@ -262,4 +262,9 @@ public class ExperimentMultiPingRequest implements Serializable, DataCSVWritable
     public String getCSVname() {
         return "multiPingReq";
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
 }

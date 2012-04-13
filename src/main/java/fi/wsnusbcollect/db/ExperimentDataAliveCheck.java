@@ -141,4 +141,11 @@ public class ExperimentDataAliveCheck implements Serializable, DataCSVWritable {
     public String getCSVname() {
         return "dataAlive";
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
+    
+    
 }

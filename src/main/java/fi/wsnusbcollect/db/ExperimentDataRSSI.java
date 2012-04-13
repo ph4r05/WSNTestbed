@@ -179,4 +179,9 @@ public class ExperimentDataRSSI implements Serializable, DataCSVWritable {
         csvOutput.write("rssi");
         csvOutput.write("len");
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
 }

@@ -282,6 +282,11 @@ public class ExperimentDataCommands implements Serializable, DataCSVWritable {
     public String getCSVname() {
         return "commands";
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
     
     
 }

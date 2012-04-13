@@ -339,4 +339,11 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         csvOutput.write("regularCTP");
         csvOutput.write("sent");
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
+    
+    
 }

@@ -242,4 +242,9 @@ public class USBdevice implements Serializable, DataCSVWritable{
     public String getCSVname() {
         return "device";
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.XML;
+    }
 }

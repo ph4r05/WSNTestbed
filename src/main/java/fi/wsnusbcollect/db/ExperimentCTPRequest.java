@@ -255,4 +255,11 @@ public class ExperimentCTPRequest implements Serializable, DataCSVWritable {
         csvOutput.write("timerStrategyPeriodic");
         csvOutput.write("packetsUnlimited");
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
+    
+    
 }

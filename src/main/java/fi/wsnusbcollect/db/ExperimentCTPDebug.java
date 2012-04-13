@@ -454,5 +454,10 @@ public class ExperimentCTPDebug implements Serializable, DataCSVWritable {
     public String getCSVname() {
         return "ctpDebug";
     }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.CSV;
+    }
      
 }

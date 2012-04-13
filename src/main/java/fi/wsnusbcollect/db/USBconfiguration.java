@@ -20,7 +20,7 @@ import javax.persistence.TemporalType;
  * @author ph4r05
  */
 @Entity
-public class USBconfiguration implements Serializable{
+public class USBconfiguration implements Serializable, FileWritable{
     private static final long serialVersionUID = 1123123523L;
     
     // node id record, configuration ID
@@ -125,5 +125,10 @@ public class USBconfiguration implements Serializable{
     @Override
     public String toString() {
         return "USBconfiguration{" + "id=" + id + ", validFrom=" + validFrom + ", description=" + description + ", configurationName=" + configurationName + ", lastModification=" + lastModification + '}';
+    }
+
+    @Override
+    public FileWritableTypes getPrefferedWriteFormat() {
+        return FileWritableTypes.XML;
     }
 }
