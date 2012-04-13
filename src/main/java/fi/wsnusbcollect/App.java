@@ -168,20 +168,25 @@ public class App {
      * Initializes dependencies (instantiates components) for application
      * USBArbitrator
      */
-    public void initDependencies(){        
-        // spring application context init
-        appContext = new ClassPathXmlApplicationContext("applicationContext.xml");
+    public void initDependencies(){
+        // dependency initialization according to senslab. If true - no mysql database
+        if (senslab){
+            // spring application context init, senslab - lightweight
+            appContext = new ClassPathXmlApplicationContext("applicationContextSenslab.xml");
+        } else {
+            // spring application context init
+            appContext = new ClassPathXmlApplicationContext("applicationContext.xml");
+        }
         
         this.usbArbitrator = appContext.getBean("USBarbitrator", USBarbitrator.class);
         if (this.usbArbitrator == null){
             log.error("Dependency injection failed on USB arbitrator bean");
             throw new IllegalStateException("Dependency injection is not working");
         }
-        
+
         this.consoleHelper = appContext.getBean("consoleHelper", ConsoleHelper.class);
         this.console = appContext.getBean("console", Console.class);
         this.expInit = appContext.getBean("experimentInit", ExperimentInit.class);
-        //this.expCoord = appContext.getBean("experimentCoordinator", ExperimentCoordinatorImpl.class);
         this.expCoord = (ExperimentCoordinator) appContext.getBean("experimentCoordinator");
         
         // reconnect between
@@ -257,7 +262,6 @@ public class App {
             benchmark.test();
             return;
         }
-        
         
         // main logic starting
         log.info("Arguments parsed, can start logic");
