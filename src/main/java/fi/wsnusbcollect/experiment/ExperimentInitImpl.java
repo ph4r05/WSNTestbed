@@ -15,21 +15,25 @@ import fi.wsnusbcollect.messages.CtpResponseMsg;
 import fi.wsnusbcollect.messages.CtpSendRequestMsg;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
-import fi.wsnusbcollect.nodeCom.MessageSender;
+import fi.wsnusbcollect.nodeCom.MultipleMessageSender;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.GenericNode;
+import fi.wsnusbcollect.nodes.NodeHandler;
 import fi.wsnusbcollect.nodes.NodePlatform;
 import fi.wsnusbcollect.nodes.NodePlatformFactory;
 import fi.wsnusbcollect.nodes.SimpleGenericNode;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import javax.annotation.Resource;
 import net.tinyos.message.MoteIF;
@@ -274,6 +278,10 @@ public class ExperimentInitImpl implements ExperimentInit {
             throw new NullPointerException("NCR is null");
         }
         
+        MultipleMessageSender mMsgSender = null;
+        Map<Integer, MoteIF> connectedNodes = new HashMap<Integer, MoteIF>();
+        Integer defaultGateway=null;
+        
         Iterator<NodeConfigRecord> iterator = ncr.iterator();
         while(iterator.hasNext()){
             NodeConfigRecord nextncr = iterator.next();
@@ -308,15 +316,18 @@ public class ExperimentInitImpl implements ExperimentInit {
             listener.setDropingPackets(true);
             
             // message sender
-            MessageSender sender = new MessageSender(connectToNode);
+            //MessageSender sender = new MessageSender(connectToNode);
             
             cn.setMsgListener(listener);
-            cn.setMsgSender(sender);
+            //cn.setMsgSender(sender);
             
             // add listening to packets here to separate DB listener
             ExperimentData2DB dbForNode = App.getRunningInstance().getAppContext().getBean("experimentData2DB", ExperimentData2DB.class);
             dbForNode.setExpMeta(expMeta);
             
+            // store for multiple packet sender
+            connectedNodes.put(cn.getNodeId(), connectToNode);
+            defaultGateway = cn.getNodeId();
             
             log.info("DB for node is running: " + dbForNode.isRunning());
             cn.registerMessageListener(new CommandMsg(), dbForNode);
@@ -332,6 +343,14 @@ public class ExperimentInitImpl implements ExperimentInit {
             this.nodeReg.put(cn);
             
             System.out.println("Initialized connected node: " + cn.toString());
+        }
+        
+        mMsgSender = new MultipleMessageSender(defaultGateway, connectedNodes.get(defaultGateway));
+        Collection<NodeHandler> nodeHandlers = this.nodeReg.values();
+        for(NodeHandler curNH : nodeHandlers){
+            if (!(nodeHandlers instanceof ConnectedNode)) continue;
+            final ConnectedNode cn = (ConnectedNode) curNH;
+            cn.setMsgSender(mMsgSender);
         }
         
         // starting all threads

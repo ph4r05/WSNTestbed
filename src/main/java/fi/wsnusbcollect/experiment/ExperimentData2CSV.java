@@ -79,10 +79,10 @@ public class ExperimentData2CSV extends Thread implements ExperimentData2DB {
      * elimitanes spikes in database load when multiple threads wants to flush in 
      * the same time
      */
-    int currentMessageThresholdFlush=100;
+    int currentMessageThresholdFlush=1000;
     
-    int maxMessageThresholdFlush=200;
-    int minMessageThresholdFlush=40;
+    int maxMessageThresholdFlush=2000;
+    int minMessageThresholdFlush=400;
     
     @PostConstruct
     @Override
