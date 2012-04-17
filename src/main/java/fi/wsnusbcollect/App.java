@@ -37,6 +37,9 @@ public class App {
     // main logger instance, configured in log4j.properties in resources
     private static final Logger log = LoggerFactory.getLogger(App.class);
     
+    // file path separator
+    public static final String pathSeparator = System.getProperty("file.separator");
+    
     // main properties object
     Properties props = null;
     
@@ -171,6 +174,8 @@ public class App {
     public void initDependencies(){
         // dependency initialization according to senslab. If true - no mysql database
         if (senslab){
+            log.info("Iniitalizing senslab application context");
+            
             // spring application context init, senslab - lightweight
             appContext = new ClassPathXmlApplicationContext("applicationContextSenslab.xml");
         } else {
