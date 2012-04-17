@@ -9,13 +9,6 @@
        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd">
-           
-    <context:annotation-config />
-    <context:component-scan base-package="fi.wsnusbcollect.**" />
-    <tx:annotation-driven/>
-    <!--<tx:annotation-driven transaction-manager="transactionManager" />-->
-    <bean class="org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor"/>
-    <bean class="org.springframework.context.annotation.CommonAnnotationBeanPostProcessor" />
     
     <!-- 
         Logging
@@ -42,53 +35,32 @@
             <property name="location">
                     <value>classpath:/db.properties</value>
             </property>
-    </bean>        
-        
-    <!-- 
-        Data source - local, single connection data source JDBC
-    --> 
-    <!--
-    <bean id="dataSource"
-          class="org.springframework.jdbc.datasource.DriverManagerDataSource"
-          p:driverClassName="${db.driver}"
-          p:url="${db.url}"
-          p:username="${db.user}"
-          p:password="${db.password}">       
     </bean>
-    -->
-    
-    <!-- Connection pool 
-    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
-      <property name="driverClass"><value>${db.driver}</value></property>
-      <property name="jdbcUrl"><value>${db.url}</value></property>
-      <property name="user"><value>${db.user}</value></property>
-      <property name="password"><value>${db.password}</value></property>
-      <property name="acquireIncrement"><value>1</value></property>
-      <property name="maxPoolSize"><value>150</value></property>
-      <property name="minPoolSize"><value>40</value></property>
-      <property name="initialPoolSize"><value>40</value></property>
-      <property name="maxAdministrativeTaskTime"><value>0</value></property>
-      <property name="idleConnectionTestPeriod"><value>300</value></property>
-      <property name="preferredTestQuery"><value>select 1;</value></property>
-    </bean> 
-    -->
-    
-    <bean id="EntityManager" class="fi.wsnusbcollect.utils.BlindEntityManager" />
+
     <bean id="DataSource" class="fi.wsnusbcollect.utils.BlindDataSource" />
-    
+    <bean id="EntityManager" class="fi.wsnusbcollect.utils.BlindEntityManager" />
+    <bean id="EntityManagerFactory" class="fi.wsnusbcollect.utils.BlindEntityManagerFactory" />
+    <bean id="JdbcTemplate" class="fi.wsnusbcollect.utils.BlindJDBCTemplate" p:dataSource-ref="DataSource"/>
+    <bean id="SessionFactory" class="fi.wsnusbcollect.utils.BlindSessionFactory" />
+    <bean id="transactionManager" class="fi.wsnusbcollect.utils.BlindTransactionManager" />
+
     <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitratorSenslab"/>
     <bean id="consoleHelper" class="fi.wsnusbcollect.console.ConsoleHelperImpl"/>
     <bean id="console" class="fi.wsnusbcollect.console.ConsoleImpl"/>
     <bean id="nodeHandlerRegister" class="fi.wsnusbcollect.nodeManager.NodeHandlerRegisterImpl"/>
     
     <!-- Experiment related -->
-    <bean id="experimentRecords" class="fi.wsnusbcollect.experiment.ExperimentRecords2CSV" scope="prototype"/>
+    <bean id="experimentRecords" class="fi.wsnusbcollect.experiment.ExperimentRecords2CSV" scope="singleton" />
     
     <bean id="experimentParameters" class="fi.wsnusbcollect.experiment.ExperimentParametersImpl"/>
     <bean id="experimentInit" class="fi.wsnusbcollect.experiment.ExperimentInitImpl"/>
     <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl" lazy-init="true"/>
-    <bean id="experimentData2DB" class="fi.wsnusbcollect.experiment.ExperimentData2CSV" scope="prototype"/>
+    <bean id="experimentData2DB" class="fi.wsnusbcollect.experiment.ExperimentData2CSV"/>
     <bean id="experimentStatGen" class="fi.wsnusbcollect.experiment.results.ExperimentStatGenImpl" scope="prototype"/>
     
     <bean id="benchmark" class="fi.wsnusbcollect.dbbenchmark.BenchmarkExecutor" />
+    
+    <context:annotation-config />
+    <context:component-scan base-package="fi.wsnusbcollect.**" />
+    <bean class="org.springframework.context.annotation.CommonAnnotationBeanPostProcessor" />
 </beans>
