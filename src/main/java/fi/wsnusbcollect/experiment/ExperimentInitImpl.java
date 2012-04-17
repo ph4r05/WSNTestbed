@@ -7,7 +7,9 @@ package fi.wsnusbcollect.experiment;
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.db.ExperimentMetadata;
 import fi.wsnusbcollect.db.USBconfiguration;
+import fi.wsnusbcollect.messages.CollectionDebugMsg;
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.CtpInfoMsg;
 import fi.wsnusbcollect.messages.CtpReportDataMsg;
 import fi.wsnusbcollect.messages.CtpResponseMsg;
 import fi.wsnusbcollect.messages.CtpSendRequestMsg;
@@ -30,8 +32,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import javax.annotation.Resource;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
 import net.tinyos.packet.PhoenixSource;
@@ -50,9 +50,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class ExperimentInitImpl implements ExperimentInit {
     private static final Logger log = LoggerFactory.getLogger(ExperimentInit.class);
-
-    @PersistenceContext
-    private EntityManager em;
+    
+    @Resource(name="experimentRecords")
+    protected ExperimentRecords2DB expRecords;
     
     @Resource(name="nodeHandlerRegister")
     protected NodeHandlerRegister nodeReg;
@@ -211,8 +211,7 @@ public class ExperimentInitImpl implements ExperimentInit {
         expMeta.setConnectedNodesUsed(nodeList);
         
         // persist meta
-        this.em.persist(expMeta);
-        this.em.flush();
+        this.expRecords.storeExperimentMeta(expMeta);
     }
 
     @Override
@@ -228,17 +227,7 @@ public class ExperimentInitImpl implements ExperimentInit {
             throw new NullPointerException("Current experiment metadata is null");
         }
         
-        // attached?
-        if (this.em.contains(this.expMeta)){
-            this.expMeta.setDatestop(new Date());
-        } else {
-            log.info("Entity is not managed");
-            this.expMeta = this.em.merge(this.expMeta);
-            this.expMeta.setDatestop(new Date());
-            this.em.persist(this.expMeta);
-        }
-        
-        this.em.flush();
+        this.expRecords.closeExperiment(expMeta);
     }
     
     /**
@@ -251,17 +240,7 @@ public class ExperimentInitImpl implements ExperimentInit {
             throw new NullPointerException("Current experiment metadata is null");
         }
         
-        // attached?
-        if (this.em.contains(this.expMeta)){
-            this.expMeta.setMiliStart(mili);
-        } else {
-            log.info("Entity is not managed");
-            this.expMeta = this.em.merge(this.expMeta);
-            this.expMeta.setMiliStart(mili);
-            this.em.persist(this.expMeta);
-        }
-        
-        this.em.flush();
+        this.expRecords.updateExperimentStart(expMeta, mili);
     }
 
     /**
@@ -289,7 +268,7 @@ public class ExperimentInitImpl implements ExperimentInit {
      * @param ncr 
      */
     @Override
-    public void initConnectedNodes(Properties props, List<NodeConfigRecord> ncr) {
+        public void initConnectedNodes(Properties props, List<NodeConfigRecord> ncr) {
         log.info("initializing connected nodes here");
         if (ncr==null){
             throw new NullPointerException("NCR is null");
@@ -338,6 +317,7 @@ public class ExperimentInitImpl implements ExperimentInit {
             ExperimentData2DB dbForNode = App.getRunningInstance().getAppContext().getBean("experimentData2DB", ExperimentData2DB.class);
             dbForNode.setExpMeta(expMeta);
             
+            
             log.info("DB for node is running: " + dbForNode.isRunning());
             cn.registerMessageListener(new CommandMsg(), dbForNode);
             cn.registerMessageListener(new NoiseFloorReadingMsg(), dbForNode);
@@ -345,6 +325,8 @@ public class ExperimentInitImpl implements ExperimentInit {
             cn.registerMessageListener(new CtpReportDataMsg(), dbForNode);
             cn.registerMessageListener(new CtpResponseMsg(), dbForNode);
             cn.registerMessageListener(new CtpSendRequestMsg(), dbForNode);
+            cn.registerMessageListener(new CtpInfoMsg(), dbForNode);
+            cn.registerMessageListener(new CollectionDebugMsg(), dbForNode);
             
             // add to map
             this.nodeReg.put(cn);
