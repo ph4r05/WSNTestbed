@@ -87,6 +87,8 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
         if (xstreamWriter==null){
             xstreamWriter = getXstream();
         }
+        
+        log.info("Data file writer initialized, datadir="+realDataDir);
     }
     
     /**
@@ -117,9 +119,19 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
         String id = entity.getCSVname();
         CsvWriter csvOutput = null;
         
+        boolean writerCreated = fileCSVWriters.containsKey(id);
+        
         // check existence in map
-        if (fileCSVWriters.contains(id) == false) {
-            synchronized(this){
+        if (writerCreated) {
+            csvOutput = fileCSVWriters.get(id);
+        } else {
+            log.info("Entity ID was not found in register: [" + id + "]; id of structure: " + fileBuffers.toString());
+            // dump all key ids
+            for(String curKey:  fileCSVWriters.keySet()){
+                log.info("KeyInWRITERS: [" + curKey + "]");
+            }
+            
+            synchronized(fileCSVWriters){
                 // this file does not yet exist
                 String path = realDataDir + App.pathSeparator + id + ".csv";
                 File tmpFile = new File(path);
@@ -145,6 +157,7 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
 
                     // if empty -> add header
                     if (empty){
+                        log.info("Entity file does not exist: " + id);
                         entity.writeCSVheader(csvOutput);
                         csvOutput.endRecord();
                         csvOutput.flush();
@@ -152,13 +165,12 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
 
                     // add to map
                     fileCSVWriters.put(id, csvOutput);
+                    log.info("Initialized new entity file: " + id + "; SizeOfWriters: " + fileCSVWriters.size());
                 } catch (IOException ex) {
                     log.error("Cannot initialize new CSV writer", ex);
                     return;
                 }
             }
-        } else {
-            csvOutput = fileCSVWriters.get(id);
         }
         
         synchronized(csvOutput){
@@ -181,8 +193,8 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
         BufferedWriter bw = null;
         
         // check existence in map
-        if (fileBuffers.contains(id) == false) {
-            synchronized(this){
+        if (fileBuffers.containsKey(id) == false) {
+            synchronized(fileBuffers){
                 // this file does not yet exist
                 String path = realDataDir + App.pathSeparator + id + ".xml";
                 File tmpFile = new File(path);
@@ -218,6 +230,7 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
             try {
                 bw.write(xstreamWriter.toXML(entity));
                 bw.write("\n");
+                bw.flush();
             } catch (IOException ex) {
                 log.error("Cannot save record 2 XML file - IOException occurred", ex);
             }
