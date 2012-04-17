@@ -4,19 +4,21 @@
  */
 package fi.wsnusbcollect.experiment;
 
+import fi.wsnusbcollect.db.ExperimentCTPDebug;
+import fi.wsnusbcollect.db.ExperimentCTPInfoStatus;
 import fi.wsnusbcollect.db.ExperimentCTPReport;
 import fi.wsnusbcollect.db.ExperimentDataAliveCheck;
 import fi.wsnusbcollect.db.ExperimentDataNoise;
 import fi.wsnusbcollect.db.ExperimentDataRSSI;
 import fi.wsnusbcollect.db.ExperimentMetadata;
+import fi.wsnusbcollect.messages.CollectionDebugMsg;
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.CtpInfoMsg;
 import fi.wsnusbcollect.messages.CtpReportDataMsg;
 import fi.wsnusbcollect.messages.MessageTypes;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.PostConstruct;
@@ -73,8 +75,6 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
      * Thread can be gracefully exited by setting this to false
      */
     boolean running=true;
-    
-    private List<String> sqlQueue = new ArrayList<String>(500);
     
     /**
      * Queue of entities to store
@@ -249,6 +249,37 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
             this.objQueue.add(report);
         }
         
+        // CTP status info message?
+        if (CtpInfoMsg.class.isInstance(msg)){
+            final CtpInfoMsg cMsg = (CtpInfoMsg) msg;
+            
+            // only status info save to db
+            if (cMsg.get_type()==0){
+                ExperimentCTPInfoStatus status = new ExperimentCTPInfoStatus();
+                status.loadFromMessage(cMsg);
+                status.setMilitime(mili);
+                status.setExperiment(expMeta);
+                status.setNode(src);
+            
+                this.objQueue.add(status);
+            }
+        }
+        
+        // CTP debug?
+        if (CollectionDebugMsg.class.isInstance(msg)){
+            final CollectionDebugMsg cMsg = (CollectionDebugMsg) msg;
+            
+            // only status info save to db            
+            ExperimentCTPDebug dbg = new ExperimentCTPDebug();
+            dbg.loadFromMessage(cMsg);
+            dbg.setMilitime(mili);
+            dbg.setExperiment(expMeta);
+            dbg.setNode(src);
+
+            this.objQueue.add(dbg);
+
+        }
+        
         this.checkQueues();
     }
     
@@ -324,7 +355,6 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
                 tx.commit();
             }
             
-            this.sqlQueue.clear();
             messageFromLastFlush=0;
         } catch (Exception e) {
             log.warn("Exception when starting transaction", e);
@@ -456,5 +486,5 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
 
     public void setSf(SessionFactory sf) {
         this.sf = sf;
-    }
+    }    
 }
