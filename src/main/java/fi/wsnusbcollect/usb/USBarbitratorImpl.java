@@ -54,7 +54,7 @@ public class USBarbitratorImpl implements USBarbitrator {
     protected static final Logger log = LoggerFactory.getLogger(USBarbitratorImpl.class);
     protected static final String UDEV_RULES_LINE_PATTERN = "^ATTRS\\{serial\\}\\s*==\\s*\\\"([0-9a-zA-Z_]+)\\\",\\s*NAME\\s*=\\s*\\\"([0-9a-zA-Z_]+)\\\".*";
     protected static final String NODE_ID_PATTERN = ".*?([0-9]+)$";
-    protected static final String NODEID_INTERVAL_PATTERN = "^#([0-9]+)-([0-9]+)$";
+    protected static final String NODEID_INTERVAL_PATTERN = "#([0-9]+)-([0-9]+)";
     protected static final String MAKE="/usr/bin/make";
     
     @PersistenceContext
@@ -854,6 +854,8 @@ public class USBarbitratorImpl implements USBarbitrator {
                             log.warn("NodeId: " + cNode + " cannot be found among connected nodes");
                         }
                     }
+                    
+                    continue;
                 }
                 
                 // node id
@@ -1102,6 +1104,11 @@ public class USBarbitratorImpl implements USBarbitrator {
         }
     }
 
+    @Override
+    public boolean isAbleNodeReset() {
+        return true;
+    }
+    
     @Override
     public boolean resetNode(NodeHandler nh, Properties prop) {
         if (nh==null || nh.getNodeObj()==null){

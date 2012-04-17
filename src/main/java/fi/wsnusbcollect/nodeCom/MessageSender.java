@@ -39,12 +39,14 @@ package fi.wsnusbcollect.nodeCom;
  * @author Dusan Klinec (ph4r05) - extended basic idea
  * 
  */
+import fi.wsnusbcollect.nodes.ConnectedNode;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -70,7 +72,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author ph4r05
  */
-public class MessageSender extends Thread implements MessageSentListener{
+public class MessageSender extends Thread implements MessageSentListener, MessageSenderInterface{
     private static final Logger log = LoggerFactory.getLogger(MessageSender.class);
     
     /**
@@ -562,6 +564,21 @@ public class MessageSender extends Thread implements MessageSentListener{
      */
     public synchronized int getQueueLength(){
         return this.queue != null ? this.queue.size() : 0;
+    }
+
+    @Override
+    public void disconnectNode(ConnectedNode nh, boolean resetQueues) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void disconnectNode(ConnectedNode nh, Properties props) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void connectNode(ConnectedNode nh, Properties props) {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**

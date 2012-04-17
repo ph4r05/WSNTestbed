@@ -39,14 +39,14 @@ package fi.wsnusbcollect.nodeCom;
  * @author Dusan Klinec (ph4r05) - extended basic idea
  * 
  */
+import fi.wsnusbcollect.nodes.ConnectedNode;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -72,7 +72,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author ph4r05
  */
-public class MultipleMessageSender extends Thread implements MessageSentListener{
+public class MultipleMessageSender extends Thread implements MessageSentListener, MessageSenderInterface{
     private static final Logger log = LoggerFactory.getLogger(MessageSender.class);
     
     /**
@@ -169,14 +169,21 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
         this.blockingMessageSent = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
         this.preparedTimeGateway = new ConcurrentHashMap<Integer, Long>();
         this.connectedGateways = new ConcurrentHashMap<Integer, MoteIF>();
-        this.connectedGateways.put(gatewayId, gateway);
+        
+        if (gatewayId!=null){
+            this.connectedGateways.put(gatewayId, gateway);
+        }
+        
         this.gateway = gatewayId;
 
         // delivery guarantor
         //this.messageDeliveryGuarantor = new MessageDeliveryGuarantor(this);
 
         // instantiate thread pool
-        tasksSenders = Executors.newFixedThreadPool(senderThreads);
+        if (senderThreads>0){
+            tasksSenders = Executors.newFixedThreadPool(senderThreads);
+        }
+        
         tasksNotifiers = Executors.newFixedThreadPool(notifyThreads);
         // create notify threads
         for(int i=0; i<notifyThreads; i++){
@@ -187,6 +194,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
     /**
      * Performs shutdown
      */
+    @Override
     public synchronized void shutdown(){
         this.shutdown = true;
         this.reset();
@@ -209,6 +217,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
     /**
      * perform hard reset to this object = clears entire memory
      */
+    @Override
     public synchronized void reset(){
         this.queue.clear();
         this.msgToSend = null;
@@ -298,7 +307,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
                 Integer wantedGateway = nextMessage.getSource() != null ? nextMessage.getSource() : this.gateway;
                 
                 // is wanted gateway in set of gateways I am managing?
-                if (this.connectedGateways.contains(wantedGateway)==false){
+                if (wantedGateway!=null && this.connectedGateways.containsKey(wantedGateway)==false){
                     // no -> need to remove message
                     log.warn("Need to throw message away - gateway " + wantedGateway + " is not available here.", nextMessage);
                     iterator.remove();
@@ -307,7 +316,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
                 
                 // is wanted gateway prepared4sending? check times when will be prepared
                 // if no record in map -> is prepared immediatelly, can continue 2 send
-                if (this.preparedTimeGateway.contains(wantedGateway)){
+                if (this.preparedTimeGateway.containsKey(wantedGateway)){
                     // here prepared time is in map, check if is greater than current time
                     // if yes -> will be prepared in future -> cannot send via this gateway
                     Long preparedTime = this.preparedTimeGateway.get(wantedGateway);
@@ -398,6 +407,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
      * 
      * @return booleans
      */
+    @Override
     public boolean canAdd(){
         return (this.getGateway()!=null && this.shutdown==false);
     }
@@ -408,6 +418,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
      * @param msg
      * @param text
      */
+    @Override
     public void add(int target, net.tinyos.message.Message msg, String text){
         if (this.canAdd()==false){
             throw new NullPointerException("Cannot add message to send queue since gateway is null");
@@ -423,6 +434,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
      * @param msg
      * @param text
      */
+    @Override
     public void add(int target, net.tinyos.message.Message msg, String text,
             MessageSentListener listener, String listenerKey){
         if (this.canAdd()==false){
@@ -442,6 +454,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
      * @return  list of failed blocking messages 
      * @throws TimeoutException 
      */
+    @Override
     public Collection<MessageToSend> add(Collection<MessageToSend> msgs) throws TimeoutException {
         if (this.canAdd()==false){
             throw new NullPointerException("Cannot add message to send queue since gateway is null");
@@ -538,6 +551,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
      * Adds initialized message to send to send queue.
      * @param msg
      */
+    @Override
     public void add(MessageToSend msg) throws TimeoutException{
         if (this.canAdd()==false){
             throw new NullPointerException("Cannot add message to send queue since gateway is null");
@@ -642,6 +656,69 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
      */
     public synchronized int getQueueLength(){
         return this.queue != null ? this.queue.size() : 0;
+    }
+
+    @Override
+    public synchronized void disconnectNode(ConnectedNode nh, boolean resetQueues) {
+        // disconnect given node from this listener
+        if (nh==null){
+            throw new NullPointerException("Cannot manipulate with null node");
+        }
+        
+        if (this.connectedGateways.containsKey(nh.getNodeId()) == false){
+            // no such node in register, nothing to do
+            return;
+        }
+        
+        boolean gatewayRemoval = false;
+        Integer nodeId = nh.getNodeId();
+        if (nodeId.equals(this.gateway)){
+            // ou shit, gateway removal, assign next random gateway from queue
+            gatewayRemoval=true;
+        }
+        
+        // remove from queue, prune
+        Iterator<MessageToSend> iterator = this.queue.iterator();
+        while(iterator.hasNext()){
+            MessageToSend m2s = iterator.next();
+            if (m2s.getSource()==null){
+                if (gatewayRemoval==false) continue;
+            } else if (m2s.getSource().equals(nh.getNodeId())==false){
+                // not an interesting id
+                continue;
+            }
+            
+            iterator.remove();
+        }
+        
+        // remove moteif from queue
+        this.connectedGateways.remove(nh.getNodeId());
+       
+        // new gateway
+        if (gatewayRemoval){
+            Set<Integer> keySet = this.connectedGateways.keySet();
+            if (keySet.size()>0){
+                this.gateway = keySet.iterator().next();
+            }
+        }
+    }
+
+    @Override
+    public synchronized void disconnectNode(ConnectedNode nh, Properties props) {
+        if (nh==null){
+            throw new NullPointerException("Cannot manipulate with null node");
+        }
+        
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public synchronized void connectNode(ConnectedNode nh, Properties props) {
+        if (nh==null){
+            throw new NullPointerException("Cannot manipulate with null node");
+        }
+        
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /**
@@ -768,7 +845,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
      */
     
     public MoteIF getGateway() {        
-        return this.connectedGateways!=null && this.connectedGateways.contains(gateway) ? this.connectedGateways.get(gateway) : null;
+        return this.connectedGateways!=null && this.connectedGateways.containsKey(gateway) ? this.connectedGateways.get(gateway) : null;
     }
 
     public synchronized void setGateway(Integer gatewayId, MoteIF gateway){
@@ -822,6 +899,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
         return tasksNotifiers;
     }
 
+    @Override
     public long getTimeLastMessageSent() {
         return timeLastMessageSent;
     }
@@ -830,10 +908,12 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
         this.timeLastMessageSent = timeLastMessageSent;
     }
 
+    @Override
     public boolean isShutdown() {
         return shutdown;
     }
 
+    @Override
     public void setShutdown(boolean shutdown) {
         this.shutdown = shutdown;
     }
@@ -842,6 +922,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
         return messageDeliveryGuarantor;
     }
 
+    @Override
     public int getSentSleepTime() {
         return sentSleepTime;
     }

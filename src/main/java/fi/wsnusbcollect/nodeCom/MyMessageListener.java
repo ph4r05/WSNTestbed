@@ -100,10 +100,10 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
      */
     protected boolean dropingPackets=true;
     
-    /**
-     * My worker, used to notify if something arrived to queue
-     */
-    private MessageNotifyWorker myWorker = null;
+//    /**
+//     * My worker, used to notify if something arrived to queue
+//     */
+//    private MessageNotifyWorker myWorker = null;
 
     /**
      *
@@ -357,22 +357,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
                 
                 break;
             }
-            
-            
-            
-            
-            
-            
-            
-            
-            
-           
-
-
-
-
-
-
+         
 
              // yield for some time iff is queue empty
              if (queue == null || queue.isEmpty()) {
@@ -472,17 +457,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
 
              // set message to null to release it from memory for garbage collector
              tmpMessage = null;
-
-
-
-            
-            
-            
-            
-            
-            
-            
-            
+             
 
             // this code is probably useles since message arrived event notify 
             // is performed by notify thread            

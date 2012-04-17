@@ -169,6 +169,14 @@ public interface USBarbitrator extends PostConstructable{
     void updateNodesDatabase();
     
     /**
+     * Determines whether it is possible to perform node reset (presence of 
+     * restart command etc...)
+     * 
+     * @return 
+     */
+    public boolean isAbleNodeReset();
+    
+    /**
      * Reset node - more global definition
      * 
      * @param nh

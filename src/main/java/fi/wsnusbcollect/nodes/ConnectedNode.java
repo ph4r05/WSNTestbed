@@ -8,11 +8,13 @@ import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.nodeCom.MessageReceived;
 import fi.wsnusbcollect.nodeCom.MessageSender;
+import fi.wsnusbcollect.nodeCom.MessageSenderInterface;
 import fi.wsnusbcollect.nodeCom.MessageSentListener;
 import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
+import fi.wsnusbcollect.usb.USBarbitrator;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeoutException;
@@ -45,7 +47,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     private NodeConfigRecord nodeConfig;
     
     // message sender bound to specified node
-    private MessageSender msgSender;
+    private MessageSenderInterface msgSender;
     
     // message listener bound to specified node
     private MyMessageListener msgListener;
@@ -93,7 +95,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     public void disconnect(){
         // shutdown sender
         if (this.msgSender!=null){
-            this.msgSender.setGateway(null, this.resetQueues);
+            this.msgSender.disconnectNode(this, this.resetQueues);
         }
         
         // shutdown listener
@@ -146,13 +148,21 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
      */
     public void hwreset(){
         if (this.hwresetPossible()==false) return;
+        USBarbitrator usbArbitrator = App.getRunningInstance().getUsbArbitrator();
+        
+        // node reset is not able here (emulator?)
+        if (usbArbitrator.isAbleNodeReset()==false) return;
+        
         // disconnect all nodes
         this.disconnect();
         // reset nodes
         Properties properties = new Properties();
-        properties.setProperty("preferDevice", this.nodeConfig.getDeviceAlias());
+        if (this.nodeConfig.getDeviceAlias()!=null && this.nodeConfig.getDeviceAlias().isEmpty()==false){
+            properties.setProperty("preferDevice", this.nodeConfig.getDeviceAlias());
+        }
+        
         // reset node with USB arbitrator - handles environment differences
-        boolean ok = App.getRunningInstance().getUsbArbitrator().resetNode(this, properties);
+        boolean ok = usbArbitrator.resetNode(this, properties);
         
         if (ok){
             this.connectToNode();
@@ -398,11 +408,11 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
      * Returns original message sender for this node
      * @return 
      */
-    public MessageSender getMsgSender() {
+    public MessageSenderInterface getMsgSender() {
         return msgSender;
     }
 
-    public void setMsgSender(MessageSender msgSender) {
+    public void setMsgSender(MessageSenderInterface msgSender) {
         this.msgSender = msgSender;
     }
 
@@ -447,7 +457,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         }
         
         if (this.msgSender!=null){
-            this.msgSender.setGateway(moteIf, this.resetQueues);
+            this.msgSender.connectNode(this, null);
         }
     }
 

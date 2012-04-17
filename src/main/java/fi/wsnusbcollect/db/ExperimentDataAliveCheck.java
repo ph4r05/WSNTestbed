@@ -126,7 +126,7 @@ public class ExperimentDataAliveCheck implements Serializable, DataCSVWritable {
 
     @Override
     public void writeCSVdata(CsvWriter csvOutput) throws IOException {
-        csvOutput.write(String.valueOf(this.experiment));
+        csvOutput.write(String.valueOf(this.experiment.getId()));
         csvOutput.write(String.valueOf(this.miliFromStart));
         csvOutput.write(String.valueOf(this.node));
         

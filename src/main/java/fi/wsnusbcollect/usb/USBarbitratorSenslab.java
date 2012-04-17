@@ -4,28 +4,36 @@
  */
 package fi.wsnusbcollect.usb;
 
+import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.nodes.NodeHandler;
 import fi.wsnusbcollect.nodes.NodePlatformFactory;
 import fi.wsnusbcollect.nodes.NodePlatformWSN430;
-import java.util.HashMap;
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  *
  * @author ph4r05
  */
-@Repository
-@Transactional
 public class USBarbitratorSenslab extends USBarbitratorImpl{
 
+    public static final String NODE_RESET_COMMAND = "/opt/senslab/bin/senslab-cli";
+    
     private NodeSearchMap moteListPrivate;
     
     public USBarbitratorSenslab() {
     }
+
+    @Override
+    public USBconfiguration getCurrentConfiguration() {
+        USBconfiguration usbConf = new USBconfiguration();
+        
+        return usbConf;
+    }
+    
+    
 
     @Override
     public boolean checkNodesConnection(Map<String, NodeConfigRecord> localmotelist, boolean output) {
@@ -50,6 +58,7 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
      */
     @Override
     public void detectConnectedNodes() {
+        log.info("Detecting connected nodes");
         //super.detectConnectedNodes();
     }
 
@@ -90,6 +99,24 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
         //super.reprogramNodes(nodes2connect, makefileDir);
     }
 
+    @Override
+    public boolean isAbleNodeReset() {
+        // can really reset node? -> reset command need to exist
+        if (NODE_RESET_COMMAND==null){
+            return false;
+        }
+        
+        // check reset command existence
+        File tmpFile = new File(NODE_RESET_COMMAND);
+        if (tmpFile.exists()==false){
+            return false;
+        } else {
+            return true;
+        }
+    }
+    
+    
+
     /**
      * In senslab we can reset node by nodeid calling python interface
      * @TODO: check this in real senslab
@@ -104,7 +131,7 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
             return false;
         }
         
-        return this.resetNode("/opt/senslab/bin/senslab-cli reset " + nh.getNodeId());
+        return this.resetNode(NODE_RESET_COMMAND + " reset " + nh.getNodeId());
     }
 
     /**
@@ -167,7 +194,9 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
         ncr.setPlatformId(platform.getPlatformId());
         ncr.setDescription(platform.getPlatform());
         ncr.setSerial(id.toString());
-        ncr.setConnectionString(platform.getConnectionString("experiment:" + (30000 + id), NodePlatformFactory.CONNECTION_SF));
+//        ncr.setConnectionString(platform.getConnectionString("experiment:" + (30000 + id), NodePlatformFactory.CONNECTION_SF));
+                ncr.setConnectionString(platform.getConnectionString("centaur.fi.muni.cz:" + (30000), NodePlatformFactory.CONNECTION_SF));
+log.info("Created new node record: " + ncr.toString());                
         return ncr;
     }
 
