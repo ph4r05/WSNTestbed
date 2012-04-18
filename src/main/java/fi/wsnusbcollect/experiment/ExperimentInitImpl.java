@@ -329,7 +329,7 @@ public class ExperimentInitImpl implements ExperimentInit {
             connectedNodes.put(cn.getNodeId(), connectToNode);
             defaultGateway = cn.getNodeId();
             
-            log.info("DB for node is running: " + dbForNode.isRunning());
+            log.info("DB for node is running: " + dbForNode.isRunning() + "; for node: " + cn.getNodeId());
             cn.registerMessageListener(new CommandMsg(), dbForNode);
             cn.registerMessageListener(new NoiseFloorReadingMsg(), dbForNode);
             cn.registerMessageListener(new MultiPingResponseReportMsg(), dbForNode);
@@ -346,11 +346,17 @@ public class ExperimentInitImpl implements ExperimentInit {
         }
         
         mMsgSender = new MultipleMessageSender(defaultGateway, connectedNodes.get(defaultGateway));
+        mMsgSender.setAllGateways(connectedNodes, defaultGateway, true);
+        mMsgSender.start();
+        log.info("MultipleMessage sender started");
+        
         Collection<NodeHandler> nodeHandlers = this.nodeReg.values();
         for(NodeHandler curNH : nodeHandlers){
-            if (!(nodeHandlers instanceof ConnectedNode)) continue;
+            if (!(curNH instanceof ConnectedNode)) continue;
             final ConnectedNode cn = (ConnectedNode) curNH;
             cn.setMsgSender(mMsgSender);
+            
+            log.info("MessageSender updated for node: " + cn.getNodeId());
         }
         
         // starting all threads

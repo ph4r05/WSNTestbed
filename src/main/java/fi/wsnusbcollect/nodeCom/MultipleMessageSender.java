@@ -709,7 +709,13 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
             throw new NullPointerException("Cannot manipulate with null node");
         }
         
-        throw new UnsupportedOperationException("Not supported yet.");
+        boolean reset=false;
+        if (props!=null){
+            String resetQueues = props.getProperty("resetQueues", "true");
+            reset = Boolean.parseBoolean(resetQueues);
+        }
+        
+        this.disconnectNode(nh, reset);
     }
 
     @Override
@@ -718,7 +724,31 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
             throw new NullPointerException("Cannot manipulate with null node");
         }
         
-        throw new UnsupportedOperationException("Not supported yet.");
+        // check if already connected to
+        if (this.connectedGateways.containsKey(nh.getNodeId())){
+            // check if is same as registered version
+            MoteIF oldMoteIF = this.connectedGateways.get(nh.getNodeId());
+            MoteIF newMoteIF = nh.getMoteIf();
+            
+            if (      (oldMoteIF==null && newMoteIF!=null)
+                    ||(oldMoteIF!=null && newMoteIF==null)
+                    ||(oldMoteIF.equals(newMoteIF)==false)){
+                // definitely new objetc, register
+                this.connectedGateways.put(nh.getNodeId(), newMoteIF);
+            } else {
+                // nothing to do, same object as already registered
+                return;
+            }
+        } else {
+            // not in connectedGateways, add new
+            this.connectedGateways.put(nh.getNodeId(), nh.getMoteIf());
+        }
+        
+        // if here, new node was added => if no gateway is assigned, pick this one as new gateway
+        // node sender should definitely has some default gateway
+        if (this.gateway==null){
+            this.gateway = nh.getNodeId();
+        }
     }
 
     @Override
