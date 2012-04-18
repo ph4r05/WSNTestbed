@@ -6,8 +6,8 @@ package fi.wsnusbcollect.nodes;
 
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.nodeCom.MessageListener;
+import fi.wsnusbcollect.nodeCom.MessageListenerInterface;
 import fi.wsnusbcollect.nodeCom.MessageReceived;
-import fi.wsnusbcollect.nodeCom.MessageSender;
 import fi.wsnusbcollect.nodeCom.MessageSenderInterface;
 import fi.wsnusbcollect.nodeCom.MessageSentListener;
 import fi.wsnusbcollect.nodeCom.MessageToSend;
@@ -50,7 +50,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     private MessageSenderInterface msgSender;
     
     // message listener bound to specified node
-    private MyMessageListener msgListener;
+    private MessageListenerInterface msgListener;
 
     // mote interface for specific node
     private MoteIF moteIf;
@@ -100,7 +100,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         
         // shutdown listener
         if (this.msgListener!=null){
-            this.msgListener.setGateway(null, this.resetQueues);
+            this.msgListener.disconnectNode(this, this.resetQueues);
         }
         
         // shutdown moteif
@@ -314,10 +314,6 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         return msgListener.getQueueLength();
     }
 
-    public ConcurrentLinkedQueue<MessageReceived> getReceivedQueue() {
-        return msgListener.getQueue();
-    }
-
     public synchronized void deregisterMessageListener(Message msg, MessageListener listener) {
         msgListener.deregisterListener(msg, listener);
     }
@@ -396,11 +392,11 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
      * Returns original message listener for this node
      * @return 
      */
-    public MyMessageListener getMsgListener() {
+    public MessageListenerInterface getMsgListener() {
         return msgListener;
     }
 
-    public void setMsgListener(MyMessageListener msgListener) {
+    public void setMsgListener(MessageListenerInterface msgListener) {
         this.msgListener = msgListener;
     }
 
@@ -451,13 +447,16 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     public void setMoteIf(MoteIF moteIf) {
         this.moteIf = moteIf;
         
+        Properties props = new Properties();
+        props.setProperty("resetQueues", Boolean.valueOf(this.resetQueues).toString());
+        
         // set new node for sender/listener if not null
         if (this.msgListener!=null){
-            this.msgListener.setGateway(moteIf, this.resetQueues);
+            this.msgListener.connectNode(this, props);
         }
         
         if (this.msgSender!=null){
-            this.msgSender.connectNode(this, null);
+            this.msgSender.connectNode(this, props);
         }
     }
 

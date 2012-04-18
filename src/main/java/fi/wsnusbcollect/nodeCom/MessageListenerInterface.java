@@ -98,9 +98,14 @@ public interface MessageListenerInterface extends net.tinyos.message.MessageList
 
     void setShutdown(boolean shutdown);
 
+    int getQueueLength();
+    
     /**
      * Performs shutdown
      */
     void shutdown();
     
+    void start();
+    
+    boolean isAlive();
 }
