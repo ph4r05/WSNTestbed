@@ -23,6 +23,7 @@ public interface MessageSenderInterface {
      * @param text
      */
     void add(int target, Message msg, String text);
+    void add(int source, int target, Message msg, String text);
 
     /**
      * Adds message to send to send queue, with wanted notification after sent
@@ -31,6 +32,7 @@ public interface MessageSenderInterface {
      * @param text
      */
     void add(int target, Message msg, String text, MessageSentListener listener, String listenerKey);
+    void add(int source, int target, Message msg, String text, MessageSentListener listener, String listenerKey);
 
     /**
      * Adds more messages at time. Can be blocking...

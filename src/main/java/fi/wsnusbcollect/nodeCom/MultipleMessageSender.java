@@ -721,6 +721,28 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    @Override
+    public void add(int source, int target, Message msg, String text) {
+        if (this.canAdd()==false){
+            throw new NullPointerException("Cannot add message to send queue since gateway is null");
+        }
+        MessageToSend msgRecord = new MessageToSend(msg, target, text);
+        msgRecord.setSource(source);
+
+        this.queue.add(msgRecord);
+    }
+
+    @Override
+    public void add(int source, int target, Message msg, String text, MessageSentListener listener, String listenerKey) {
+        if (this.canAdd()==false){
+            throw new NullPointerException("Cannot add message to send queue since gateway is null");
+        }
+        MessageToSend msgRecord = new MessageToSend(msg, target, text, listener, listenerKey);
+        msgRecord.setSource(source);
+
+        this.queue.add(msgRecord);
+    }
+
     /**
      * =========================================================================
      *

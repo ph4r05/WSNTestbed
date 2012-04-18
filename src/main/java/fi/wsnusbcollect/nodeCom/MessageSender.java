@@ -581,6 +581,16 @@ public class MessageSender extends Thread implements MessageSentListener, Messag
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    @Override
+    public void add(int source, int target, Message msg, String text) {
+        this.add(target, msg, text);
+    }
+
+    @Override
+    public void add(int source, int target, Message msg, String text, MessageSentListener listener, String listenerKey) {
+        this.add(target, msg, text, listener, listenerKey);
+    }
+
     /**
      * =========================================================================
      *
