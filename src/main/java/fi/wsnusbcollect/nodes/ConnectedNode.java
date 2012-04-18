@@ -257,7 +257,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
         }
-        msgSender.add(target, msg, text, listener, listenerKey);
+        msgSender.add(this.getNodeId(), target, msg, text, listener, listenerKey);
     }
     
     @Override
@@ -266,7 +266,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
         }
-        msgSender.add(this.getNodeId(), msg, text, listener, listenerKey);
+        msgSender.add(this.getNodeId(), this.getNodeId(), msg, text, listener, listenerKey);
     }
 
     /**
@@ -281,7 +281,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
         }
-        msgSender.add(target, msg, text);
+        msgSender.add(this.getNodeId(), target, msg, text);
     }
     
     @Override
@@ -290,7 +290,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
         }
-        msgSender.add(this.getNodeId(), msg, text);
+        msgSender.add(this.getNodeId(), this.getNodeId(), msg, text);
     }
 
     /**
