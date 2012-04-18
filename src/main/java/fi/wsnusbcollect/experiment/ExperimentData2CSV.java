@@ -300,6 +300,9 @@ public class ExperimentData2CSV extends Thread implements ExperimentData2DB {
                 } catch(Exception e){
                     log.warn("Cannot flush particular entity to database", e);
                 }
+                
+                // set entity to null to signal garbage collector to free memory
+                entity = null;
             }
             
             messageFromLastFlush=0;

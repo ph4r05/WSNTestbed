@@ -507,7 +507,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
     }
 
     @Override
-    public synchronized void messageReceived(int i, Message msg) {
+    public void messageReceived(int i, Message msg) {
         // blocking?
         if (this.dropingPackets) return;
      

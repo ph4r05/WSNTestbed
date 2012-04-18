@@ -348,6 +348,9 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
                 // otherwise this is large bottleneck, see benchmark if problems
                 // occur
                 session2.insert(entity);
+                
+                // set entity to null to signal garbage collector to free memory
+                entity = null;
             }
             
             // commit transaction if any
