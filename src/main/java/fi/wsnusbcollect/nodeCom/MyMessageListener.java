@@ -4,7 +4,9 @@
  */
 package fi.wsnusbcollect.nodeCom;
 
+import fi.wsnusbcollect.nodes.ConnectedNode;
 import java.util.Iterator;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -37,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * @since  23-20-2011
  * @author ph4r05
  */
-public class MyMessageListener extends Thread implements net.tinyos.message.MessageListener {
+public class MyMessageListener extends Thread implements MessageListenerInterface {
     private static final Logger log = LoggerFactory.getLogger(MyMessageListener.class);
     
     /**
@@ -147,6 +149,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
     /**
      * Performs shutdown
      */
+    @Override
     public synchronized void shutdown(){
         this.reset();
         this.dropingPackets=true;
@@ -161,6 +164,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
      * If same listener (.equals()) is registered to same message type, request
      * is ignored.
      */
+    @Override
     public synchronized void registerListener(net.tinyos.message.Message msg, MessageListener listener){
         // null?
         if (msg==null || listener==null){
@@ -228,6 +232,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
     /**
      * unregister message listener
      */
+    @Override
     public synchronized void deregisterListener(net.tinyos.message.Message msg, net.tinyos.message.MessageListener listener){
         if (msg==null || listener==null){
             log.error("Cannot register listener when message or listener is null");
@@ -282,6 +287,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
     /**
      * perform hard reset to this object = clears entire memory
      */
+    @Override
     public synchronized void reset(){
         this.queue.clear();
         this.msgReceived = null;
@@ -293,6 +299,7 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
      * After gateway change is needed to register as listener for all registered
      * AMtypes. MyMessageListener is registered as listener to tinyos listener.
      */
+    @Override
     public synchronized void reregisterListeners(){
         if (this.amType2Message == null || this.amType2Message.isEmpty()) return;
         
@@ -516,6 +523,72 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
         msgReceiveed.setTimeReceivedMili(System.currentTimeMillis());
         this.queue.add(msgReceiveed);
+    }
+
+    @Override
+    public void deregisterListener(int node, Message msg, net.tinyos.message.MessageListener listener) {
+        this.deregisterListener(msg, listener);
+    }
+
+    @Override
+    public void registerListener(int node, Message msg, MessageListener listener) {
+        this.registerListener(msg, listener);
+    }
+
+    @Override
+    public void disconnectNode(ConnectedNode nh, boolean resetQueues) {
+        if (nh==null){
+            throw new NullPointerException("Cannot manipulate with null node");
+        }
+        
+        // if gateway is null, nothing to disconnect here
+        if (this.gateway==null){
+            log.info("Nothing to disconnect from, gateway is already null");
+            return;
+        }
+        
+        // is this that node in gateway?
+        if (this.gateway.equals(nh.getMoteIf())==false){
+            log.info("Not connected to specified gateway");
+            return;
+        }
+        
+        // simply disconnect by setting null gateway
+        this.setGateway(null, true);
+    }
+
+    @Override
+    public void disconnectNode(ConnectedNode nh, Properties props) {
+        if (nh==null){
+            throw new NullPointerException("Cannot manipulate with null node");
+        }
+        
+        this.disconnectNode(nh, true);
+    }
+
+    @Override
+    public void connectNode(ConnectedNode nh, Properties props) {
+        // gateway change in another words
+        
+        if (nh==null){
+            throw new NullPointerException("Cannot manipulate with null node");
+        }
+        
+        if (this.gateway!=null){
+            log.info("Changing gateway connected to to new one: " + nh.getNodeId());
+        }
+        
+        boolean reset=false;
+        if (props!=null){
+            String resetQueues = props.getProperty("resetQueues", "true");
+            try {
+                reset = Boolean.parseBoolean(resetQueues);
+            } catch(Exception e){
+                log.warn("Cannot convert resetQueues to boolean", e);
+            }
+        }
+        
+        this.setGateway(nh.getMoteIf(), reset);
     }
 
     /**
@@ -742,18 +815,22 @@ public class MyMessageListener extends Thread implements net.tinyos.message.Mess
         this.timeLastMessageSent = timeLastMessageSent;
     }
 
+    @Override
     public boolean isShutdown() {
         return shutdown;
     }
 
+    @Override
     public void setShutdown(boolean shutdown) {
         this.shutdown = shutdown;
     }
 
+    @Override
     public boolean isDropingPackets() {
         return dropingPackets;
     }
 
+    @Override
     public void setDropingPackets(boolean dropingPackets) {
         this.dropingPackets = dropingPackets;
     }

@@ -712,7 +712,11 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
         boolean reset=false;
         if (props!=null){
             String resetQueues = props.getProperty("resetQueues", "true");
-            reset = Boolean.parseBoolean(resetQueues);
+            try {
+                reset = Boolean.parseBoolean(resetQueues);
+            } catch(Exception e){
+                log.warn("Cannot convert resetQueues to boolean", e);
+            }
         }
         
         this.disconnectNode(nh, reset);
