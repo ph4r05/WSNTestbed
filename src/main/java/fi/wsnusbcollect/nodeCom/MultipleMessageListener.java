@@ -5,11 +5,12 @@
 package fi.wsnusbcollect.nodeCom;
 
 import fi.wsnusbcollect.nodes.ConnectedNode;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import org.slf4j.Logger;
@@ -40,9 +41,17 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
     protected static ConcurrentHashMap<Integer, net.tinyos.message.Message> amType2Message = new ConcurrentHashMap<Integer, Message>(8);
     
     /**
-     * Message listeners
+     * Queue of message listeners registered for particular AMType
      */
     protected ConcurrentHashMap<Integer, ConcurrentLinkedQueue<MessageListener>> messageListeners = null;
+    
+    /**
+     * Message filter for each message listener, registers whether particular listener
+     * is interested in receiving AMTYPE message from NODEID gateway
+     * 
+     */
+    protected ConcurrentHashMap<MessageListener, HashSet<AMTypeNodeIDComposite>> messageFilter = 
+            new ConcurrentHashMap<MessageListener, HashSet<AMTypeNodeIDComposite>>();
 
     /**
      * time of last sent message
@@ -58,11 +67,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
      * Am I dropping packets currently?
      */
     protected boolean dropingPackets=true;
-    
-//    /**
-//     * My worker, used to notify if something arrived to queue
-//     */
-//    private MessageNotifyWorker myWorker = null;
 
     /**
      *
@@ -75,17 +79,7 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         
         // init queues
         queue = new ConcurrentLinkedQueue<MessageReceived>();
-        messageListeners = new ConcurrentHashMap<Integer, ConcurrentLinkedQueue<MessageListener>>(8);
-
-        // instantiate thread pool
-//        tasks = Executors.newFixedThreadPool(MAX_NOTIFY_THREADS);
-//        this.myWorker = new MessageNotifyWorker();
-//        tasks.execute(this.myWorker);
-        
-        // create notify threads
-//        for(int i=0; i<MAX_NOTIFY_THREADS; i++){
-//            tasks.execute(new MessageNotifyWorker());
-//        }
+        messageListeners = new ConcurrentHashMap<Integer, ConcurrentLinkedQueue<MessageListener>>(2);
     }
 
     /**
@@ -108,9 +102,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         this.reset();
         this.dropingPackets=true;
         this.shutdown=true;
-        if (this.tasks!=null){
-            this.tasks.shutdown();
-        }
     }
     
     /**
@@ -131,8 +122,8 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             Integer amtype = msg.amType();
 
             // if does not contain mapping amtype -> message, create one
-            if (this.amType2Message.containsKey(amtype)==false){
-                this.amType2Message.put(amtype, msg);
+            if (amType2Message.containsKey(amtype)==false){
+                amType2Message.put(amtype, msg);
                 
                 // register this in real, on real listening interface for 
                 // this message type, myself as listener
@@ -300,9 +291,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             // shutdown
             if (this.shutdown == true){
                 log.info("MyMessageReceiver shutting down.");
-                if (this.tasks!=null){
-                    this.tasks.shutdown();
-                }
                 
                 return;
             }
@@ -311,9 +299,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             if (queue==null){
                 log.error("Queue is null - should not happen, queue is final, "
                         + "initialized in constructor. Has to exit...");
-                if (this.tasks!=null){
-                    this.tasks.shutdown();
-                }
                 
                 break;
             }
@@ -335,8 +320,7 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
                  queue.clear();
 
                  log.warn("Warning! Input queue had to be flushed out!"
-                         + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET
-                         + "; " + gateway.getSource().getName() + " psrc: " + gateway.getSource().getPacketSource().getName());
+                         + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET);
                  continue;
              }
 
@@ -393,12 +377,28 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
              if (large) {
                  log.info(this.getName() + "; XXqsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
              }
-             iterator = listenersList.iterator();
-             while (iterator.hasNext()) {
-                 MessageListener curListener = iterator.next();
+             
+             // initialize filter item for next filter decisions
+             AMTypeNodeIDComposite filterItem = new AMTypeNodeIDComposite(amtype, tmpMessage.getGateway());
+             
+             // iterate over all registered listeners
+             for(MessageListener curListener : listenersList){
                  if (curListener == null) {
                      continue;
                  }
+                 
+                // message filtering, is this listener interested in this message?
+                HashSet<AMTypeNodeIDComposite> filterSet = this.messageFilter.get(curListener);
+                if (filterSet==null){
+                    log.warn("Something is wrong with filter settings, cannot find no record for: " + curListener.toString());
+                    continue;
+                }
+                
+                // is this listener interested in this message?
+                if (filterSet.contains(filterItem)==false){
+                    // not interested in this message, continue
+                    continue;
+                }
 
                  // notify this listener,, separate try block - exception
                  // can be thrown, this exception affects only one listener
@@ -417,43 +417,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
 
              // set message to null to release it from memory for garbage collector
              tmpMessage = null;
-             
-
-            // this code is probably useles since message arrived event notify 
-            // is performed by notify thread            
-            
-//            // test queue received
-//            synchronized(queue){
-//                if (this.queue.isEmpty()){
-//                    msgReceived=null;
-//                }
-//                else {
-//                    msgReceived=queue.remove();
-//                }
-//            }
-//
-//            // if message was null, continue to sleep - this should not happen
-//            if (msgReceived==null){
-//                continue;
-//            }
-//                
-//            try {
-//                // add message to tonotify queue if needed
-//                if (msgToSend.listener != null && msgToSend.listener.isEmpty()==false){
-//                    // do it in sycnhronized block not to interfere with reading
-//                    // threads
-//                    synchronized(this.toNotify){
-//                        this.toNotify.add(msgToSend);
-//                    }
-//                }
-//
-//                // store last sent messages
-//                this.timeLastMessageSent = System.currentTimeMillis();
-//
-//                Thread.sleep(SENT_SLEEP_TIME);
-//            } catch (Exception e) {
-//                log.error("Exception occurred in message listener", e);
-//            }
         }
     }
 
@@ -533,10 +496,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         return queue;
     }
 
-    public ExecutorService getTasks() {
-        return tasks;
-    }
-
     public long getTimeLastMessageSent() {
         return timeLastMessageSent;
     }
@@ -565,5 +524,63 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         this.dropingPackets = dropingPackets;
     }
 
+    
+    /**
+     * Indexing class for decision whether for received note with given AMTYPE
+     * current listener accepts this new message based on amtype, nodeid
+     */
+    protected class AMTypeNodeIDComposite{
+        private int amtype;
+        private int nodeid;
 
+        public AMTypeNodeIDComposite() {
+        }
+        
+        public AMTypeNodeIDComposite(int amtype, int nodeid) {
+            this.amtype = amtype;
+            this.nodeid = nodeid;
+        }
+
+        public int getAmtype() {
+            return amtype;
+        }
+
+        public void setAmtype(int amtype) {
+            this.amtype = amtype;
+        }
+
+        public int getNodeid() {
+            return nodeid;
+        }
+
+        public void setNodeid(int nodeid) {
+            this.nodeid = nodeid;
+        }
+        
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final AMTypeNodeIDComposite other = (AMTypeNodeIDComposite) obj;
+            if (this.amtype != other.amtype) {
+                return false;
+            }
+            if (this.nodeid != other.nodeid) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 3;
+            hash = 79 * hash + this.amtype;
+            hash = 79 * hash + this.nodeid;
+            return hash;
+        }
+    }
 }

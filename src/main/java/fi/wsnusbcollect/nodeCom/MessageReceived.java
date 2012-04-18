@@ -14,6 +14,7 @@ import net.tinyos.message.Message;
  * @author ph4r05
  */
 public class MessageReceived {
+    private int gateway=0;
     private int i;
     private long timeReceivedMili;
     private net.tinyos.message.Message msg;
@@ -75,5 +76,13 @@ public class MessageReceived {
 
     public void setTimeReceivedMili(long timeReceivedMili) {
         this.timeReceivedMili = timeReceivedMili;
+    }
+
+    public int getGateway() {
+        return gateway;
+    }
+
+    public void setGateway(int gateway) {
+        this.gateway = gateway;
     }
 }

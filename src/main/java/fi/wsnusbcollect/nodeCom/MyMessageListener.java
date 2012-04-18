@@ -46,11 +46,6 @@ public class MyMessageListener extends Thread implements MessageListenerInterfac
      * maximum number of notify threads in fixed size thread pool
      */
     private static final int MAX_NOTIFY_THREADS=1;
-
-    /**
-     * Sleep time after message sent
-     */
-    private static final int SENT_SLEEP_TIME=1000;
     
     /**
      * Maximum number of messages in queue to reset queue
@@ -71,11 +66,6 @@ public class MyMessageListener extends Thread implements MessageListenerInterfac
      * Thread pool
      */
     protected ExecutorService tasks;
-    
-    /**
-     * Received message
-     */
-    protected MessageReceived msgReceived;
 
     /**
      * AMTYPE -> message mapping
@@ -118,8 +108,8 @@ public class MyMessageListener extends Thread implements MessageListenerInterfac
         
         // init queues
         queue = new ConcurrentLinkedQueue<MessageReceived>();
-        amType2Message = new ConcurrentHashMap<Integer, Message>(8);
-        messageListeners = new ConcurrentHashMap<Integer, ConcurrentLinkedQueue<MessageListener>>(8);
+        amType2Message = new ConcurrentHashMap<Integer, Message>(1);
+        messageListeners = new ConcurrentHashMap<Integer, ConcurrentLinkedQueue<MessageListener>>(4);
         
         this.gateway = gateway;
 
@@ -290,7 +280,6 @@ public class MyMessageListener extends Thread implements MessageListenerInterfac
     @Override
     public synchronized void reset(){
         this.queue.clear();
-        this.msgReceived = null;
         
         log.info("MesageListener queues was flushed");
     }
