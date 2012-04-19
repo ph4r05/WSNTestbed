@@ -581,6 +581,11 @@ public class MyMessageListener extends Thread implements MessageListenerInterfac
         this.setGateway(nh.getMoteIf(), reset);
     }
 
+    @Override
+    public void reconnectNode(ConnectedNode nh) {
+        this.setGateway(nh.getMoteIf(), false);
+    }
+    
     /**
      * =========================================================================
      *

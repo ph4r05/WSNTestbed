@@ -7,7 +7,6 @@ package fi.wsnusbcollect.nodeCom;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import java.util.Properties;
 import net.tinyos.message.Message;
-import net.tinyos.message.MessageListener;
 
 /**
  *
@@ -37,6 +36,12 @@ public interface MessageListenerInterface extends net.tinyos.message.MessageList
      * @param props 
      */
     void connectNode(ConnectedNode nh, Properties props);
+    
+    /**
+     * Performs reconnecting to currently connected node - re-registration of components..
+     * @param nh 
+     */
+    void reconnectNode(ConnectedNode nh);
     
     
     boolean isDropingPackets();

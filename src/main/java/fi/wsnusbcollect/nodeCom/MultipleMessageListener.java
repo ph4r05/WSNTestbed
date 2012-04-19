@@ -8,7 +8,9 @@ import fi.wsnusbcollect.nodes.ConnectedNode;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -35,46 +37,23 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
      */
     private final ConcurrentLinkedQueue<MessageReceived> queue = 
             new ConcurrentLinkedQueue<MessageReceived>();
-
-    /**
-     * AMTYPE -> message mapping
-     */
-    protected static ConcurrentHashMap<Integer, net.tinyos.message.Message> amType2Message = 
-            new ConcurrentHashMap<Integer, Message>(2);
     
     /**
-     * Queue of message listeners registered for particular AMType
+     * Per node listeners
+     * NodeID -> MultipleMessageListenerSubComponent
      */
-    protected ConcurrentHashMap<Integer, ConcurrentLinkedQueue<MessageListener>> messageListeners = 
-            new ConcurrentHashMap<Integer, ConcurrentLinkedQueue<MessageListener>>(2);
+    protected ConcurrentHashMap<Integer, MultipleMessageListenerSubComponent> perNodeListeners = 
+            new ConcurrentHashMap<Integer, MultipleMessageListenerSubComponent>();
     
     /**
-     * Message filter for each message listener, registers whether particular listener
-     * is interested in receiving AMTYPE message from NODEID gateway
+     *Global queue of message listeners registered for particular AMType
+     * AMType->Queue<Listener>
      * 
+     * Listener is added here if global register is called. This listeners will
+     * be connected to newly connected nodes.
      */
-    protected ConcurrentHashMap<MessageListener, Set<AMTypeNodeIDComposite>> messageFilter = 
-            new ConcurrentHashMap<MessageListener, Set<AMTypeNodeIDComposite>>();
-
-    /**
-     * Map NodeID -> AMtype of message 
-     * Map of already registered listeners (to be able to re-register)
-     */
-    protected ConcurrentHashMap<Integer, Set<Integer>> registeredListeners = 
-            new ConcurrentHashMap<Integer, Set<Integer>>();
-    
-    /**
-     * NodeID -> Gateway listener
-     */
-    protected ConcurrentHashMap<Integer, HelperMessageListener> registeredGatewayListeners =
-            new ConcurrentHashMap<Integer, HelperMessageListener>();
-    
-    /**
-     * NodeID -> ConnectedNode
-     * Internal mapping to be able to obtain connected node
-     */
-    protected ConcurrentHashMap<Integer, ConnectedNode> connectedNodes = 
-            new ConcurrentHashMap<Integer, ConnectedNode>();
+    protected Map<Integer, Queue<MessageListener>> messageListeners = 
+            new ConcurrentHashMap<Integer, Queue<MessageListener>>(1);
     
     /**
      * time of last sent message
@@ -136,12 +115,42 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             throw new NullPointerException("Cannot register listener when message or listener is null");
         }
         
+        AMType2MessageMapper amtypeMapper = AMType2MessageMapper.getInstance();
+        amtypeMapper.registerMessage(msg);
+        
+        int amtype = msg.amType();
+        
+        // register to global if exists
+        Queue<MessageListener> queueListeners = null;
+        if (this.messageListeners.containsKey(amtype)){
+            queueListeners = this.messageListeners.get(amtype);
+        }
+        
+        // if is queue null, init it here
+        if (queueListeners==null){
+            queueListeners=new ConcurrentLinkedQueue<MessageListener>();
+        }
+        
+        // add to queue if is not already in
+        if (queueListeners.contains(listener)==false){
+            queueListeners.add(listener);
+        }
+        
+        // store back to map
+        this.messageListeners.put(amtype, queueListeners);
+        
         // register to all defined nodes
-        for(Integer node : this.connectedNodes.keySet()){
+        for(Integer node : this.perNodeListeners.keySet()){
             this.registerListener(node, msg, listener);
         }
     }
     
+    /**
+     * register only to particular node
+     * @param node
+     * @param msg
+     * @param listener 
+     */
     @Override
     public void registerListener(int node, Message msg, MessageListener listener) {
         // register for particular node here
@@ -153,122 +162,20 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         
         try {
             // node id needs to be in database
-            if (this.connectedNodes.containsKey(node)==false){
+            if (this.perNodeListeners.containsKey(node)==false){
                 log.error("Cannot register listener for node: " + node + "; not found in database");
                 return;
             }
             
-            // is node OK?
-            ConnectedNode cn = this.connectedNodes.get(node);
-            if (cn==null || cn.getMoteIf()==null){
-                log.error("Cannot register properly, connected node is invalid");
-                return;
-            }
-            
-            //
-            // Phase - AMTYpe mapping
-            //
-            
-            // amtype convert, register to static to be able to translate by it
-            // is message in translate queue?
-            Integer amtype = msg.amType();
-
-            // if does not contain mapping amtype -> message, create one
-            if (amType2Message.containsKey(amtype)==false){
-                amType2Message.put(amtype, msg);
-            }
-            
-            // check if linked list exists
-            if (this.messageListeners.containsKey(amtype)==false 
-                    || this.messageListeners.get(amtype)==null){
-                // none such mapping yet created, create new list of listeners
-                ConcurrentLinkedQueue<MessageListener> queueListener = new ConcurrentLinkedQueue<MessageListener>();
-                this.messageListeners.put(amtype, queueListener);
-            }
-
-            //
-            // Phase - list of listeners
-            //
-            
-            // here is queueListener set, get it now
-            ConcurrentLinkedQueue<MessageListener> queueListeners = this.messageListeners.get(amtype);
-            
-            // check if is already in linked queue
-            if (queueListeners==null){
-                // always have queue initialized
-                queueListeners = new ConcurrentLinkedQueue<MessageListener>();
-            }
-            
-            boolean isAlreadyInQueue = false;
-            Iterator<MessageListener> iterator = queueListeners.iterator();
-            while(iterator.hasNext()){
-                MessageListener curMessageListener = iterator.next();
-                
-                // check if is null - remove it
-                if (curMessageListener==null){
-                    iterator.remove();
-                    log.error("Null message listener found in queue, removing");
-                    continue;
-                }
-                
-                // equals? already set, not induce redundancy
-                if (curMessageListener.equals(listener)){
-                    isAlreadyInQueue = true;
-                    break;
-                }
-            }
-
-            // if here, listener is not in, set it
-            if (isAlreadyInQueue==false){
-                queueListeners.add(listener);
-            }
-
-            // update map
-            this.messageListeners.put(amtype, queueListeners);
-            
-            //
-            // next phase - update filter
-            //
-            AMTypeNodeIDComposite filterItem = new AMTypeNodeIDComposite(amtype, node);
-            Set<AMTypeNodeIDComposite> filterSet = this.messageFilter.get(listener);
-            if(filterSet==null){
-                // set is not initialized - create new one from concurent hash map
-                filterSet = Collections.newSetFromMap(new ConcurrentHashMap<AMTypeNodeIDComposite, Boolean>());
-            }
-            
-            filterSet.add(filterItem);
-            this.messageFilter.put(listener, filterSet);
-            
-            //
-            // next phase - set registered AMtypes and register if is not already
-            //
-            Set<Integer> registeredAMTypes = this.registeredListeners.get(node);
-            if (registeredAMTypes==null){
-                registeredAMTypes = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
-            }
-            
-            if (registeredAMTypes.contains(amtype)==false){
-                // new helper listener
-                HelperMessageListener helperListener = null;
-                if (this.registeredGatewayListeners.containsKey(node)){
-                    helperListener = this.registeredGatewayListeners.get(node);
-                } else {
-                    helperListener = new HelperMessageListener(node);
-                    this.registeredGatewayListeners.put(node, helperListener);
-                }
-                
-                cn.getMoteIf().registerListener(msg, helperListener);
-                registeredAMTypes.add(amtype);
-            }
-            
-            this.registeredListeners.put(node, registeredAMTypes);
+            MultipleMessageListenerSubComponent subComponent = this.perNodeListeners.get(node);
+            subComponent.registerListener(msg, listener);
         } catch(Exception e){
             log.error("Problem during registering message listener", e);
         }
     }
     
     /**
-     * unregister message listener
+     * Unregister global message listener - remove from my global list + deregister from each per node
      */
     @Override
     public synchronized void deregisterListener(net.tinyos.message.Message msg, fi.wsnusbcollect.nodeCom.MessageListener listener){
@@ -277,13 +184,34 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             throw new NullPointerException("Cannot register listener when message or listener is null");
         }
         
+        AMType2MessageMapper amtypeMapper = AMType2MessageMapper.getInstance();
+        amtypeMapper.registerMessage(msg);
+        
+        // deregister from my global map
+        if (this.messageListeners.containsKey(msg.amType())){
+            Queue<MessageListener> queueListeners = this.messageListeners.get(msg.amType());
+            if (queueListeners!=null && queueListeners.isEmpty()==false){
+                Iterator<MessageListener> iterator = queueListeners.iterator();
+                while(iterator.hasNext()){
+                    if (listener.equals(iterator.next())){
+                        iterator.remove();
+                    }
+                }
+            }
+        }
+        
         // register to all defined nodes
-        for(Integer node : this.connectedNodes.keySet()){
+        for(Integer node : this.perNodeListeners.keySet()){
             this.deregisterListener(node, msg, listener);
         }
     }
 
-    
+    /**
+     * Deregister from particular connected node
+     * @param node
+     * @param msg
+     * @param listener 
+     */
     @Override
     public void deregisterListener(int node, Message msg, fi.wsnusbcollect.nodeCom.MessageListener listener) {
         // register for particular node here
@@ -293,115 +221,15 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             throw new NullPointerException("Cannot register listener when message or listener is null");
         }
         
-        
         try {
             // node id needs to be in database
-            if (this.connectedNodes.containsKey(node)==false){
+            if (this.perNodeListeners.containsKey(node)==false){
                 log.error("Cannot register listener for node: " + node + "; not found in database");
                 return;
             }
             
-            // is node OK?
-            ConnectedNode cn = this.connectedNodes.get(node);
-            if (cn==null || cn.getMoteIf()==null){
-                log.error("Cannot register properly, connected node is invalid");
-                return;
-            }
-            
-            //
-            // Phase - AMTYpe mapping
-            //
-            
-            // amtype convert, register to static to be able to translate by it
-            // is message in translate queue?
-            Integer amtype = msg.amType();
-            
-            // if does not contain mapping amtype -> message, create one
-            if (amType2Message.containsKey(amtype)==false){                
-                // if not here, cannot be registered
-                return;
-            }
-            
-            // is amtype established?
-            if (this.messageListeners.containsKey(amtype)==false){
-                // no, cannot be in underlying list
-                return;
-            }
-            
-            // get list
-            ConcurrentLinkedQueue<MessageListener> listenersList = this.messageListeners.get(amtype);
-            if (listenersList==null || listenersList.isEmpty()){
-                // list empty => cannot be in
-                return;
-            }
-            
-            Iterator<MessageListener> iterator = listenersList.iterator();
-            while(iterator.hasNext()){
-                MessageListener curListener = iterator.next();
-                if (curListener==null){
-                    iterator.remove();
-                    continue;
-                }
-                
-                if (curListener.equals(listener)){
-                    iterator.remove();
-                    break;
-                }
-            }
-            
-            // push back to map
-            this.messageListeners.put(amtype, listenersList);
-            
-            //
-            // next phase - update filter
-            //
-            AMTypeNodeIDComposite filterItem = new AMTypeNodeIDComposite(amtype, node);
-            Set<AMTypeNodeIDComposite> filterSet = this.messageFilter.get(listener);
-            if(filterSet==null){
-                // set is not initialized - create new one from concurent hash map
-                filterSet = Collections.newSetFromMap(new ConcurrentHashMap<AMTypeNodeIDComposite, Boolean>());
-            }
-            
-            filterSet.remove(filterItem);
-            this.messageFilter.put(listener, filterSet);  
-            
-            //
-            // next phase - deregister from listening to moteif 
-            // if there is no active listener in filter
-            //
-            boolean isContainedInAtLeastOneFilterSet=false;
-            for(Set<AMTypeNodeIDComposite> curFilterSet : this.messageFilter.values()){
-                if (curFilterSet==null || curFilterSet.isEmpty()) continue;
-                if (curFilterSet.contains(filterItem)){
-                    isContainedInAtLeastOneFilterSet=true;
-                    break;
-                }
-            }
-            
-            // filter item is contained in at least one filter set?
-            // if no => there is no interest to receive packets of AMTYPE from NODEID -> deregister
-            // need to have registered listener in gateway listeners
-            if (isContainedInAtLeastOneFilterSet==false){
-                HelperMessageListener helperListener = null;
-                if (this.registeredGatewayListeners.containsKey(node)==false){
-                    log.warn("Inconsistency experienced, want to deregister listener, but "
-                            + "there is no gateway listener registered.");
-                } else {
-                    helperListener = this.registeredGatewayListeners.get(node);
-                    
-                    // deregister from real physical interface
-                    cn.getMoteIf().deregisterListener(msg, helperListener);
-
-                    // delete record from registered listeners
-                    Set<Integer> registeredAMTypes = this.registeredListeners.get(node);
-                    if (registeredAMTypes==null){
-                        registeredAMTypes = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
-                    }
-
-                    registeredAMTypes.remove(amtype);
-                    this.registeredListeners.put(node, registeredAMTypes);
-                }
-            }
+            MultipleMessageListenerSubComponent subComponent = this.perNodeListeners.get(node);
+            subComponent.deregisterListener(msg, listener);
         } catch (Exception e){
             log.error("Exception occurred when de-registering message listener", e);
         }
@@ -425,46 +253,18 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
      */
     @Override
     public synchronized void reregisterListeners(){
-        if (this.registeredListeners==null || this.registeredListeners.isEmpty()) return;
-        
-        try{
-            // register to all registered amtypes to real interface
-            for (Integer nodeid : this.registeredListeners.keySet()){
-                // exists in database?
-                if (this.connectedNodes.containsKey(nodeid)==false){
-                    // such node is not contained in register, inconsistent state
-                    log.warn("Registered listeners to node: " + nodeid + "; but no such node is in register!");
-                    
-                    // TODO: 
-                    // filter and registered listeners should be cleaned and checked as well
-                    // but for now it is ignored, such condition should never hold.
-                    // implement cleaning procedure when disconnecting from node?
-                    
-                    // delete and continue;
-                    this.connectedNodes.remove(nodeid);
-                    continue;
-                }
-                
-                ConnectedNode cn = this.connectedNodes.get(nodeid);
-                if (cn==null || cn.getMoteIf()==null){
-                    log.error("Node is invalid or has null MoteIF, nodeId: " + nodeid + "; cannot re-register");
-                    continue;
-                }
-                
-                
-                Set<Integer> registeredAmtypes = this.registeredListeners.get(nodeid);
-                for (Integer curAmtype: registeredAmtypes){
-                    // exists am mapping?
-                    if (amType2Message.containsKey(curAmtype)==false){
-                        log.warn("Inconsistent state, re-registering amtype: " + curAmtype + "; but is not in mapping to message");
-                        continue;
-                    }
-                    
-                    cn.getMoteIf().registerListener(amType2Message.get(curAmtype), this);
-                }
+        if (this.perNodeListeners == null || this.perNodeListeners.isEmpty()) {
+            return;
+        }
+
+        // tell to accept new 
+        for (Integer nodeid : this.perNodeListeners.keySet()) {
+            try {
+                MultipleMessageListenerSubComponent subComponents = this.perNodeListeners.get(nodeid);
+                subComponents.acceptListeners(messageListeners);
+            } catch (Exception e) {
+                log.error("Exception when re-registering message listeners", e);
             }
-        } catch(Exception e){
-            log.error("Exception when re-registering message listeners", e);
         }
     }
     
@@ -486,7 +286,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             } catch (InterruptedException ex) {
                 
             }
-
             
             // shutdown
             if (this.shutdown == true){
@@ -502,7 +301,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
                 
                 break;
             }
-         
 
              // yield for some time iff is queue empty
              if (queue == null || queue.isEmpty()) {
@@ -550,68 +348,47 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
                  continue;
              }
 
-             Integer amtype = Integer.valueOf(msg.amType());
-
-             // is this message registered to anybody?
-             if (messageListeners.containsKey(amtype) == false) {
-                 // registered to no one, continue - why not 
-                 // registered message arrived? Weird
-                 log.warn("Message arrived but no message listener "
-                         + "registered to it - how it could arrive? "
-                         + "AMtype: " + amtype);
-                 continue;
-             }
-
-             // get list of listeners interested in receiving messages of
-             // this AMtype
-             ConcurrentLinkedQueue<MessageListener> listenersList = messageListeners.get(amtype);
-             if (listenersList == null || listenersList.isEmpty()) {
-                 // list is null || empty, cannot forward to anyone
-                 continue;
-             }
-
              // iterate over listeners list and notify each listener 
              // in serial manner
-             boolean large = queue.size() > 300;
-
+             boolean large = queue.size() > 1500;
              if (large) {
-                 log.info(this.getName() + "; XXqsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
+                 log.info(this.getName() + "; XX qsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
              }
              
-             // initialize filter item for next filter decisions
-             AMTypeNodeIDComposite filterItem = new AMTypeNodeIDComposite(amtype, tmpMessage.getGateway());
-             
-             // iterate over all registered listeners
-             for(MessageListener curListener : listenersList){
-                 if (curListener == null) {
+             // signalize to particular node id from which it arrived
+             Integer amtype = Integer.valueOf(msg.amType());
+             int nodeId = tmpMessage.getGateway();
+             if (this.perNodeListeners.containsKey(nodeId)==false){
+                 // nobody... thus need to report to global registered listeners
+                 
+                 // get list of listeners interested in receiving messages of
+                 // this AMtype
+                 Queue<MessageListener> listenersList = messageListeners.get(amtype);
+                 if (listenersList == null || listenersList.isEmpty()) {
+                     // list is null || empty, cannot forward to anyone
                      continue;
                  }
-                // message filtering, is this listener interested in this message?
-                Set<AMTypeNodeIDComposite> filterSet = this.messageFilter.get(curListener);
-                if (filterSet==null){
-                    log.warn("Something is wrong with filter settings, cannot find no record for: " + curListener.toString());
-                    continue;
-                }
-                
-                // is this listener interested in this message?
-                if (filterSet.contains(filterItem)==false){
-                    // not interested in this message, continue
-                    continue;
-                }
-
-                 // notify this listener,, separate try block - exception
-                 // can be thrown, this exception affects only one listener
-                 try {
-                     // notify here
-                     curListener.messageReceived(tmpMessage.getI(), msg, tmpMessage.getTimeReceivedMili());
-
-                     if (large) {
-                         log.info(this.getName() + "; qsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
+                 
+                 // iterate over all registered listeners
+                 for(MessageListener curListener : listenersList){
+                     if (curListener == null) {
+                         continue;
                      }
-                 } catch (Exception e) {
-                     log.error("Exception during notifying listener", e);
-                     continue;
+                     
+                     // notify this listener,, separate try block - exception
+                     // can be thrown, this exception affects only one listener
+                     try {
+                         // notify here
+                         curListener.messageReceived(tmpMessage.getI(), msg, tmpMessage.getTimeReceivedMili());
+                     } catch (Exception e) {
+                         log.error("Exception during notifying listener", e);
+                         continue;
+                     }
                  }
+             } else {
+                // somebody is gateway -> redirect to it
+                MultipleMessageListenerSubComponent subComponent = this.perNodeListeners.get(nodeId);
+                subComponent.messageReceived(tmpMessage);
              }
 
              // set message to null to release it from memory for garbage collector
@@ -666,77 +443,16 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         }
         
         // exists?
-        if (this.connectedNodes.containsKey(nh.getNodeId())==false){
+        if (this.perNodeListeners.containsKey(nh.getNodeId())==false){
             log.error("Cannot disconnect from nodeId: " + nh.getNodeId() + "; not connected to");
             return;
         }
         
-        this.cleanNodeId(nh.getNodeId());
+        // disconnect means disconnect from moteIf, if we want to destruct, call another
+        MultipleMessageListenerSubComponent subComponent = this.perNodeListeners.get(nh.getNodeId());
+        subComponent.disconnectNode(null);
     }
     
-    /**
-     * Deletes all mappings for given nodeid
-     * @param nodeid 
-     */
-    protected void cleanNodeId(int nodeid){
-        ConnectedNode cn = null;
-        if (this.connectedNodes.containsKey(nodeid)){
-            cn = this.connectedNodes.get(nodeid);
-        }
-        
-        // deregister all listeners for particular node
-        if (this.registeredListeners.containsKey(nodeid)){
-            Set<Integer> amtypesRegistered = this.registeredListeners.get(nodeid);
-            for(Integer registeredAmtype : amtypesRegistered){
-                if (amType2Message.containsKey(registeredAmtype)==false){
-                    log.warn("Inconsistency experienced - registered AMtype is "
-                            + "not found in global static register. NodeId: " + nodeid + "; amtype: " + registeredAmtype);
-                    continue;
-                }
-                
-                Message msgRegistered = amType2Message.get(registeredAmtype);
-                
-                // obtain gateway listener
-                if (this.registeredGatewayListeners.containsKey(nodeid)==false){
-                    log.warn("Inconsistency experienced - registered listener "
-                            + "but node has not gateway listener. NodeID: " + nodeid);
-                    continue;
-                }
-                
-                HelperMessageListener helperMessage = this.registeredGatewayListeners.get(nodeid);
-                
-                // build amfilter 
-                AMTypeNodeIDComposite filterItem = new AMTypeNodeIDComposite(registeredAmtype, nodeid);
-                
-                // deregister properly all listeners that has in filter entry for this
-                Set<MessageListener> listenersToDeregister = new HashSet<MessageListener>();
-                for(MessageListener cListener : this.messageFilter.keySet()){
-                    Set<AMTypeNodeIDComposite> filterSet = this.messageFilter.get(cListener);
-                    if (filterSet.contains(filterItem)){
-                        listenersToDeregister.add(cListener);
-                    }
-                }
-                
-                // deregister all listeners
-                for(MessageListener cListener : listenersToDeregister){
-                    this.deregisterListener(nodeid, msgRegistered, cListener);
-                }
-                
-                if (cn!=null){
-                    // deregister real helper message
-                    cn.getMoteIf().deregisterListener(msgRegistered, helperMessage);
-                }
-            }
-            
-            // determine if there is any listener wit empty filter
-            
-            // delete all registered listeners to reflect actual state
-            this.registeredListeners.remove(nodeid);
-        }
-        
-        
-    }
-
     @Override
     public void disconnectNode(ConnectedNode nh, Properties props) {
         if (nh==null){
@@ -757,7 +473,10 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
     }
     
     /**
-     * Add node to registered nodes
+     * Add node to registered nodes.
+     * If node exists - connect is called on that node (reconnect is probably initiated)
+     * If node does not exist then new node is created and registered default listeners
+     * 
      * @param nh
      * @param props 
      */
@@ -767,21 +486,18 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             throw new NullPointerException("Cannot manipulate with null node");
         }
         
-        // check if already connected to
-        if (this.connectedNodes.containsKey(nh.getNodeId())){
-            // check if is same as registered version
-            ConnectedNode oldCn = this.connectedNodes.get(nh.getNodeId());
+        // if no such node in register, init new one
+        if (this.perNodeListeners.containsKey(nh.getNodeId())==false){
+            // no such per node listener, connect to it
+            MultipleMessageListenerSubComponent subComponent = 
+                    new MultipleMessageListenerSubComponent(this, nh);
             
-            if (nh.equals(oldCn)==false){
-                // definitely new objetc, register
-                this.connectedNodes.put(nh.getNodeId(), nh);
-            } else {
-                // nothing to do, same object as already registered
-                return;
-            }
+            // accept global listeners
+            subComponent.acceptListeners(this.messageListeners);
         } else {
-            // not in connectedGateways, add new
-            this.connectedNodes.put(nh.getNodeId(), nh);
+            // such node is already in register -> reconnect
+            MultipleMessageListenerSubComponent subComponent = this.perNodeListeners.get(nh.getNodeId());
+            subComponent.connectNode(null);
         }
         
         boolean reset=false;
@@ -808,6 +524,26 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         }
         
         log.info("Added nodeid: " + nh.getNodeId() + " to MessageListener");
+    }
+    
+    /** 
+     * Perform reconnect on given subcomponent - keeps registered listeners
+     */
+    @Override
+    public void reconnectNode(ConnectedNode nh) {
+        if (nh==null){
+            throw new NullPointerException("Cannot reconnect to null node");
+        }
+        
+        // has such node in register?
+        if (this.perNodeListeners.containsKey(nh.getNodeId())==false){
+            // no such node - not for me?
+            return;
+        }
+        
+        MultipleMessageListenerSubComponent subComp = this.perNodeListeners.get(nh.getNodeId());
+        subComp.disconnectNode(null);
+        subComp.connectNode(null);
     }
     
     /**
@@ -846,51 +582,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         this.dropingPackets = dropingPackets;
     }
 
-    /**
-     * Helper class to support message received messages from particular gateways -
-     * include base station id
-     */
-    protected class HelperMessageListener implements MessageListener {
-        private int gateway=0;
-
-        public HelperMessageListener() {
-        }
-
-        public HelperMessageListener(int gateway) {
-            this.gateway = gateway;
-        }
-        
-        public int getGateway() {
-            return gateway;
-        }
-
-        public void setGateway(int gateway) {
-            this.gateway = gateway;
-        }
-        
-        /**
-         * Redirector with gateway specified
-         * @param i
-         * @param msg
-         * @param mili 
-         */
-        @Override
-        public void messageReceived(int i, Message msg, long mili) {
-            messageReceivedFromHelper(gateway, i, msg, mili);
-        }
-
-        /**
-         * Entry point from tiny os message listener
-         * @param i
-         * @param msg 
-         */
-        @Override
-        public void messageReceived(int i, Message msg) {
-            this.messageReceived(i, msg, System.currentTimeMillis());
-        }
-        
-    }
-    
     /**
      * Indexing class for decision whether for received note with given AMTYPE
      * current listener accepts this new message based on amtype, nodeid
