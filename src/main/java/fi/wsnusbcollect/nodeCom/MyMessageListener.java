@@ -223,7 +223,7 @@ public class MyMessageListener extends Thread implements MessageListenerInterfac
      * unregister message listener
      */
     @Override
-    public synchronized void deregisterListener(net.tinyos.message.Message msg, net.tinyos.message.MessageListener listener){
+    public synchronized void deregisterListener(net.tinyos.message.Message msg, fi.wsnusbcollect.nodeCom.MessageListener listener){
         if (msg==null || listener==null){
             log.error("Cannot register listener when message or listener is null");
             throw new NullPointerException("Cannot register listener when message or listener is null");
@@ -498,6 +498,7 @@ public class MyMessageListener extends Thread implements MessageListenerInterfac
      *
      * @return
      */
+    @Override
     public synchronized int getQueueLength(){
         return this.queue != null ? this.queue.size() : 0;
     }
@@ -515,12 +516,12 @@ public class MyMessageListener extends Thread implements MessageListenerInterfac
     }
 
     @Override
-    public void deregisterListener(int node, Message msg, net.tinyos.message.MessageListener listener) {
+    public void deregisterListener(int node, Message msg, fi.wsnusbcollect.nodeCom.MessageListener listener) {
         this.deregisterListener(msg, listener);
     }
 
     @Override
-    public void registerListener(int node, Message msg, MessageListener listener) {
+    public void registerListener(int node, Message msg, fi.wsnusbcollect.nodeCom.MessageListener listener) {
         this.registerListener(msg, listener);
     }
 

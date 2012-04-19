@@ -46,7 +46,7 @@ public interface MessageListenerInterface extends net.tinyos.message.MessageList
     /**
      * unregister message listener
      */
-    void deregisterListener(Message msg, MessageListener listener);
+    void deregisterListener(Message msg, fi.wsnusbcollect.nodeCom.MessageListener listener);
     
     /**
      * Unregister message listener for particular node 
@@ -54,7 +54,7 @@ public interface MessageListenerInterface extends net.tinyos.message.MessageList
      * @param msg
      * @param listener 
      */
-    void deregisterListener(int node, Message msg, MessageListener listener);
+    void deregisterListener(int node, Message msg, fi.wsnusbcollect.nodeCom.MessageListener listener);
     
     /**
      * Register message listener
