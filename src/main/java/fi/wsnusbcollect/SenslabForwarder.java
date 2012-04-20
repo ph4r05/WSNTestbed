@@ -1,10 +1,6 @@
 package fi.wsnusbcollect;
 
-import fi.wsnusbcollect.console.Console;
-import fi.wsnusbcollect.console.ConsoleHelper;
-import fi.wsnusbcollect.dbbenchmark.BenchmarkExecutorI;
-import fi.wsnusbcollect.experiment.ExperimentCoordinator;
-import fi.wsnusbcollect.experiment.ExperimentInit;
+import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -15,8 +11,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Level;
 import net.tinyos.sf.SerialForwarder;
 import org.ini4j.Wini;
 import org.kohsuke.args4j.Argument;
@@ -57,8 +55,20 @@ public class SenslabForwarder {
     @Option(name = "-c", usage = "read configuration from this config file")
     private File configFile = null;
     
-    @Option(name = "--use-motes", usage = "comma separated list of motes serial numbers to use in experiment. If ALL present, all defined nodes will be used")
+    @Option(name = "--motes", usage = "comma separated list of motes serial numbers to use in experiment. If ALL present, all defined nodes will be used")
     private String useMotesString = null;
+    
+    @Option(name = "--port", aliases = {"-p"}, usage = "determines start port to start forwarders on")
+    private Integer port=30000;
+    
+    @Option(name = "--connection-type", usage="connection to use with packet listeners (serial, network, sf)")
+    private String cnType="network";
+    
+    @Option(name = "--hostname", usage="hostname to connect to (default: experiment)")
+    private String host="experiment";
+    
+    @Option(name="--connectPort", usage="port offset for data source packet listener")
+    private Integer connectPort=30000;
     
     @Option(name = "--ignore-motes", usage = "comma separated list of motes serial numbers to ignore in experiment.")
     private String ignoreMotesString = null;
@@ -205,6 +215,46 @@ public class SenslabForwarder {
         }
         
         // do the work here
+        // 1. get list of nodes to connect to, port mapping is by default
+        // 30000 + ID of node to work with
+        
+        // include string is mandatory
+        if (this.useMotesString==null || this.useMotesString.isEmpty()){
+            System.err.println("--motes option is mandatory");
+        }
+        
+        // use only nodeid, connect by myself
+        // connecting to as network@experiment
+        List<NodeConfigRecord> nodes2connect = this.usbArbitrator.getNodes2connect(useMotesString, this.ignoreMotesString);
+        
+        // structure to hold forwarders
+        List<SerialForwarder> forwarders = new LinkedList<SerialForwarder>();
+        
+        // nodeids, now build connection strings
+        for(NodeConfigRecord ncr : nodes2connect){
+            String connectionString = this.cnType + "@" + this.host + ":" + (this.connectPort + ncr.getNodeId());
+            ncr.setConnectionString(connectionString);
+            
+            log.info("Going to connect to node: " + ncr.getNodeId() + "; ConnectionString: " + connectionString);
+            
+            // now we have complete node connect list, it remains only to create corresponding serial forwarders
+            SerialForwarder tmpSf = SerialForwarder.newObjInstance(connectionString, this.port + ncr.getNodeId());
+            forwarders.add(tmpSf);
+            
+            log.info("Starting listen server for node on port: " + (this.port + ncr.getNodeId()));
+            tmpSf.startListenServer();
+        }
+        
+        log.info("Starting is over now, going to run forever");
+        
+        // while loop - never ending:)
+        while(true){
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ex) {
+                log.error("Cannot sleep here", ex);
+            }
+        }
     }
     
     /**

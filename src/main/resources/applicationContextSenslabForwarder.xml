@@ -44,11 +44,25 @@
     <bean id="SessionFactory" class="fi.wsnusbcollect.utils.BlindSessionFactory" />
     <bean id="transactionManager" class="fi.wsnusbcollect.utils.BlindTransactionManager" />
     
-    <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitratorSenslab"/>
     
+    <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitratorSenslab"/>
+    <!--
+    <bean id="consoleHelper" class="fi.wsnusbcollect.console.ConsoleHelperImpl"/>
+    <bean id="console" class="fi.wsnusbcollect.console.ConsoleImpl"/>
+    <bean id="nodeHandlerRegister" class="fi.wsnusbcollect.nodeManager.NodeHandlerRegisterImpl"/>
+    <bean id="experimentRecords" class="fi.wsnusbcollect.experiment.ExperimentRecords2CSV" scope="singleton" />
+    
+    <bean id="experimentParameters" class="fi.wsnusbcollect.experiment.ExperimentParametersImpl"/>
+    <bean id="experimentInit" class="fi.wsnusbcollect.experiment.ExperimentInitImpl"/>
+    <bean id="experimentCoordinator" class="fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl" lazy-init="true"/>
+    <bean id="experimentData2DB" class="fi.wsnusbcollect.experiment.ExperimentData2CSV"/>
+    <bean id="experimentStatGen" class="fi.wsnusbcollect.experiment.results.ExperimentStatGenImpl" scope="prototype"/>
+    
+    <bean id="benchmark" class="fi.wsnusbcollect.dbbenchmark.BenchmarkExecutor" />
+    -->
 
     <!-- Experiment related -->
     <context:annotation-config />
-    <context:component-scan base-package="fi.wsnusbcollect.**" />
+    <!--<context:component-scan base-package="fi.wsnusbcollect.**" />-->
     <bean class="org.springframework.context.annotation.CommonAnnotationBeanPostProcessor" />
 </beans>
