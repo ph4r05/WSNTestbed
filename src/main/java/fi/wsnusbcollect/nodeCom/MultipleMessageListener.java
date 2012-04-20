@@ -5,13 +5,10 @@
 package fi.wsnusbcollect.nodeCom;
 
 import fi.wsnusbcollect.nodes.ConnectedNode;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.tinyos.message.Message;
@@ -279,12 +276,10 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
 
          while(true){
             // yield for some time, processor rest
-            //this.pause(500);
-            Thread.yield();
             try {
                 Thread.sleep(0, 200);
             } catch (InterruptedException ex) {
-                
+                log.warn("Cannot sleep in message listener loop", ex);
             }
             
             // shutdown
@@ -392,6 +387,7 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
              }
 
              // set message to null to release it from memory for garbage collector
+             tmpMessage.setMsg(null);
              tmpMessage = null;
         }
     }

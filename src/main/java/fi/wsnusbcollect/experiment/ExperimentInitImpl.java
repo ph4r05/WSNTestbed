@@ -15,6 +15,7 @@ import fi.wsnusbcollect.messages.CtpResponseMsg;
 import fi.wsnusbcollect.messages.CtpSendRequestMsg;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
+import fi.wsnusbcollect.nodeCom.MultipleMessageListener;
 import fi.wsnusbcollect.nodeCom.MultipleMessageSender;
 import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
@@ -32,6 +33,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -282,6 +284,11 @@ public class ExperimentInitImpl implements ExperimentInit {
         Map<Integer, MoteIF> connectedNodes = new HashMap<Integer, MoteIF>();
         Integer defaultGateway=null;
         
+        int nodesPerOneListener=16;
+        List<List<ConnectedNode>> listForListener = new LinkedList<List<ConnectedNode>>();
+        List<ConnectedNode> curListForListener = new LinkedList<ConnectedNode>();
+        listForListener.add(curListForListener);
+        
         Iterator<NodeConfigRecord> iterator = ncr.iterator();
         while(iterator.hasNext()){
             NodeConfigRecord nextncr = iterator.next();
@@ -311,40 +318,34 @@ public class ExperimentInitImpl implements ExperimentInit {
             cn.setNodeConfig(nextncr);
             cn.setMoteIf(connectToNode);
             
-            // message listener
-            MyMessageListener listener = new MyMessageListener(connectToNode);
-            listener.setDropingPackets(true);
-            
-            // message sender
-            //MessageSender sender = new MessageSender(connectToNode);
-            
-            cn.setMsgListener(listener);
-            //cn.setMsgSender(sender);
-            
-            // add listening to packets here to separate DB listener
-            ExperimentData2DB dbForNode = App.getRunningInstance().getAppContext().getBean("experimentData2DB", ExperimentData2DB.class);
-            dbForNode.setExpMeta(expMeta);
+//            // message listener
+//            MyMessageListener listener = new MyMessageListener(connectToNode);
+//            listener.setDropingPackets(true);
+//            
+//            // message sender
+//            MessageSender sender = new MessageSender(connectToNode);
+//            
+//            cn.setMsgListener(listener);
+//            cn.setMsgSender(sender);
             
             // store for multiple packet sender
             connectedNodes.put(cn.getNodeId(), connectToNode);
             defaultGateway = cn.getNodeId();
             
-            log.info("DB for node is running: " + dbForNode.isRunning() + "; for node: " + cn.getNodeId());
-            cn.registerMessageListener(new CommandMsg(), dbForNode);
-            cn.registerMessageListener(new NoiseFloorReadingMsg(), dbForNode);
-            cn.registerMessageListener(new MultiPingResponseReportMsg(), dbForNode);
-            cn.registerMessageListener(new CtpReportDataMsg(), dbForNode);
-            cn.registerMessageListener(new CtpResponseMsg(), dbForNode);
-            cn.registerMessageListener(new CtpSendRequestMsg(), dbForNode);
-            cn.registerMessageListener(new CtpInfoMsg(), dbForNode);
-            cn.registerMessageListener(new CollectionDebugMsg(), dbForNode);
-            
+            // multiple nodes for listener
+            curListForListener.add(cn);
+            if (curListForListener.size() >= nodesPerOneListener){
+                curListForListener = new LinkedList<ConnectedNode>();
+                listForListener.add(curListForListener);
+            }
+
             // add to map
             this.nodeReg.put(cn);
             
             System.out.println("Initialized connected node: " + cn.toString());
         }
         
+        // init multiple sender
         mMsgSender = new MultipleMessageSender(defaultGateway, connectedNodes.get(defaultGateway));
         mMsgSender.setAllGateways(connectedNodes, defaultGateway, true);
         mMsgSender.start();
@@ -357,6 +358,37 @@ public class ExperimentInitImpl implements ExperimentInit {
             cn.setMsgSender(mMsgSender);
             
             log.info("MessageSender updated for node: " + cn.getNodeId());
+        }
+        
+        // init multiple receiver
+        log.info("Initializing multiple message listener");
+        int listenerCount = 1;
+        for(List<ConnectedNode> curXListForListener: listForListener){
+            log.info("MultipleMessageListener id: " + listenerCount);
+            MultipleMessageListener mMsgListener = new MultipleMessageListener(" block: " + listenerCount);
+            mMsgListener.setDropingPackets(true);
+            
+            for(ConnectedNode cn : curXListForListener){
+                mMsgListener.connectNode(cn, null);
+                cn.setMsgListener(mMsgListener);
+                
+                // add listening to packets here to separate DB listener
+                ExperimentData2DB dbForNode = App.getRunningInstance().getAppContext().getBean("experimentData2DB", ExperimentData2DB.class);
+                dbForNode.setExpMeta(expMeta);
+                log.info("DB for node is running: " + dbForNode.isRunning() + "; for node: " + cn.getNodeId());
+            
+                cn.registerMessageListener(new CommandMsg(), dbForNode);
+                cn.registerMessageListener(new NoiseFloorReadingMsg(), dbForNode);
+                cn.registerMessageListener(new MultiPingResponseReportMsg(), dbForNode);
+                cn.registerMessageListener(new CtpReportDataMsg(), dbForNode);
+                cn.registerMessageListener(new CtpResponseMsg(), dbForNode);
+                cn.registerMessageListener(new CtpSendRequestMsg(), dbForNode);
+                cn.registerMessageListener(new CtpInfoMsg(), dbForNode);
+                cn.registerMessageListener(new CollectionDebugMsg(), dbForNode);
+                log.info("Listener for node: " + cn.getNodeId());
+            }
+            
+            listenerCount+=1;
         }
         
         // starting all threads
