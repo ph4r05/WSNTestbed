@@ -98,6 +98,9 @@ public class MessageTypes {
   //			 	if data[0] == 2 -> set TXpower for DATA messages on data[1] level
   //				if data[0] == 3 -> set TXpower for both ROUTE, DATA messages on data[1] level
   public static final int COMMAND_CTP_CONTROL=35;
+  
+  // invokes request on global time for every node which heard this request
+  public static final int COMMAND_TIMESYNC_GETGLOBAL=36;
 
   // identity types
   public static final int NODE_STATIC=1;

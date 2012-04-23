@@ -4,12 +4,15 @@
  */
 package fi.wsnusbcollect.forward;
 
-import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.TimeSyncMsg;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
@@ -33,14 +36,21 @@ public class TimerSynchronizer extends Thread implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(TimerSynchronizer.class);
     
     /**
+     * @deprecated 
      * Message to be send by each thread
      */
     private Message msg2send = null;
     
     /**
+     * @deprecated 
      * Number of threads sent message
      */
     private int sentCount = 0;
+    
+    /**
+     * Time sync counter
+     */
+    private int syncCoutner=0;
     
     /**
      * Delay for synchronization in milliseconds
@@ -55,8 +65,9 @@ public class TimerSynchronizer extends Thread implements Runnable {
     /**
      * Nodes to use - creates new connection with connection string
      */
-    Map<Integer, NodeConfigRecord> nodes;
-    List<NodeSender> senders;
+    private Map<Integer, NodeConfigRecord> nodes;
+    private List<NodeSender> senders;
+    private Map<Integer, MoteIF> connectedInterfaces;
 
     public TimerSynchronizer(Map<Integer, NodeConfigRecord> nodes) {
         this.nodes = nodes;
@@ -68,6 +79,8 @@ public class TimerSynchronizer extends Thread implements Runnable {
      * Start needed threads 4 sending
      */
     private void init(){
+        this.connectedInterfaces = new HashMap<Integer, MoteIF>();
+        
         // initialize threads
         for(NodeConfigRecord ncr : this.nodes.values()){
             // build custom error mesenger - store error messages from tinyos to logs directly
@@ -82,28 +95,48 @@ public class TimerSynchronizer extends Thread implements Runnable {
                 moteInterface = new MoteIF(phoenix);
             }
             
-            // spawn new thread
-            NodeSender tmpSender = new NodeSender(moteInterface, ncr.getNodeId());
-            tmpSender.start();
-            this.senders.add(tmpSender);
+            this.connectedInterfaces.put(ncr.getNodeId(), moteInterface);
+            
+            // DEPRECATED - synchronous send is not very real since there are only
+            // a few processors to process 256 threads at sime time - some delay may
+            // occur and thread overhead is big, thus we do it by node-by-node case.
+            //
+//            // spawn new thread
+//            NodeSender tmpSender = new NodeSender(moteInterface, ncr.getNodeId());
+//            tmpSender.start();
+//            this.senders.add(tmpSender);
         }
     }
     
     /**
      * Synchronize now
+     * synchronous send is not very real since there are only
+     * a few processors to process 256 threads at some time - some delay may
+     * occur and thread overhead is big, thus we do it by node-by-node case.
+     * 
+     * Thus for every node is generated new fresh message with time sync.
      */
     public boolean sync(){
-//        if (this.msg2send!=null){
-//            log.error("Cannot send new sync message, already syncing");
-//            return false;
-//        }
-        
-        CommandMsg cMsg = new CommandMsg();
-        cMsg.set_command_data((int)(System.currentTimeMillis() & 0xFFFF));
-        
-        sentCount=0;
-        msg2send = cMsg;
-        
+        for(Integer nodeId : this.connectedInterfaces.keySet()){
+            MoteIF currentInterface = this.connectedInterfaces.get(nodeId);
+            
+            TimeSyncMsg tMsg = new TimeSyncMsg();
+            tMsg.set_counter((short)this.syncCoutner);
+            tMsg.set_flags((short)0);
+            
+            long time = System.currentTimeMillis();
+            tMsg.set_low((time & 0xFFFFFFFF));
+            tMsg.set_high((time >> 32) & 0xFFFFFFFF);
+            
+            try {
+                currentInterface.send(nodeId, tMsg);
+            } catch (IOException ex) {
+                log.error("Cannot send timesync message to node: " + nodeId, ex);
+            }
+        }
+
+        this.syncCoutner+=1;
+                
         // now should threads do their jobs - send message to node immediatelly
         return true;
     }
@@ -149,6 +182,10 @@ public class TimerSynchronizer extends Thread implements Runnable {
 
     public void setSynchroDelay(int synchroDelay) {
         this.synchroDelay = synchroDelay;
+    }
+
+    public int getSyncCoutner() {
+        return syncCoutner;
     }
     
     /**
