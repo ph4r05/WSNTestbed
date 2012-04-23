@@ -5,6 +5,7 @@ import fi.wsnusbcollect.console.ConsoleHelper;
 import fi.wsnusbcollect.dbbenchmark.BenchmarkExecutorI;
 import fi.wsnusbcollect.experiment.ExperimentCoordinator;
 import fi.wsnusbcollect.experiment.ExperimentInit;
+import fi.wsnusbcollect.forward.RemoteForwarderWork;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -14,9 +15,15 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.rmi.AccessException;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Level;
 import org.ini4j.Wini;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
@@ -131,14 +138,25 @@ public class App {
     protected Wini ini;
     protected String configFileContents;
     
+    /**
+     * Remote worker class if needed (if using self as forwarder running on different machine)
+     */
+    protected RemoteForwarderWork remoteWork;
+    
     public static void main(String[] args) {
         log.info("Starting application");
         try {
             // some inits in static scope
             // ...
 
+            if (System.getSecurityManager() == null) {
+                System.setSecurityManager(new SecurityManager());
+            }
+
             // do main on instance
-            App.runningInstance = new App();
+            App.runningInstance = new App();  
+            
+            // do the main
             App.runningInstance.doMain(args);
             
             // ending application
@@ -196,6 +214,21 @@ public class App {
         
         // reconnect between
         log.info("All dependencies initialized");
+    }
+    
+    protected void initRMI(){
+        try {
+            // do this after final initialization
+            String name = "RemoteForwarder";
+            Registry registry = LocateRegistry.getRegistry(null, 29999);
+            this.remoteWork = (RemoteForwarderWork) registry.lookup(name);
+        } catch (NotBoundException ex) {
+            log.error("Cannot init RMI. Not bound exception", ex);
+        } catch (AccessException ex) {
+            log.error("Cannot init RMI. Accessing exception", ex);
+        } catch (RemoteException ex) {
+            log.error("Cannot init RMI. Remote exception", ex);
+        }
     }
     
     /**
@@ -260,6 +293,9 @@ public class App {
         // application context loading
         log.info("Initializing depencencies");
         this.initDependencies();
+        
+        // init RMI
+        this.initRMI();
         
         // benchmark?
         if (this.benchmarkDB){

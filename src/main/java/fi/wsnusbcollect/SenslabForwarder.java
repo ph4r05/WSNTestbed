@@ -1,5 +1,6 @@
 package fi.wsnusbcollect;
 
+import fi.wsnusbcollect.forward.RemoteForwarderWork;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.BufferedReader;
@@ -10,11 +11,14 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
 import net.tinyos.sf.SerialForwarder;
 import org.ini4j.Wini;
 import org.kohsuke.args4j.Argument;
@@ -32,7 +36,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  *
  * @author ph4r05
  */
-public class SenslabForwarder {
+public class SenslabForwarder implements RemoteForwarderWork {
     // main logger instance, configured in log4j.properties in resources
     private static final Logger log = LoggerFactory.getLogger(SenslabForwarder.class);
     
@@ -102,8 +106,22 @@ public class SenslabForwarder {
             // some inits in static scope
             // ...
 
+            if (System.getSecurityManager() == null) {
+                System.setSecurityManager(new SecurityManager());
+            }       
+            
             // do main on instance
             SenslabForwarder.runningInstance = new SenslabForwarder();
+            
+            // init RMI, registry should have port 1099
+            String name = "RemoteForwarder";
+            RemoteForwarderWork engine = (RemoteForwarderWork) SenslabForwarder.runningInstance;
+            RemoteForwarderWork stub = (RemoteForwarderWork) UnicastRemoteObject.exportObject(engine, 29999);
+            Registry registry = LocateRegistry.getRegistry(null, 29998);
+            registry.rebind(name, stub);
+            log.info("RemoteForwarderWork bound");
+            
+            // do main work here
             SenslabForwarder.runningInstance.doMain(args);
             
             // ending application
@@ -226,6 +244,7 @@ public class SenslabForwarder {
         // use only nodeid, connect by myself
         // connecting to as network@experiment
         List<NodeConfigRecord> nodes2connect = this.usbArbitrator.getNodes2connect(useMotesString, this.ignoreMotesString);
+        List<NodeConfigRecord> nodesOutSF = new LinkedList<NodeConfigRecord>();
         
         // structure to hold forwarders
         List<SerialForwarder> forwarders = new LinkedList<SerialForwarder>();
@@ -243,6 +262,12 @@ public class SenslabForwarder {
             
             log.info("Starting listen server for node on port: " + (this.port + ncr.getNodeId()));
             tmpSf.startListenServer();
+            //tmpSf.getListener();
+            
+            // create new node connection string to connect to created SF
+            NodeConfigRecord newNodeCRF = (NodeConfigRecord) ncr.clone();
+            newNodeCRF.setConnectionString("sf@127.0.0.1:" + (this.port + ncr.getNodeId()));
+            nodesOutSF.add(newNodeCRF);
         }
         
         log.info("Starting is over now, going to run forever");
@@ -381,5 +406,15 @@ public class SenslabForwarder {
 
     public void setSenslab(boolean senslab) {
         this.senslab = senslab;
+    }
+
+    @Override
+    public List<Integer> resetNodes(List<Integer> nodes2reset) throws RemoteException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void enableTimeSync(boolean enable, int timeInterval) throws RemoteException {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 }
