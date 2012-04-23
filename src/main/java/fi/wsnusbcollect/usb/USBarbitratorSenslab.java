@@ -32,8 +32,6 @@ public class USBarbitratorSenslab extends USBarbitratorImpl{
         
         return usbConf;
     }
-    
-    
 
     @Override
     public boolean checkNodesConnection(Map<String, NodeConfigRecord> localmotelist, boolean output) {

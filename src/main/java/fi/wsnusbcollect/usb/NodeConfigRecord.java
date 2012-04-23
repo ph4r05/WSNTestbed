@@ -15,7 +15,7 @@ package fi.wsnusbcollect.usb;
  * 
  * @author ph4r05
  */
-public class NodeConfigRecord {
+public class NodeConfigRecord implements Cloneable {
     private String bus;
     private String dev;
     private String usbPath;
@@ -158,4 +158,27 @@ public class NodeConfigRecord {
                 .append(";\t USB: ").append(getUsbPath());
         return sb.toString();
     }
+
+    private NodeConfigRecord cloneself() {
+        NodeConfigRecord copy;
+
+        try {
+            copy = (NodeConfigRecord) super.clone();
+        } catch (CloneNotSupportedException e) {
+            System.err.println("Message: WARNING: CloneNotSupportedException in cloneself(): " + e);
+            System.err.println("Message: This is a bug - please contact dgay@intel-research.net");
+            copy = null;
+            System.exit(2);
+        }
+        return copy;
+    }
+    
+    /**
+     * Clone this Message, including making a copy of its data
+     */
+    public Object clone() {
+        NodeConfigRecord copy = cloneself();
+        return copy;
+    }
+    
 }

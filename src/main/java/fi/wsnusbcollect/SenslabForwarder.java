@@ -1,6 +1,12 @@
 package fi.wsnusbcollect;
 
 import fi.wsnusbcollect.forward.RemoteForwarderWork;
+import fi.wsnusbcollect.forward.TimerSynchronizer;
+import fi.wsnusbcollect.nodes.ConnectedNode;
+import fi.wsnusbcollect.nodes.GenericNode;
+import fi.wsnusbcollect.nodes.NodePlatform;
+import fi.wsnusbcollect.nodes.NodePlatformFactory;
+import fi.wsnusbcollect.nodes.SimpleGenericNode;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.io.BufferedReader;
@@ -16,8 +22,10 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import net.tinyos.sf.SerialForwarder;
 import org.ini4j.Wini;
@@ -80,6 +88,12 @@ public class SenslabForwarder implements RemoteForwarderWork {
     @Option(name = "--senslab", usage = "environment is senslab - specific mote connection")
     private boolean senslab=true;
     
+    @Option(name="timesync", usage="enables serial cable timesync")
+    private boolean timesync=false;
+    
+    @Option(name="timesync-delay", usage="specify interval in milliseconds of synchronization message send from application")
+    private int timesyncDelay=1000;
+    
     /**
      * Real parsed list of motes to use - uses 
      * --use-motes SERIAL1,SERIAL2,SERIAL3
@@ -99,6 +113,16 @@ public class SenslabForwarder implements RemoteForwarderWork {
     // parsed config file
     protected Wini ini;
     protected String configFileContents;
+    
+    /**
+     * Timer synchronizer object
+     */
+    TimerSynchronizer timerSynchronizer;
+    
+    /**
+     * Node config records for nodes to connect to SF created
+     */
+    Map<Integer, NodeConfigRecord> nodesOutSF;
     
     public static void main(String[] args) {
         log.info("Starting forwarder application");
@@ -244,7 +268,7 @@ public class SenslabForwarder implements RemoteForwarderWork {
         // use only nodeid, connect by myself
         // connecting to as network@experiment
         List<NodeConfigRecord> nodes2connect = this.usbArbitrator.getNodes2connect(useMotesString, this.ignoreMotesString);
-        List<NodeConfigRecord> nodesOutSF = new LinkedList<NodeConfigRecord>();
+        nodesOutSF = new HashMap<Integer, NodeConfigRecord>();
         
         // structure to hold forwarders
         List<SerialForwarder> forwarders = new LinkedList<SerialForwarder>();
@@ -267,19 +291,31 @@ public class SenslabForwarder implements RemoteForwarderWork {
             // create new node connection string to connect to created SF
             NodeConfigRecord newNodeCRF = (NodeConfigRecord) ncr.clone();
             newNodeCRF.setConnectionString("sf@127.0.0.1:" + (this.port + ncr.getNodeId()));
-            nodesOutSF.add(newNodeCRF);
+            nodesOutSF.put(newNodeCRF.getNodeId(), newNodeCRF);
         }
         
         log.info("Starting is over now, going to run forever");
         
+        // timesync?
+        if (this.timesync){
+            this.initTimeSync(timesyncDelay);
+        }
+        
         // while loop - never ending:)
         while(true){
             try {
-                Thread.sleep(100);
+                Thread.sleep(1000);
             } catch (InterruptedException ex) {
                 log.error("Cannot sleep here", ex);
             }
         }
+    }
+    
+    protected void initTimeSync(int delay){
+        // initialize time synchtonizer and start its execution
+        timerSynchronizer = new TimerSynchronizer(nodesOutSF);
+        timerSynchronizer.setSynchroDelay(delay);
+        timerSynchronizer.start();
     }
     
     /**
@@ -408,13 +444,82 @@ public class SenslabForwarder implements RemoteForwarderWork {
         this.senslab = senslab;
     }
 
+    /**
+     * @param nodes2reset
+     * @return
+     * @throws RemoteException 
+     */
     @Override
     public List<Integer> resetNodes(List<Integer> nodes2reset) throws RemoteException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        if (nodes2reset==null){
+            throw new RemoteException("Cannot be null", new NullPointerException("Cannot reset null list"));
+        }
+        
+        List<Integer> failed = new LinkedList<Integer>();
+        
+        for(Integer nodeId : nodes2reset){
+            if (this.nodesOutSF.containsKey(nodeId)==false){
+                failed.add(nodeId);
+                continue;
+            }
+            
+            NodeConfigRecord ncr = this.nodesOutSF.get(nodeId);
+            Properties properties = new Properties();
+            boolean ok = false;
+            
+            // determine platform
+            NodePlatform platform = NodePlatformFactory.getPlatform(ncr.getPlatformId());
+            
+            // build generic node info
+            GenericNode gn = new SimpleGenericNode(true, nodeId);
+            gn.setPlatform(platform);
+            
+            ConnectedNode cn = new ConnectedNode();
+            cn.setNodeObj(gn);
+            cn.setNodeConfig(ncr);
+            cn.setMoteIf(null);
+            
+            if (senslab){
+                // reset node with USB arbitrator - handles environment differences
+                ok = usbArbitrator.resetNode(cn, properties);
+            } else {
+                if (ncr.getDeviceAlias()!=null && ncr.getDeviceAlias().isEmpty()==false){
+                    properties.setProperty("preferDevice", ncr.getDeviceAlias());
+                }
+                
+                // reset node with USB arbitrator - handles environment differences
+                ok = usbArbitrator.resetNode(cn, properties);
+            }
+            
+            if (ok==false){
+                failed.add(nodeId);
+            }
+        }
+        
+        return null;
     }
 
     @Override
     public void enableTimeSync(boolean enable, int timeInterval) throws RemoteException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // decide what to do depending on actual state
+        if (enable==this.timesync){
+            // nothing to do, actual state is that one requested
+            this.timerSynchronizer.setSynchroDelay(timeInterval);
+            log.info("Changed timeout for timesync from remote procedure");
+            
+            return;
+        }
+        
+        // want to enable/disable?
+        if (enable){
+            // init new timesync
+            this.initTimeSync(timeInterval);
+            log.info("Initialized time syncronizer from remote procedure");
+        } else {
+            // destruct
+            this.timerSynchronizer.setTerminate(true);
+            this.timerSynchronizer = null;
+            log.info("Timesynchronizer disabled from remote procedure");
+        }
     }
 }

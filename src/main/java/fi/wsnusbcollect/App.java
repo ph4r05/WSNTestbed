@@ -295,7 +295,9 @@ public class App {
         this.initDependencies();
         
         // init RMI
-        this.initRMI();
+        if (this.senslab==false){
+            this.initRMI();
+        }
         
         // benchmark?
         if (this.benchmarkDB){
