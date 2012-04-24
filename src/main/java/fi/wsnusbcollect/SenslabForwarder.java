@@ -333,8 +333,20 @@ public class SenslabForwarder implements RemoteForwarderWork {
         this.console.prepareShell();
         this.console.setShellAlias("_main", this);
         this.console.getShell();
-        log.info("Shell terminated, exiting...");
+        log.info("Shell terminated, exiting application...");
+        
+        /**
+         * Turn off all senders
+         */
+        for(SerialForwarder tmpSf : forwarders){
+            try {
+                tmpSf.stopListenServer();
+            } catch(Exception e){
+                
+            }
+        }
        
+        log.info("All forwarders stopped its operation");
 //        // while loop - never ending:)
 //        while(true){
 //            try {
