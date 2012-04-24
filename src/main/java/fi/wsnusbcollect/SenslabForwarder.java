@@ -1,7 +1,12 @@
 package fi.wsnusbcollect;
 
+import fi.wsnusbcollect.console.Console;
+import fi.wsnusbcollect.console.ConsoleHelperImpl;
+import fi.wsnusbcollect.console.ConsoleImpl;
+import fi.wsnusbcollect.forward.RTTtester;
 import fi.wsnusbcollect.forward.RemoteForwarderWork;
 import fi.wsnusbcollect.forward.TimerSynchronizer;
+import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.GenericNode;
 import fi.wsnusbcollect.nodes.NodePlatform;
@@ -27,6 +32,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import net.tinyos.message.MoteIF;
+import net.tinyos.packet.BuildSource;
+import net.tinyos.packet.PhoenixSource;
 import net.tinyos.sf.SerialForwarder;
 import org.ini4j.Wini;
 import org.kohsuke.args4j.Argument;
@@ -63,6 +71,9 @@ public class SenslabForwarder implements RemoteForwarderWork {
     
     @Option(name = "--debug", aliases = {"-d"}, usage = "enables debug output")
     private boolean debug;
+    
+    @Option(name = "--rmi-server", usage = "starts rmi server")
+    private boolean rmiServer=false;
     
     @Option(name = "-c", usage = "read configuration from this config file")
     private File configFile = null;
@@ -110,6 +121,9 @@ public class SenslabForwarder implements RemoteForwarderWork {
     // USB arbitrator instance
     private USBarbitrator usbArbitrator = null;
     
+    // jython console
+    private Console console;
+    
     // parsed config file
     protected Wini ini;
     protected String configFileContents;
@@ -136,14 +150,7 @@ public class SenslabForwarder implements RemoteForwarderWork {
             
             // do main on instance
             SenslabForwarder.runningInstance = new SenslabForwarder();
-            
-            // init RMI, registry should have port 1099
-            String name = "RemoteForwarder";
-            RemoteForwarderWork engine = (RemoteForwarderWork) SenslabForwarder.runningInstance;
-            RemoteForwarderWork stub = (RemoteForwarderWork) UnicastRemoteObject.exportObject(engine, 29999);
-            Registry registry = LocateRegistry.getRegistry(null, 29998);
-            registry.rebind(name, stub);
-            log.info("RemoteForwarderWork bound");
+            RunningApp.setRunningInstance(runningInstance);
             
             // do main work here
             SenslabForwarder.runningInstance.doMain(args);
@@ -196,6 +203,12 @@ public class SenslabForwarder implements RemoteForwarderWork {
             throw new IllegalStateException("Dependency injection is not working");
         }
         
+        // initialize console
+        ConsoleHelperImpl consoleHelper = new ConsoleHelperImpl();
+        console = new ConsoleImpl();
+        console.setConsoleHelper(consoleHelper);
+        console.setUsbArbitrator(usbArbitrator);
+        
         // reconnect between
         log.info("All dependencies initialized");
     }
@@ -241,6 +254,21 @@ public class SenslabForwarder implements RemoteForwarderWork {
         
         if (configFile != null && (configFile instanceof File)) {
             System.out.println("Config file set: " + configFile.getName());
+        }
+        
+        // RMI server?
+        if (this.rmiServer){
+            try {
+                // init RMI, registry should have port 1099
+                String name = "RemoteForwarder";
+                RemoteForwarderWork engine = (RemoteForwarderWork) SenslabForwarder.runningInstance;
+                RemoteForwarderWork stub = (RemoteForwarderWork) UnicastRemoteObject.exportObject(engine, 29999);
+                Registry registry = LocateRegistry.getRegistry(null, 29998);
+                registry.rebind(name, stub);
+                log.info("RemoteForwarderWork bound");
+            } catch(Exception ex){
+                log.error("Exception occurred during RMI server start", ex);
+            }
         }
         
         // init dependencies here - arguments and properties loaded
@@ -301,16 +329,76 @@ public class SenslabForwarder implements RemoteForwarderWork {
             this.initTimeSync(timesyncDelay);
         }
         
-        // while loop - never ending:)
-        while(true){
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ex) {
-                log.error("Cannot sleep here", ex);
-            }
-        }
+        // prepare shell
+        this.console.prepareShell();
+        this.console.setShellAlias("_main", this);
+        this.console.getShell();
+        log.info("Shell terminated, exiting...");
+       
+//        // while loop - never ending:)
+//        while(true){
+//            try {
+//                Thread.sleep(1000);
+//            } catch (InterruptedException ex) {
+//                log.error("Cannot sleep here", ex);
+//            }
+//        }
     }
     
+    /**
+     * Returns fully initialized RTT tester
+     * @param nodeid
+     * @return 
+     */
+    public RTTtester getRttTester(int nodeid){
+        if (this.nodesOutSF.containsKey(nodeid)==false){
+            log.error("Given id is not in database");
+            return null;
+        }
+        
+        
+        MoteIF moteif = this.getMoteIF(nodeid);
+        if (moteif==null){
+            log.error("Cannot obtain connection to node");
+            return null;
+        }
+        
+        RTTtester tester = new RTTtester(nodeid, moteif);
+        return tester;
+    }
+    
+    /**
+     * Initializes new moteif object
+     * @param nodeid
+     * @return 
+     */
+    public MoteIF getMoteIF(int nodeid){
+        if (this.nodesOutSF.containsKey(nodeid)==false){
+            log.error("Given id is not in database");
+            return null;
+        }
+        
+        NodeConfigRecord ncr = this.nodesOutSF.get(nodeid);
+        
+        // build custom error mesenger - store error messages from tinyos to logs directly
+        TOSLogMessenger messenger = new TOSLogMessenger();
+        // instantiate phoenix source
+        PhoenixSource phoenix = BuildSource.makePhoenix(ncr.getConnectionString(), messenger);
+        MoteIF moteInterface = null;
+
+        // phoenix is not null, can create packet source and mote interface
+        if (phoenix != null) {
+            // loading phoenix
+            moteInterface = new MoteIF(phoenix);
+        }
+
+        return moteInterface;
+    }
+    
+    /**
+     * Initializes timesync object
+     * @param delay 
+     */
     protected void initTimeSync(int delay){
         // initialize time synchtonizer and start its execution
         timerSynchronizer = new TimerSynchronizer(nodesOutSF);
@@ -321,7 +409,7 @@ public class SenslabForwarder implements RemoteForwarderWork {
     /**
      * Reads config file to internal ini object and to string object
      */
-    public void readConfig(){
+    protected void readConfig(){
         try {
             FileInputStream fstream = new FileInputStream(this.configFile);
             DataInputStream in = new DataInputStream(fstream);

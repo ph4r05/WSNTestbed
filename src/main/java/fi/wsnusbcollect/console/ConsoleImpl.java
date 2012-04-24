@@ -4,7 +4,7 @@
  */
 package fi.wsnusbcollect.console;
 
-import fi.wsnusbcollect.App;
+import fi.wsnusbcollect.RunningApp;
 import fi.wsnusbcollect.experiment.ExperimentCoordinator;
 import fi.wsnusbcollect.experiment.ExperimentCoordinatorImpl;
 import fi.wsnusbcollect.experiment.ExperimentInit;
@@ -79,8 +79,8 @@ public class ConsoleImpl implements Console {
         // experiment coord
         setShellParamObject("_jy_expCoord", Py.java2py(this.expCoord));
 
-        // this instance
-        setShellParamObject("_jy_main", Py.java2py(App.getRunningInstance()));
+        // running application instance
+        setShellParamObject("_jy_main", Py.java2py(RunningApp.getRunningInstance()));
 
         // enable autocomplete, sigint handler by default
         this.consoleHelper.prepareConsoleBeforeStart(interp);

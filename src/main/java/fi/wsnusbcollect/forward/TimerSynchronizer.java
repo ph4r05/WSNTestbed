@@ -9,10 +9,8 @@ import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
@@ -48,6 +46,12 @@ public class TimerSynchronizer extends Thread implements Runnable {
     private int sentCount = 0;
     
     /**
+     * @deprecated
+     * List of sender threads
+     */
+    private List<NodeSender> senders;
+    
+    /**
      * Time sync counter
      */
     private int syncCoutner=0;
@@ -65,9 +69,13 @@ public class TimerSynchronizer extends Thread implements Runnable {
     /**
      * Nodes to use - creates new connection with connection string
      */
-    private Map<Integer, NodeConfigRecord> nodes;
-    private List<NodeSender> senders;
-    private Map<Integer, MoteIF> connectedInterfaces;
+    private Map<Integer, NodeConfigRecord> nodes = new HashMap<Integer, NodeConfigRecord>();
+    private Map<Integer, MoteIF> connectedInterfaces = new HashMap<Integer, MoteIF>();
+    
+    /**
+     * Round trip times for each node measured
+     */
+    private Map<Integer, Integer> roundTripTimes = new HashMap<Integer, Integer>();
 
     public TimerSynchronizer(Map<Integer, NodeConfigRecord> nodes) {
         this.nodes = nodes;

@@ -155,6 +155,7 @@ public class App {
 
             // do main on instance
             App.runningInstance = new App();  
+            RunningApp.setRunningInstance(runningInstance);
             
             // do the main
             App.runningInstance.doMain(args);

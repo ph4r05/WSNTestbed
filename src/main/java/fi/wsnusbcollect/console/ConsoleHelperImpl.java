@@ -100,6 +100,8 @@ public class ConsoleHelperImpl implements ConsoleHelper {
         
         // register exit routine
         interp.exec(EXITROUTINE);
+        
+        // unsuspend experiment
         interp.exec(UNSUSPENDROUTINE);
         
         // set custom SIGINT handler
