@@ -101,6 +101,9 @@ public class MessageTypes {
   
   // invokes request on global time for every node which heard this request
   public static final int COMMAND_TIMESYNC_GETGLOBAL=36;
+  
+  // request response protocol to meassure RTT of channel, should be as fast as possible                                                                                                   
+  public static final int COMMAND_PING=37;
 
   // identity types
   public static final int NODE_STATIC=1;
