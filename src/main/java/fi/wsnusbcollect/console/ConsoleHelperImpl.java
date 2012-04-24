@@ -65,6 +65,8 @@ public class ConsoleHelperImpl implements ConsoleHelper {
                         "def intHandler(signum, frame):\n" +
                         " print \"user pressed ctrl-c\"\n" +
                         " sys._jy_interpreter.interrupt(sys._jy_ch.getTs())\n" +            
+                        " mth=sys._jy_ch.getMasterThread()\n" +  
+                        " mth=mth.interrupt()\n" +  
 //                        " print(thread.get_ident())\n" + 
 //                        " th = sys._jy_ch.getCurrTs()\n" +
 //                        " thp = sys._jy_ch.getTs()\n" +
@@ -75,6 +77,9 @@ public class ConsoleHelperImpl implements ConsoleHelper {
     
     // threadstate of main execution thread - to be able to send interrupt signal
     private ThreadState ts;
+    
+    // master thread for interruption
+    private Thread masterThread;
     
     // application instance
     private App appInstance;
@@ -116,6 +121,7 @@ public class ConsoleHelperImpl implements ConsoleHelper {
         // store current threadState
         // IMPORTANT step - set thread state for main execution thread
         this.ts = Py.getThreadState();
+        this.masterThread = Thread.currentThread();
     }
      
     @Override
@@ -140,6 +146,11 @@ public class ConsoleHelperImpl implements ConsoleHelper {
     @Override
     public synchronized ThreadState getTs() {
         return ts;
+    }
+
+    @Override
+    public synchronized Thread getMasterThread() {
+        return masterThread;
     }
     
     /**

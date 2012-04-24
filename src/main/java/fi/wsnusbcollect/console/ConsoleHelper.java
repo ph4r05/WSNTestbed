@@ -48,6 +48,8 @@ public interface ConsoleHelper {
      * @return
      */
     ThreadState getTs();
+    
+    Thread getMasterThread();
 
     /**
      * Executes scripts needed - autocomplete, sigint handler
