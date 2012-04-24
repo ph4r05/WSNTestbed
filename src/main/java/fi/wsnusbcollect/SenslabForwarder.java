@@ -75,6 +75,9 @@ public class SenslabForwarder implements RemoteForwarderWork {
     @Option(name = "--rmi-server", usage = "starts rmi server")
     private boolean rmiServer=false;
     
+    @Option(name = "--no-shell", usage = "disables python shell. It consumes a lot of memory, usefull for testing, not for production use")
+    private boolean noShell=false;
+    
     @Option(name = "-c", usage = "read configuration from this config file")
     private File configFile = null;
     
@@ -203,11 +206,13 @@ public class SenslabForwarder implements RemoteForwarderWork {
             throw new IllegalStateException("Dependency injection is not working");
         }
         
-        // initialize console
-        ConsoleHelperImpl consoleHelper = new ConsoleHelperImpl();
-        console = new ConsoleImpl();
-        console.setConsoleHelper(consoleHelper);
-        console.setUsbArbitrator(usbArbitrator);
+        if (this.noShell==false){
+            // initialize console
+            ConsoleHelperImpl consoleHelper = new ConsoleHelperImpl();
+            console = new ConsoleImpl();
+            console.setConsoleHelper(consoleHelper);
+            console.setUsbArbitrator(usbArbitrator);
+        }
         
         // reconnect between
         log.info("All dependencies initialized");
@@ -329,11 +334,24 @@ public class SenslabForwarder implements RemoteForwarderWork {
             this.initTimeSync(timesyncDelay);
         }
         
-        // prepare shell
-        this.console.prepareShell();
-        this.console.setShellAlias("_main", this);
-        this.console.getShell();
-        log.info("Shell terminated, exiting application...");
+        // shell or block?
+        if (noShell){
+            // while loop - never ending:)
+            while(true){
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ex) {
+                    log.error("Cannot sleep here", ex);
+                    break;
+                }
+            }
+        } else {
+            // prepare shell
+            this.console.prepareShell();
+            this.console.setShellAlias("_main", this);
+            this.console.getShell();
+            log.info("Shell terminated, exiting application...");
+        }
         
         /**
          * Turn off all senders
@@ -347,14 +365,15 @@ public class SenslabForwarder implements RemoteForwarderWork {
         }
        
         log.info("All forwarders stopped its operation");
-//        // while loop - never ending:)
-//        while(true){
-//            try {
-//                Thread.sleep(1000);
-//            } catch (InterruptedException ex) {
-//                log.error("Cannot sleep here", ex);
-//            }
-//        }
+    }
+    
+    /**
+     * Burn in computing
+     */
+    public void burn(){
+        for(int i=0;;i++){
+            double log1 = Math.log(i * Math.sin(i));
+        }
     }
     
     /**
