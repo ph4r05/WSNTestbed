@@ -54,11 +54,21 @@ public class RTTtester implements MessageListener{
         this.moteif = moteif;
     }
 
+    public void init(){
+        this.moteif.registerListener(new CommandMsg(), this);
+    }
+    
+    public void deinit(){
+        this.moteif.deregisterListener(new CommandMsg(), this);
+    }
+    
     /**
      * Entry method for testing RTT of serial link. Blocking method holds until RTT measurement is finished.
      * @param cycles 
      */
     public void testRTT(int cycles){
+        this.rttCounter = 0;
+        this.succRttCoutner=0;
         this.rtts = new ArrayList<Long>(cycles);
         for(int i=0; i<cycles; i++){
             // in cycle send requests for response, then wait until finished
@@ -72,7 +82,7 @@ public class RTTtester implements MessageListener{
                 this.moteif.send(this.nodeId, msg);
                 this.lastRttTime = startTime;
             } catch (IOException ex) {
-                log.info("Cannot send message, counte: " + this.rttCounter, ex);
+                log.info("Cannot send message, counter: " + this.rttCounter, ex);
             }
             
             // wait for response
@@ -81,14 +91,17 @@ public class RTTtester implements MessageListener{
                     Thread.sleep(2);
                     long totalTime = System.currentTimeMillis() - startTime;
                     if (totalTime>100){
+                        log.warn("Expiring RTT round: " + this.rttCounter + "; for nodeId: " + this.nodeId);
+                        
                         // expire this
                         this.lastRttTime=null;
                         // wait
-                        Thread.sleep(1000);
+                        Thread.sleep(500);
                         break;
                     }
                 } catch (InterruptedException ex) {
                     log.error("Cannot sleep", ex);
+                    return;
                 }
             }
         }

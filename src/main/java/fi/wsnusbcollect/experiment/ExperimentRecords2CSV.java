@@ -8,6 +8,7 @@ import com.csvreader.CsvWriter;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.xml.DomDriver;
 import fi.wsnusbcollect.App;
+import fi.wsnusbcollect.RunningApp;
 import fi.wsnusbcollect.db.DataCSVWritable;
 import fi.wsnusbcollect.db.ExperimentDataGenericMessage;
 import fi.wsnusbcollect.db.ExperimentDataLog;
@@ -17,6 +18,7 @@ import fi.wsnusbcollect.db.FileWritable;
 import fi.wsnusbcollect.db.FileWritableTypes;
 import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.db.USBdevice;
+import fi.wsnusbcollect.utils.UConstants;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -64,7 +66,7 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
     public synchronized void postConstruct(){
         // load data directory from properties file
         if (realDataDir==null){
-            realDataDir = App.getRunningInstance().getProps().getProperty(DATADIR, "expData");
+            realDataDir = RunningApp.getRunningInstance().getProps().getProperty(DATADIR, "expData");
         
             // assure existence
             File dataDir = new File(realDataDir);
@@ -133,7 +135,7 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
             
             synchronized(fileCSVWriters){
                 // this file does not yet exist
-                String path = realDataDir + App.pathSeparator + id + ".csv";
+                String path = realDataDir + UConstants.pathSeparator + id + ".csv";
                 File tmpFile = new File(path);
 
                 // does file itself exists?
@@ -196,7 +198,7 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
         if (fileBuffers.containsKey(id) == false) {
             synchronized(fileBuffers){
                 // this file does not yet exist
-                String path = realDataDir + App.pathSeparator + id + ".xml";
+                String path = realDataDir + UConstants.pathSeparator + id + ".xml";
                 File tmpFile = new File(path);
 
                 // does file itself exists?

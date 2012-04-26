@@ -5,17 +5,17 @@
 package fi.wsnusbcollect;
 
 /**
- * Static registry class
+ * Static registry class, holds currently running main application
  * @author ph4r05
  */
 public class RunningApp {
-    private static Object runningInstance;
+    private static AppIntf runningInstance;
 
-    public static Object getRunningInstance() {
+    public static AppIntf getRunningInstance() {
         return runningInstance;
     }
 
-    public static void setRunningInstance(Object runningInstance) {
+    public static void setRunningInstance(AppIntf runningInstance) {
         RunningApp.runningInstance = runningInstance;
     }
 }

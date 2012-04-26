@@ -40,12 +40,9 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  *
  * @author ph4r05
  */
-public class App {
+public class App implements AppIntf{
     // main logger instance, configured in log4j.properties in resources
     private static final Logger log = LoggerFactory.getLogger(App.class);
-    
-    // file path separator
-    public static final String pathSeparator = System.getProperty("file.separator");
     
     // main properties object
     Properties props = null;
@@ -107,6 +104,9 @@ public class App {
     
     @Option(name = "--senslab", usage = "environment is senslab - specific mote connection")
     private boolean senslab=false;
+    
+    @Option(name = "--rmi", usage = "enables RMI on remote server - senslab")
+    private boolean rmi=false;
     
     /**
      * Real parsed list of motes to use - uses 
@@ -296,7 +296,7 @@ public class App {
         this.initDependencies();
         
         // init RMI
-        if (this.senslab==false){
+        if (this.senslab==false && this.rmi){
             this.initRMI();
         }
         
@@ -561,23 +561,16 @@ public class App {
         return reprogramNodesWith;
     }
 
-    public void setReprogramNodesWith(String reprogramNodesWith) {
-        this.reprogramNodesWith = reprogramNodesWith;
-    }
-
     public boolean isBenchmarkDB() {
         return benchmarkDB;
-    }
-
-    public void setBenchmarkDB(boolean benchmarkDB) {
-        this.benchmarkDB = benchmarkDB;
     }
 
     public boolean isSenslab() {
         return senslab;
     }
 
-    public void setSenslab(boolean senslab) {
-        this.senslab = senslab;
+    public boolean isRmi() {
+        return rmi;
     }
+    
 }

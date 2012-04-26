@@ -3,8 +3,10 @@ package fi.wsnusbcollect;
 import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.console.ConsoleHelperImpl;
 import fi.wsnusbcollect.console.ConsoleImpl;
+import fi.wsnusbcollect.forward.MassRTTtester;
 import fi.wsnusbcollect.forward.RTTtester;
 import fi.wsnusbcollect.forward.RemoteForwarderWork;
+import fi.wsnusbcollect.forward.TimeSyncTester;
 import fi.wsnusbcollect.forward.TimerSynchronizer;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.nodes.ConnectedNode;
@@ -52,7 +54,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  *
  * @author ph4r05
  */
-public class SenslabForwarder implements RemoteForwarderWork {
+public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
     // main logger instance, configured in log4j.properties in resources
     private static final Logger log = LoggerFactory.getLogger(SenslabForwarder.class);
     
@@ -102,11 +104,17 @@ public class SenslabForwarder implements RemoteForwarderWork {
     @Option(name = "--senslab", usage = "environment is senslab - specific mote connection")
     private boolean senslab=true;
     
-    @Option(name="timesync", usage="enables serial cable timesync")
+    @Option(name="--timesync", usage="enables serial cable timesync")
     private boolean timesync=false;
     
-    @Option(name="timesync-delay", usage="specify interval in milliseconds of synchronization message send from application")
+    @Option(name="--timesync-delay", usage="specify interval in milliseconds of synchronization message send from application")
     private int timesyncDelay=1000;
+    
+    @Option(name="--rtt-test", usage="perform RTT test on all connected nodes, how many cycles?")
+    private int rttTest=0;
+    
+    @Option(name="--time-sync-test", usage="perform time sync test on all connected nodes, how many?")
+    private int timeSyncTest=0;
     
     /**
      * Real parsed list of motes to use - uses 
@@ -130,6 +138,11 @@ public class SenslabForwarder implements RemoteForwarderWork {
     // parsed config file
     protected Wini ini;
     protected String configFileContents;
+    
+    /**
+     * RMI registry
+     */
+    protected Registry registry=null;
     
     /**
      * Timer synchronizer object
@@ -268,7 +281,7 @@ public class SenslabForwarder implements RemoteForwarderWork {
                 String name = "RemoteForwarder";
                 RemoteForwarderWork engine = (RemoteForwarderWork) SenslabForwarder.runningInstance;
                 RemoteForwarderWork stub = (RemoteForwarderWork) UnicastRemoteObject.exportObject(engine, 29999);
-                Registry registry = LocateRegistry.getRegistry(null, 29998);
+                registry = LocateRegistry.getRegistry(null, 29998);
                 registry.rebind(name, stub);
                 log.info("RemoteForwarderWork bound");
             } catch(Exception ex){
@@ -334,6 +347,15 @@ public class SenslabForwarder implements RemoteForwarderWork {
             this.initTimeSync(timesyncDelay);
         }
         
+        // tests?
+        if (this.rttTest>0){
+            this.rttTest();
+        }
+        
+        if (this.timeSyncTest>0){
+            this.timeSyncTest();
+        }
+        
         // shell or block?
         if (noShell){
             // while loop - never ending:)
@@ -374,6 +396,64 @@ public class SenslabForwarder implements RemoteForwarderWork {
         for(int i=0;;i++){
             double log1 = Math.log(i * Math.sin(i));
         }
+    }
+    
+    /**
+     * Performs whole time sync test
+     */
+    public void timeSyncTest(){
+        TimeSyncTester timeSyncTester = this.getTimeSyncTester();
+        
+        log.info("Registering timesync listeners");
+        timeSyncTester.init();
+        
+        for(int i=0; i<this.timeSyncTest; i++){
+            log.info("Starting timesync test, cycle: " + i + "/" + this.timeSyncTest);
+            timeSyncTester.test();
+        }
+        
+        log.info("TimeSync test finished, deinit...");
+        timeSyncTester.deinit();
+        
+        log.info("TimeSync finished");
+    }
+    
+    /**
+     * Returns constructed time sync tester. Not initialized (registered as listener)
+     * @return 
+     */
+    public TimeSyncTester getTimeSyncTester(){
+        // connect to every node at first
+        Map<Integer, MoteIF> nodeCon = new HashMap<Integer, MoteIF>();
+        for(Integer nodeId : this.nodesOutSF.keySet()){
+            nodeCon.put(nodeId, this.getMoteIF(nodeId));
+        }
+        
+        TimeSyncTester tester = new TimeSyncTester(nodesOutSF, nodeCon);
+        return tester;
+    }
+    
+    /**
+     * Performs RTT test on all connected nodes
+     */
+    public void rttTest(){
+        Map<Integer, RTTtester> testers = new HashMap<Integer, RTTtester>();
+        
+        log.info("Going to initialize RTT testers");
+        for(Integer nodeId : this.nodesOutSF.keySet()){
+            testers.put(nodeId, this.getRttTester(nodeId));
+        }
+        
+        // build mass tester
+        log.info("Going to create mass tester");
+        MassRTTtester massTester = new MassRTTtester(testers);
+        massTester.init();
+        
+        log.info("Starting mass testing");
+        massTester.test(10, rttTest);
+        
+        log.info("Deinit mass test");
+        massTester.deinit();
     }
     
     /**
@@ -482,49 +562,25 @@ public class SenslabForwarder implements RemoteForwarderWork {
     public List<String> getArguments() {
         return arguments;
     }
-
-    public void setArguments(List<String> arguments) {
-        this.arguments = arguments;
-    }
     
     public File getConfigFile() {
         return configFile;
-    }
-
-    public void setConfigFile(File configFile) {
-        this.configFile = configFile;
     }
 
     public boolean isDebug() {
         return debug;
     }
 
-    public void setDebug(boolean debug) {
-        this.debug = debug;
-    }
-
     public String getIgnoreMotesString() {
         return ignoreMotesString;
-    }
-
-    public void setIgnoreMotesString(String ignoreMotesString) {
-        this.ignoreMotesString = ignoreMotesString;
     }
 
     public List<String> getMoteList2use() {
         return moteList2use;
     }
 
-    public void setMoteList2use(List<String> moteList2use) {
-        this.moteList2use = moteList2use;
-    }
-
     public USBarbitrator getUsbArbitrator() {
         return usbArbitrator;
-    }
-
-    public void setUsbArbitrator(USBarbitrator usbArbitrator) {
-        this.usbArbitrator = usbArbitrator;
     }
 
     public String getUseMotesString() {
@@ -559,8 +615,64 @@ public class SenslabForwarder implements RemoteForwarderWork {
         return senslab;
     }
 
-    public void setSenslab(boolean senslab) {
-        this.senslab = senslab;
+    public Registry getRegistry() {
+        return registry;
+    }
+
+    public String getCnType() {
+        return cnType;
+    }
+
+    public Integer getConnectPort() {
+        return connectPort;
+    }
+
+    public Console getConsole() {
+        return console;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public static Logger getLog() {
+        return log;
+    }
+
+    public boolean isNoShell() {
+        return noShell;
+    }
+
+    public Map<Integer, NodeConfigRecord> getNodesOutSF() {
+        return nodesOutSF;
+    }
+
+    public Integer getPort() {
+        return port;
+    }
+
+    public boolean isRmiServer() {
+        return rmiServer;
+    }
+
+    public int isRttTest() {
+        return rttTest;
+    }
+
+    public int isTimeSyncTest() {
+        return timeSyncTest;
+    }
+
+    public TimerSynchronizer getTimerSynchronizer() {
+        return timerSynchronizer;
+    }
+
+    public boolean isTimesync() {
+        return timesync;
+    }
+
+    public int getTimesyncDelay() {
+        return timesyncDelay;
     }
 
     /**
