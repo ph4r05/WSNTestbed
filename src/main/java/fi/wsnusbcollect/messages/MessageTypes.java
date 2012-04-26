@@ -104,6 +104,9 @@ public class MessageTypes {
   
   // request response protocol to meassure RTT of channel, should be as fast as possible                                                                                                   
   public static final int COMMAND_PING=37;
+  
+  // send timesync get_global command to radio broadcast
+  public static final int COMMAND_TIMESYNC_GETGLOBAL_BCAST=38;
 
   // identity types
   public static final int NODE_STATIC=1;

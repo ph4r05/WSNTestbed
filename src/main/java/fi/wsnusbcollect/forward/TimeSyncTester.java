@@ -117,7 +117,7 @@ public class TimeSyncTester implements MessageListener{
             
             // in cycle send requests for response, then wait until finished
             CommandMsg msg = new CommandMsg();
-            msg.set_command_code((short)MessageTypes.COMMAND_TIMESYNC_GETGLOBAL);
+            msg.set_command_code((short)MessageTypes.COMMAND_TIMESYNC_GETGLOBAL_BCAST);
             msg.set_command_data(this.coutner++);
             
             // when was time obtained?
