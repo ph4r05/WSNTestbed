@@ -75,12 +75,14 @@ public class RTTtester implements MessageListener{
             
             CommandMsg msg = new CommandMsg();
             msg.set_command_code((short)MessageTypes.COMMAND_PING);
+            msg.set_command_id(this.rttCounter);
             msg.set_command_data(this.rttCounter++);
             long startTime = System.currentTimeMillis();
             
             try {
                 this.moteif.send(this.nodeId, msg);
                 this.lastRttTime = startTime;
+                log.info("MSg sent to: " + this.nodeId);
             } catch (IOException ex) {
                 log.info("Cannot send message, counter: " + this.rttCounter, ex);
             }
@@ -90,7 +92,7 @@ public class RTTtester implements MessageListener{
                 try {
                     Thread.sleep(2);
                     long totalTime = System.currentTimeMillis() - startTime;
-                    if (totalTime>100){
+                    if (totalTime>800){
                         log.warn("Expiring RTT round: " + this.rttCounter + "; for nodeId: " + this.nodeId);
                         
                         // expire this
@@ -128,13 +130,13 @@ public class RTTtester implements MessageListener{
             throw new IllegalStateException("Has to run test first!");
         }
         
-        return Statistics.getStdDev(this.rtts.toArray(new Integer[0]));
+        return Statistics.getStdDev(this.rtts.toArray(new Long[0]));
     }
     
     @Override
     public synchronized void messageReceived(int i, Message msg, long mili) {
         long timeReceived = System.currentTimeMillis();
-        
+
         // ignore message if no RTT measurement is in progress
         if (this.lastRttTime==null){
             return;

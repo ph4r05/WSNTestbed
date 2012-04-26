@@ -34,6 +34,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Level;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
 import net.tinyos.packet.PhoenixSource;
@@ -342,6 +343,13 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
         
         log.info("Starting is over now, going to run forever");
         
+        // wait for server initialization finish
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException ex) {
+            log.error("Cannot sleep", ex);
+        }
+        
         // timesync?
         if (this.timesync){
             this.initTimeSync(timesyncDelay);
@@ -591,6 +599,7 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
         this.useMotesString = useMotesString;
     }
 
+    @Override
     public Properties getProps() {
         return props;
     }

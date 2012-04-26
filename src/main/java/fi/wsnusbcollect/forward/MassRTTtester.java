@@ -80,9 +80,10 @@ public class MassRTTtester {
                     RTTRecord rttRecord = new RTTRecord(cycle, nodeId, meanRTT, stdDev, rttCounter, succRttCoutner);
                     rttRecord.setExpStart(expStart);
                     this.dataWriter.storeEntityCSV(rttRecord);
+                    this.dataWriter.flush();
 
                 } catch(Exception e){
-                    log.error("Exception during testing RTT for node id: " + nodeId);
+                    log.error("Exception during testing RTT for node id: " + nodeId, e);
                 }
             }
         }

@@ -160,6 +160,7 @@ public class TimeSyncTester implements MessageListener{
                 rec.setHigh(tMsg.get_high());
                 
                 this.dataWriter.storeEntityCSV(rec);
+                this.dataWriter.flush();
             }
         }
     }
