@@ -7,15 +7,16 @@ package fi.wsnusbcollect.experiment;
 import fi.wsnusbcollect.experiment.results.ExperimentStatGen;
 import fi.wsnusbcollect.App;
 import fi.wsnusbcollect.console.Console;
+import fi.wsnusbcollect.console.ConsoleHelper;
 import fi.wsnusbcollect.db.ExperimentCTPRequest;
 import fi.wsnusbcollect.db.ExperimentDataCommands;
 import fi.wsnusbcollect.db.ExperimentDataGenericMessage;
 import fi.wsnusbcollect.db.ExperimentDataLog;
 import fi.wsnusbcollect.db.ExperimentDataRevokedCycles;
 import fi.wsnusbcollect.db.ExperimentMultiPingRequest;
-import fi.wsnusbcollect.dbbenchmark.EMdonorI;
 import fi.wsnusbcollect.messages.CollectionDebugMsg;
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.messages.CtpInfoMsg;
 import fi.wsnusbcollect.messages.CtpReportDataMsg;
 import fi.wsnusbcollect.messages.CtpResponseMsg;
 import fi.wsnusbcollect.messages.CtpSendRequestMsg;
@@ -41,22 +42,14 @@ import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.PersistenceContext;
-import javax.persistence.PersistenceUnit;
 import net.tinyos.message.Message;
 import org.ini4j.Ini;
 import org.ini4j.Wini;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  *
@@ -65,28 +58,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Repository
 @Transactional
 public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoordinator, MessageListener{
-    private static final Logger log = LoggerFactory.getLogger(ExperimentCoordinatorImpl.class);
-    
-    @PersistenceContext
-    private EntityManager em;
-    
-    /**
-     * Persistence context for event threads - cannot use global em in event handlers.
-     * Events are called from another event-watching threads, if main loop works with em
-     * at the same time it would cause race condition. Event handlers should SYNCHRONIZE 
-     * on this object to avoid same problem with em.
-     */
-    private EntityManager emThread;
-//    
-//    @Resource(name="experimentCoordinator")
-    private ExperimentCoordinator me;
-    
-    @PersistenceUnit
-    private EntityManagerFactory emf;
-    
-    @Autowired
-    private JdbcTemplate template;
-    
+    private static final Logger log = LoggerFactory.getLogger(ExperimentCoordinatorImpl.class);    
+
     //@Autowired
     //@Resource(name="experimentInit")
     protected ExperimentInit expInit;
@@ -96,6 +69,14 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     
     @Autowired
     protected Console console;
+    
+    @Resource(name="consoleHelper")
+    protected ConsoleHelper consoleHelper;
+    
+    /**
+     * Experiment records data handler
+     */
+    protected ExperimentRecords2DB expRecords;
     
     /**
      * Constols main experiment loop
@@ -111,11 +92,6 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * Only informative attribute for user interface - last received message stored here
      */
     private Message lastMsg;
-    
-    /**
-     * Manual Spring transaction template to control transactions
-     */
-    private TransactionTemplate transactionTemplate;
     
     /**
      * Milliseconds when unsuspended/started
@@ -154,9 +130,18 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     private ExperimentStatGen statGen;
     
     /**
+     * Log generic messages received from network?
+     */
+    private boolean logGenericMessages=false;
+    private boolean logCTPMessages=false;
+    private boolean logCommandMessages=false;
+    
+    private boolean restartNodesBeforeExperiment=true;
+    
+    /**
      * Which experiment to start after unsuspend ?
      */
-    private int experiment2Start = 1;
+    private int experiment2Start = 3;
     public static final int EXPERIMENT_NONE = 1;
     public static final int EXPERIMENT_RSSI = 2;
     public static final int EXPERIMENT_CTP = 3;
@@ -689,29 +674,30 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * After calling start() on thread it is needed to fix persistence objects
      */
     public void fixPersistenceAfterStart(){
-        // get transaction manager - programmaticall transaction management
-        this.transactionTemplate = new TransactionTemplate((PlatformTransactionManager)App.getRunningInstance().getAppContext().getBean("transactionManager"));
-        this.me = (ExperimentCoordinator) App.getRunningInstance().getAppContext().getBean("experimentCoordinator");
-        this.em = me.getEm();
+        // get new data handler
+        this.expRecords = (ExperimentRecords2DB) App.getRunningInstance().getAppContext().getBean("experimentRecords");
         
-        // create new entity manager from donor
-        // spring should create new entity manager for this prototype class
-        EMdonorI emd = (EMdonorI) App.getRunningInstance().getAppContext().getBean("emdonor");
-        this.emThread = emd.getEm();
-        TransactionTemplate threadTransactionTemplate = new TransactionTemplate((PlatformTransactionManager)App.getRunningInstance().getAppContext().getBean("transactionManager"));
-            
-        if(TransactionSynchronizationManager.hasResource(emd.getEmf())){
-            System.out.println("Has resource!");
-            TransactionSynchronizationManager.unbindResource(emd.getEmf());
-        } else {
-            try {
-                //TransactionSynchronizationManager.bindResource(emfx, new EntityManagerHolder(emx));
-            } catch(Exception e){
-                log.error("Exception when registering new em", e);
-            }
-        }
+//        // get transaction manager - programmaticall transaction management
+//        this.me = (ExperimentCoordinator) App.getRunningInstance().getAppContext().getBean("experimentCoordinator");
+//        this.em = me.getEm();
+//        
+//        // create new entity manager from donor
+//        // spring should create new entity manager for this prototype class
+//        EMdonorI emd = (EMdonorI) App.getRunningInstance().getAppContext().getBean("emdonor");
+//        TransactionTemplate threadTransactionTemplate = new TransactionTemplate((PlatformTransactionManager)App.getRunningInstance().getAppContext().getBean("transactionManager"));
+//            
+//        if(TransactionSynchronizationManager.hasResource(emd.getEmf())){
+//            System.out.println("Has resource!");
+//            TransactionSynchronizationManager.unbindResource(emd.getEmf());
+//        } else {
+//            try {
+//                //TransactionSynchronizationManager.bindResource(emfx, new EntityManagerHolder(emx));
+//            } catch(Exception e){
+//                log.error("Exception when registering new em", e);
+//            }
+//        }
         
-        log.info("ME object registered: " + this.em.toString());
+//        log.info("ME object registered: " + this.em.toString());
     }
     
     @Transactional
@@ -746,6 +732,10 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // rssi config
         this.rssiConfig = new ExperimentRSSIConfiguration();
         
+        // set command aliases for easy work
+        this.console.executeCommand("ex = sys._jy_expCoord");
+        this.console.executeCommand("ectp = ex.getExpCTP()");
+        
         // start suspended?
         if (App.getRunningInstance().isStartSuspended()){
             this.waitSuspended();
@@ -756,15 +746,18 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.nodeReg.registerMessageListener(new CtpResponseMsg(), this);
         this.nodeReg.registerMessageListener(new CtpReportDataMsg(), this);
         this.nodeReg.registerMessageListener(new CtpSendRequestMsg(), this);
+        this.nodeReg.registerMessageListener(new CtpInfoMsg(), this);
         this.nodeReg.registerMessageListener(new CollectionDebugMsg(), this);
         this.nodeReg.setDropingReceivedPackets(false);
         
         // restart nodes before experiment - clean all settings to default
-        try {
-            this.restartNodesBeforeExperiment();
-        } catch (TimeoutException ex) {
-            log.error("Cannot continue with experiment, nodes timeouted. Cannot start some nodes");
-            return;
+        if (this.restartNodesBeforeExperiment){
+            try {
+                this.restartNodesBeforeExperiment();
+            } catch (TimeoutException ex) {
+                log.error("Cannot continue with experiment, nodes timeouted. Cannot start some nodes", ex);
+                return;
+            }
         }
 
         // 
@@ -882,7 +875,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             edrc.setReasonDescription(description);
             edrc.setMiliStart(curExperimentStart);
             edrc.setMiliEnd(prevExperimentStart);
-            me.storeData(edrc);
+            this.storeData(edrc);
             
             prevExperimentStart = curExperimentStart;
         }
@@ -906,7 +899,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         edl.setReasonName(reason);
         edl.setReasonData(reasonDesc);
         edl.setSeverity(severity);
-        me.storeData(edl);
+        this.storeData(edl);
     }
     
     public synchronized void add2experimentLog(String severity, int code, String reason, String reasonDesc, String desc){
@@ -918,7 +911,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         edl.setReasonData(reasonDesc);
         edl.setDescription(desc);
         edl.setSeverity(severity);
-        me.storeData(edl);
+        this.storeData(edl);
     }
     
     public ExperimentInit getExpInit() {
@@ -1021,18 +1014,42 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             log.info("RSSI message: " + rMsg.toString());
         }
         
+        // status
+        if (CtpInfoMsg.class.isInstance(msg)){
+            final CtpInfoMsg sMsg = (CtpInfoMsg) msg;
+            if (logCTPMessages){
+                log.info("CTP status message from [" + msg.getSerialPacket().get_header_src()
+                        + "] Msg: "  + sMsg.toString());
+            }
+            
+            genericMessage=false;
+        }
+        
+        if (CtpReportDataMsg.class.isInstance(msg)){
+            final CtpReportDataMsg sMsg = (CtpReportDataMsg) msg;
+            if (logCTPMessages){
+                log.info("CTP report message from [" + msg.getSerialPacket().get_header_src()
+                        + "] Msg: "  + sMsg.toString());
+            }
+            
+            genericMessage=false;
+        }
+        
         // generic message was probably not really handled -> store to protocol
         if (genericMessage){
-            log.info("Message received: " + i + "; type: " + msg.amType()
-                + "; dataLen: " + msg.dataLength() 
-                + "; hdest: " + msg.getSerialPacket().get_header_dest()
-                + "; hsrc: " + msg.getSerialPacket().get_header_src() 
-                + "; mili: " + mili 
-                + "; msg: " + msg.toString());
+            if (this.logGenericMessages){
+                log.info("Message received: " + i + "; type: " + msg.amType()
+                    + "; dataLen: " + msg.dataLength() 
+                    + "; hdest: " + msg.getSerialPacket().get_header_dest()
+                    + "; hsrc: " + msg.getSerialPacket().get_header_src() 
+                    + "; mili: " + mili 
+                    + "; msg: " + msg.toString());
+            }
             this.storeGenericMessageToProtocol(msg, i, false, true);            
         }
         
-        this.lastMsg = msg;
+        this.lastMsg=null;
+        //this.lastMsg = msg;
     }
     
     @Override
@@ -1076,7 +1093,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         mpr.setNode(nodeId);
         mpr.setNodeBS(nodeId);
         mpr.loadFromMessage(msg);
-        me.storeData(mpr);
+        this.storeData(mpr);
         
         // add message to send
         this.sendMessageToNode(msg, nodeId, false);
@@ -1099,7 +1116,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         mpr.setNodeBS(nodeId);
         mpr.setSent(true);
         mpr.loadFromMessage(payload);
-        me.storeData(mpr);
+        this.storeData(mpr);
         
         this.sendMessageToNode(payload, nodeId, false);
     }
@@ -1209,6 +1226,38 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
     
     /**
+     * Sends CTP command
+     * @param nodeId
+     * @param type
+     * @param txpower 
+     */
+    @Override
+    public synchronized void sendCTPComm(int nodeId, int cmdId, int val){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_CTP_CONTROL);
+        msg.set_command_data(cmdId);
+        msg.set_command_data_next(new int[] {val,0,0,0});
+        
+        this.sendCommand(msg, nodeId);
+    }
+    
+    /**
+     * Sets output TX power for CTP messages
+     * @param nodeId
+     * @param type
+     * @param txpower 
+     */
+    @Override
+    public synchronized void sendCTPLogger(int nodeId, int enable){
+        CommandMsg msg = new CommandMsg();
+        msg.set_command_code((short) MessageTypes.COMMAND_CTP_CONTROL);
+        msg.set_command_data(1);
+        msg.set_command_data_next(new int[] {enable,0,0,0});
+        
+        this.sendCommand(msg, nodeId);
+    }
+    
+    /**
      * Sets CTP root for given node.
      * @param nodeId
      * @param isRoot 
@@ -1227,19 +1276,20 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * @param nodeId            
      * @param packets           number of packets to be send
      * @param delay             delay between two consecutive packets send
-     * @param variability       percentual +- variability in packet delay, works only if timerStrategyPeriodic==false
+     * @param variability       absolute +- variability in packet delay, works only if timerStrategyPeriodic==false
      * @param dataSource        
      * @param counterStrategySuccess    
      * @param timerStrategyPeriodic 
      */
     @Override
-    public synchronized void sendCTPRequest(int nodeId, int packets, int delay, double variability, 
+    public synchronized void sendCTPRequest(int nodeId, int packets, int delay, int variability, 
             short dataSource, boolean counterStrategySuccess, boolean timerStrategyPeriodic, boolean unlimitedPackets){
         
         CtpSendRequestMsg msg = new CtpSendRequestMsg();
         msg.set_dataSource(dataSource);
         msg.set_delay(delay);
         msg.set_packets(packets);
+        msg.set_delayVariability(variability);
         
         int flags = 0;
         flags |= counterStrategySuccess ? 0x1 : 0x0;
@@ -1254,7 +1304,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         mpr.setNode(nodeId);
         mpr.setNodeBS(nodeId);
         mpr.loadFromMessage(msg);
-        me.storeData(mpr);
+        this.storeData(mpr);
         
         this.sendMessageToNode(msg, nodeId, true);
     }
@@ -1363,11 +1413,6 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     			"    public void hwresetNode(int nodeId);\n" + 
     			"    public void resetNode(int nodeId);\n" + 
     			"    \n" + 
-    			"    public  EntityManager getEm();\n" + 
-    			"    public JdbcTemplate getTemplate();\n" + 
-    			"    public void emRefresh(Object o);\n" + 
-    			"    public void emPersist(Object o);\n" + 
-    			"    public void emFlush();\n" + 
     			"    public void storeData(Object o);\n" + 
     			"    \n" + 
     			"    public ExperimentState geteState();\n" + 
@@ -1421,23 +1466,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         gmsg.setAmtype(payload.amType());
         gmsg.setLen(payload.dataLength());
         gmsg.setStringDump(payload.toString());
-
-        synchronized (this.em) {
-            if (true || external) {
-//                transactionTemplate.execute(new TransactionCallbackWithoutResult() {
-//                    // the code in this method executes in a transactional context
-//                    @Override
-//                    protected void doInTransactionWithoutResult(TransactionStatus status) {
-//                        em.persist(gmsg);
-//                        em.flush();
-//                    }
-//                });
-                me.storeData(gmsg);
-            } else {
-                this.em.persist(gmsg);
-                this.em.flush();
-            }
-        }
+        this.storeData(gmsg);
     }
     
     /**
@@ -1578,49 +1607,10 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     public boolean isRunning() {
         return running;
     }
-
-    @Override
-    public synchronized EntityManager getEm() {
-        return em;
-    }
-
-    @PersistenceContext
-    public void setEm(EntityManager em) {
-        this.em = em;
-    }
-
-    @Override
-    public JdbcTemplate getTemplate() {
-        return template;
-    }
-
-    public void setTemplate(JdbcTemplate template) {
-        this.template = template;
-    }
     
     @Override
     public synchronized void storeData(Object o){
-        try {
-            this.em.persist(o);
-            this.em.flush();
-        } catch(Exception e){
-            log.error("Cannot persist object, exception thrown", e);
-        }
-    }
-    
-    @Override
-    public synchronized void emRefresh(Object o) {
-        em.refresh(o);
-    }
-
-    @Override
-    public synchronized void emPersist(Object o) {
-        em.persist(o);
-    }
-
-    @Override
-    public synchronized void emFlush() {
-        em.flush();
+        this.expRecords.storeEntity(o);
     }
 
     @Override
@@ -1654,6 +1644,46 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
 
     public NodeReachabilityMonitor getNodeMonitor() {
         return nodeMonitor;
+    }
+
+    public boolean isLogGenericMessages() {
+        return logGenericMessages;
+    }
+
+    public void setLogGenericMessages(boolean logGenericMessages) {
+        this.logGenericMessages = logGenericMessages;
+    }
+
+    public ConsoleHelper getConsoleHelper() {
+        return consoleHelper;
+    }
+
+    public void setConsoleHelper(ConsoleHelper consoleHelper) {
+        this.consoleHelper = consoleHelper;
+    }
+
+    public boolean isLogCTPMessages() {
+        return logCTPMessages;
+    }
+
+    public void setLogCTPMessages(boolean logCTPMessages) {
+        this.logCTPMessages = logCTPMessages;
+    }
+
+    public boolean isLogCommandMessages() {
+        return logCommandMessages;
+    }
+
+    public void setLogCommandMessages(boolean logCommandMessages) {
+        this.logCommandMessages = logCommandMessages;
+    }
+
+    public boolean isRestartNodesBeforeExperiment() {
+        return restartNodesBeforeExperiment;
+    }
+
+    public void setRestartNodesBeforeExperiment(boolean restartNodesBeforeExperiment) {
+        this.restartNodesBeforeExperiment = restartNodesBeforeExperiment;
     }
     
     

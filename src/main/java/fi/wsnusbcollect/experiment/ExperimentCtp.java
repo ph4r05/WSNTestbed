@@ -46,7 +46,7 @@ public class ExperimentCtp implements PostConstructable {
     /**
      * Variability in CTP request send
      */
-    private double variability=0.5;
+    private int variability=5000;
     
     /**
      * Start CTP sending?
@@ -99,7 +99,7 @@ public class ExperimentCtp implements PostConstructable {
      *  1. every node is instructed to send single CTP message every delay+-variability
      */
     public void startCtpSend(){
-        this.expCoord.sendCTPRequest(-1, 1, delay, variability, (short)0, true, true, true);
+        this.expCoord.sendCTPRequest(-1, 100, delay, variability, (short)0, true, false, true);
     }
     
     /**
@@ -113,9 +113,7 @@ public class ExperimentCtp implements PostConstructable {
     public synchronized void nodeRestartedTXpower(){
         log.info("Sending TX power command (global at first)");
         this.expCoord.sendCTPTXPower(-1, 3, txpower);
-        this.pause(1000);
-        this.expCoord.sendCTPTXPower(-1, 3, txpower);
-        this.pause(1000);
+        this.pause(1500);
         
         // individual tx powers
         if (this.txpowerIndividuals.isEmpty()==false){
@@ -127,9 +125,13 @@ public class ExperimentCtp implements PostConstructable {
         
         log.info("Sending CTP route reset command");
         this.expCoord.sendCTPRouteUpdate(-1, 4);
-        this.pause(1000);
-        this.expCoord.sendCTPRouteUpdate(-1, 4);
-        this.pause(1000);
+        this.pause(1500);
+        
+        // CTP root re-enable
+        log.info("Re-enalbe CTP roots: " + this.ctpRoots.toString());
+        for(Integer nodeId : this.ctpRoots){
+            this.expCoord.sendSetCTPRoot(nodeId, true);
+        }
         
         log.info("Sending CTP route beacon command");
         this.expCoord.sendCTPRouteUpdate(-1, 2);
@@ -137,15 +139,15 @@ public class ExperimentCtp implements PostConstructable {
         this.expCoord.sendCTPRouteUpdate(-1, 2);
         this.pause(1000);
         this.expCoord.sendCTPRouteUpdate(-1, 2);
-        this.pause(1000);
+        this.pause(1500);
         this.expCoord.sendCTPRouteUpdate(-1, 2);
-        this.pause(1000);
+        this.pause(1500);
         
         log.info("Sending CTP route recompute command");
         this.expCoord.sendCTPRouteUpdate(-1, 3);
-        this.pause(1000);
+        this.pause(1500);
         this.expCoord.sendCTPRouteUpdate(-1, 3);
-        this.pause(1000);
+        this.pause(1500);
     }
     
     /**
@@ -157,20 +159,10 @@ public class ExperimentCtp implements PostConstructable {
      */
     public synchronized void ctpRootRestarted(Collection<Integer> nodes){
         log.info("Stoping all CTP activity");
-        this.expCoord.sendCTPRequest(-1, 0, 0, 0.0, (short)0, true, true, false);
-        this.pause(1000);
-        this.expCoord.sendCTPRequest(-1, 0, 0, 0.0, (short)0, true, true, false);
-        this.pause(1000);
-        
-        log.info("Setting CTP root again");
-        for(Integer nodeId : nodes){
-            this.expCoord.sendSetCTPRoot(nodeId, true);
-        }
-        this.pause(1000);
-        for(Integer nodeId : nodes){
-            this.expCoord.sendSetCTPRoot(nodeId, true);
-        }
-        this.pause(1000);
+        this.expCoord.sendCTPRequest(-1, 0, 0, 0, (short)0, true, true, false);
+        this.pause(1500);
+        this.expCoord.sendCTPRequest(-1, 0, 0, 0, (short)0, true, true, false);
+        this.pause(1500);
         
         log.info("CTP TX reset");
         this.nodeRestartedTXpower();
@@ -179,15 +171,15 @@ public class ExperimentCtp implements PostConstructable {
         for(Integer nodeId : nodes){
             this.expCoord.sendSetCTPRoot(nodeId, true);
         }
-        this.pause(1000);
+        this.pause(1500);
         this.expCoord.sendCTPRouteUpdate(-1, 2);
-        this.pause(1000);
+        this.pause(1500);
         this.expCoord.sendCTPRouteUpdate(-1, 2);
-        this.pause(1000);
+        this.pause(1500);
         
         log.info("Sending CTP route recompute command");
         this.expCoord.sendCTPRouteUpdate(-1, 3);
-        this.pause(1000);
+        this.pause(1500);
     }
     
     /**
@@ -213,6 +205,7 @@ public class ExperimentCtp implements PostConstructable {
         // 1. restart nodes before experiment - clean all settings to default
         log.info("Restarting nodes before experiment");
         this.expCoord.resetAllNodes();
+        this.pause(10000);
         
         // has meaning only if root node is nonempty list
         if (nodes!=null && nodes.isEmpty()==false){
@@ -277,11 +270,11 @@ public class ExperimentCtp implements PostConstructable {
         this.delay = delay;
     }
 
-    public double getVariability() {
+    public int getVariability() {
         return variability;
     }
 
-    public void setVariability(double variability) {
+    public void setVariability(int variability) {
         this.variability = variability;
     }
 

@@ -9,9 +9,7 @@ import fi.wsnusbcollect.messages.CommandMsg;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import javax.persistence.EntityManager;
 import net.tinyos.message.Message;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  *
@@ -42,12 +40,12 @@ public interface ExperimentCoordinator extends Runnable{
      * @param nodeId            
      * @param packets           number of packets to be send
      * @param delay             delay between two consecutive packets send
-     * @param variability       percentual +- variability in packet delay, works only if timerStrategyPeriodic==false
+     * @param variability       absolute +- variability in packet delay, works only if timerStrategyPeriodic==false
      * @param dataSource        
      * @param counterStrategySuccess    
      * @param timerStrategyPeriodic 
      */
-    public void sendCTPRequest(int nodeId, int packets, int delay, double variability, 
+    public void sendCTPRequest(int nodeId, int packets, int delay, int variability, 
             short dataSource, boolean counterStrategySuccess, boolean timerStrategyPeriodic, boolean unlimitedPackets);
     
     public void sendCTPRouteUpdate(int nodeId, int routeUpdate);
@@ -63,11 +61,6 @@ public interface ExperimentCoordinator extends Runnable{
     public void hwresetNode(int nodeId);
     public void resetNode(int nodeId);
     
-    public  EntityManager getEm();
-    public JdbcTemplate getTemplate();
-    public void emRefresh(Object o);
-    public void emPersist(Object o);
-    public void emFlush();
     public void storeData(Object o);
     
     public ExperimentState geteState();
@@ -99,4 +92,17 @@ public interface ExperimentCoordinator extends Runnable{
     public NodeReachabilityMonitor getNodeMonitor();
     
     public ExperimentRSSIConfiguration getRSSIExperimentConfig();
+    
+    public boolean isLogGenericMessages();
+    public void setLogGenericMessages(boolean logGenericMessages);
+    public boolean isLogCTPMessages();
+    public void setLogCTPMessages(boolean logCTPMessages);
+    public boolean isLogCommandMessages();
+    public void setLogCommandMessages(boolean logCommandMessages);
+    public boolean isRestartNodesBeforeExperiment();
+    public void setRestartNodesBeforeExperiment(boolean restartNodesBeforeExperiment);
+    
+    
+    public void sendCTPLogger(int nodeId, int enable);
+    public void sendCTPComm(int nodeId, int cmdId, int val);
 }
