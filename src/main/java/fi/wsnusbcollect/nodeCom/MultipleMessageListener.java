@@ -27,7 +27,7 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
     /**
      * Maximum number of messages in queue to reset queue
      */
-    public static final int MAX_QUEUE_SIZE_TO_RESET=5000;
+    public static final int MAX_QUEUE_SIZE_TO_RESET=10000;
 
     /**
      * Master message queue for every node
@@ -417,7 +417,8 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
 
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
         msgReceiveed.setGateway(gateway);
-        msgReceiveed.setTimeReceivedMili(mili);
+        //msgReceiveed.setTimeReceivedMili(mili);
+        msgReceiveed.setTimeReceivedMili(msg.getMilliTime());
         this.queue.add(msgReceiveed);
     }
     

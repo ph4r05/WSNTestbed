@@ -19,6 +19,7 @@ import fi.wsnusbcollect.messages.MessageTypes;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
+import fi.wsnusbcollect.notify.EventMailNotifierIntf;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.PostConstruct;
@@ -64,6 +65,9 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
     
     @Resource(name="nodeHandlerRegister")
     protected NodeHandlerRegister nodeReg;
+    
+    @Resource(name="mailNotifier")
+    protected EventMailNotifierIntf notifier;
     
     /**
      * ExperimentMetadata copy for local optimization. Should not be written!!
@@ -360,7 +364,12 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
             
             messageFromLastFlush=0;
         } catch (Exception e) {
+            // take care about this, probably mysql connection error!!!
             log.warn("Exception when starting transaction", e);
+            // notify user by mail, he should know about such error ASAP
+            this.notifier.notifyEvent(1, "Exp2DB::transactionError", 
+                    "Exception occurred when flushing data queue to database", e);
+            
             try {
                 session2.close();
             } catch(Exception ex){
