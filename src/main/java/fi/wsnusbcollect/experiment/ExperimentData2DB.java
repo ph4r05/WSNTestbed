@@ -34,4 +34,7 @@ public interface ExperimentData2DB extends MessageListener{
     public long getMiliLastFlush();
     public void setMiliLastFlush(long miliLastFlush);
     public void checkQueues();
+    
+    public void addNode(int nodeId);
+    public void delNode(int nodeId);
 }

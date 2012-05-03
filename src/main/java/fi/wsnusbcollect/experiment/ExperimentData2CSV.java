@@ -19,7 +19,9 @@ import fi.wsnusbcollect.messages.MessageTypes;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
+import java.util.HashSet;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -83,6 +85,11 @@ public class ExperimentData2CSV extends Thread implements ExperimentData2DB {
     
     int maxMessageThresholdFlush=2000;
     int minMessageThresholdFlush=400;
+    
+    /**
+     * Storage of nodes which I am taking care about
+     */
+    protected Set<Integer> nodesId = new HashSet<Integer>();
     
     @PostConstruct
     @Override
@@ -398,5 +405,40 @@ public class ExperimentData2CSV extends Thread implements ExperimentData2DB {
     @Override
     public void setMiliLastFlush(long miliLastFlush) {
         this.miliLastFlush = miliLastFlush;
-    }  
+    }
+
+    @Override
+    public void addNode(int nodeId) {
+        this.nodesId.add(nodeId);
+        
+        // changes thread name
+        this.updateThreadName();
+    }
+
+    @Override
+    public void delNode(int nodeId) {
+        this.nodesId.remove(nodeId);
+        
+        // changes thread name
+        this.updateThreadName();
+    }
+    
+    /**
+     * Sets current thread name according to nodes connected to
+     */
+    protected void updateThreadName(){
+        StringBuilder sb = new StringBuilder();
+        sb.append("ExperimentData2CSV: [");
+        
+        int i=0;
+        for(Integer nodeId: this.nodesId){
+            if (i>0) sb.append(", ");
+            sb.append(nodeId);
+            i+=1;
+        }
+        
+        sb.append("]");
+        
+        this.setName(sb.toString());
+    }
 }

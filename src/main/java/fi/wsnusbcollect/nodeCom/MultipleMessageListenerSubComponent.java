@@ -86,7 +86,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
         // get list of listeners interested in receiving messages of this AMtype
         ConcurrentLinkedQueue<MessageListener> listenersList = messageListeners.get(amtype);
         if (listenersList==null || listenersList.isEmpty()) return;
-        
+
          // iterate over all registered listeners
          for(MessageListener curListener : listenersList){
              if (curListener == null) {
@@ -96,7 +96,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
              // notify this listener,, separate try block - exception
              // can be thrown, this exception affects only one listener
              try {
-                 // notify here
+                 // notify here               
                  curListener.messageReceived(mReceived.getI(), mReceived.getMsg(), mReceived.getTimeReceivedMili());
              } catch (Exception e) {
                  log.error("Exception during notifying listener", e);
@@ -159,6 +159,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
                 
                 if (node!=null){
                     this.node.getMoteIf().deregisterListener(msg, this);
+                    log.info("Unregistered from message: " + amtype + "; noteid: " + node.getNodeId());
                 }
             }
         } catch (Exception e){
@@ -225,6 +226,11 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
                     break;
                 }
             }
+            
+            // do not create redundant record
+            if (isAlreadyInQueue){
+                return;
+            }
 
             // if here, listener is not in, set it
             if (isAlreadyInQueue==false){
@@ -237,7 +243,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
             //
             // Phase - real registration to mote interface
             //
-            if (registeredInMoteIF==false){
+            if (registeredInMoteIF==false && isAlreadyInQueue==false){
                 this.node.getMoteIf().registerListener(msg, this);
                 log.info("Registered to message: " + amtype + "; noteid: " + node.getNodeId());
             }

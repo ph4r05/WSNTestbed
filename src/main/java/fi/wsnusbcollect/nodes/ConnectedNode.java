@@ -304,7 +304,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
      * @param listener 
      */
     public synchronized void registerMessageListener(Message msg, MessageListener listener) {
-        msgListener.registerListener(msg, listener);
+        msgListener.registerListener(this.getNodeId(), msg, listener);
     }
 
     public synchronized int getReceivedQueueLength() {
@@ -312,7 +312,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     }
 
     public synchronized void deregisterMessageListener(Message msg, MessageListener listener) {
-        msgListener.deregisterListener(msg, listener);
+        msgListener.deregisterListener(this.getNodeId(), msg, listener);
     }
 
     public void setDropingReceivedPackets(boolean dropingPackets) {

@@ -374,6 +374,7 @@ public class ExperimentInitImpl implements ExperimentInit {
                 // add listening to packets here to separate DB listener
                 ExperimentData2DB dbForNode = App.getRunningInstance().getAppContext().getBean("experimentData2DB", ExperimentData2DB.class);
                 dbForNode.setExpMeta(expMeta);
+                dbForNode.addNode(cn.getNodeId());
                 log.info("DB for node is running: " + dbForNode.isRunning() + "; for node: " + cn.getNodeId());
             
                 cn.registerMessageListener(new CommandMsg(), dbForNode);
@@ -384,7 +385,7 @@ public class ExperimentInitImpl implements ExperimentInit {
                 cn.registerMessageListener(new CtpSendRequestMsg(), dbForNode);
                 cn.registerMessageListener(new CtpInfoMsg(), dbForNode);
                 cn.registerMessageListener(new CollectionDebugMsg(), dbForNode);
-                log.info("Listener for node: " + cn.getNodeId());
+                log.info("Listener for node: " + cn.getNodeId() + "");
             }
             
             listenerCount+=1;

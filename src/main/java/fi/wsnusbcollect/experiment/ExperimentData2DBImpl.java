@@ -20,7 +20,9 @@ import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import fi.wsnusbcollect.notify.EventMailNotifierIntf;
+import java.util.HashSet;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -110,6 +112,10 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
     int maxMessageThresholdFlush=200;
     int minMessageThresholdFlush=40;
     
+    /**
+     * Storage of nodes which I am taking care about
+     */
+    protected Set<Integer> nodesId = new HashSet<Integer>();
     
     @PostConstruct
     @Override
@@ -498,5 +504,40 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
 
     public void setSf(SessionFactory sf) {
         this.sf = sf;
-    }    
+    }
+
+    @Override
+    public void addNode(int nodeId) {
+        this.nodesId.add(nodeId);
+        
+        // changes thread name
+        this.updateThreadName();
+    }
+
+    @Override
+    public void delNode(int nodeId) {
+        this.nodesId.remove(nodeId);
+        
+        // changes thread name
+        this.updateThreadName();
+    }
+    
+    /**
+     * Sets current thread name according to nodes connected to
+     */
+    protected void updateThreadName(){
+        StringBuilder sb = new StringBuilder();
+        sb.append("ExperimentData2DBImpl: [");
+        
+        int i=0;
+        for(Integer nodeId: this.nodesId){
+            if (i>0) sb.append(", ");
+            sb.append(nodeId);
+            i+=1;
+        }
+        
+        sb.append("]");
+        
+        this.setName(sb.toString());
+    }
 }
