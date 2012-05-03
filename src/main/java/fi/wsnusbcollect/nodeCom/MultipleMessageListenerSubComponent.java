@@ -239,6 +239,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
             //
             if (registeredInMoteIF==false){
                 this.node.getMoteIf().registerListener(msg, this);
+                log.info("Registered to message: " + amtype + "; noteid: " + node.getNodeId());
             }
         } catch(Exception e){
             log.error("Problem during registering message listener", e);
@@ -265,6 +266,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
             // unregister secure
             try {
                 cn.getMoteIf().deregisterListener(amtypeMapper.getMessage(amtype), this);
+                log.info("Unregistered from message: " + amtype + "; noteid: " + node.getNodeId());
             } catch(Exception e){
                 log.error("Problem during unregistering listener", e);
             }
@@ -290,6 +292,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
             }
             
             cn.getMoteIf().registerListener(amtypeMapper.getMessage(amtype), this);
+            log.info("Registered to message: " + amtype + "; noteid: " + node.getNodeId());
         }
     }
     

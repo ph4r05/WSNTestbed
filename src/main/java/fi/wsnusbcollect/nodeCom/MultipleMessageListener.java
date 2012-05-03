@@ -491,10 +491,16 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             
             // accept global listeners
             subComponent.acceptListeners(this.messageListeners);
+            
+            // store to pernode
+            this.perNodeListeners.put(nh.getNodeId(), subComponent);
+            log.info("Listener connected to node: " + nh.getNodeId() + "; [new]");
         } else {
             // such node is already in register -> reconnect
             MultipleMessageListenerSubComponent subComponent = this.perNodeListeners.get(nh.getNodeId());
             subComponent.connectNode(null);
+            
+            log.info("Listener connected to node: " + nh.getNodeId() + "; [old]");
         }
         
         boolean reset=false;
