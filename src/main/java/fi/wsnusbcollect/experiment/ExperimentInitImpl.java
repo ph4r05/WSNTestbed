@@ -25,6 +25,8 @@ import fi.wsnusbcollect.nodes.NodeHandler;
 import fi.wsnusbcollect.nodes.NodePlatform;
 import fi.wsnusbcollect.nodes.NodePlatformFactory;
 import fi.wsnusbcollect.nodes.SimpleGenericNode;
+import fi.wsnusbcollect.notify.Emailer;
+import fi.wsnusbcollect.notify.EventMailNotifierIntf;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.util.ArrayList;
@@ -67,6 +69,9 @@ public class ExperimentInitImpl implements ExperimentInit {
     
     @Resource(name="USBarbitrator")
     protected USBarbitrator usbArbitrator;
+    
+    @Resource(name="mailNotifier")
+    protected EventMailNotifierIntf notifier;
     
     // main experiment metadata
     protected ExperimentMetadata expMeta;
@@ -366,6 +371,7 @@ public class ExperimentInitImpl implements ExperimentInit {
             log.info("MultipleMessageListener id: " + listenerCount);
             MultipleMessageListener mMsgListener = new MultipleMessageListener(" block: " + listenerCount);
             mMsgListener.setDropingPackets(true);
+            mMsgListener.setNotifier(notifier);
             
             for(ConnectedNode cn : curXListForListener){
                 mMsgListener.connectNode(cn, null);

@@ -5,6 +5,7 @@
 package fi.wsnusbcollect.nodeCom;
 
 import fi.wsnusbcollect.nodes.ConnectedNode;
+import fi.wsnusbcollect.notify.EventMailNotifierIntf;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
@@ -67,7 +68,10 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
      */
     protected boolean dropingPackets=true;
 
-    
+    /**
+     * Event notifier
+     */
+    protected EventMailNotifierIntf notifier;
     
     /**
      *
@@ -316,6 +320,13 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
 
                  log.warn("Warning! Input queue had to be flushed out!"
                          + "Overflow, size was greater than " + MAX_QUEUE_SIZE_TO_RESET);
+                 
+                 // notify user
+                 if (this.notifier!=null){
+                     this.notifier.notifyEvent(3, "MessageListener::QueueOverflow", 
+                             "Message overflow on listener: " + this.getName(), null);
+                 }
+                     
                  continue;
              }
 
@@ -639,5 +650,13 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             hash = 79 * hash + this.nodeid;
             return hash;
         }
+    }
+
+    public EventMailNotifierIntf getNotifier() {
+        return notifier;
+    }
+
+    public void setNotifier(EventMailNotifierIntf notifier) {
+        this.notifier = notifier;
     }
 }
