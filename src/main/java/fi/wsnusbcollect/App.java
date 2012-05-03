@@ -23,7 +23,6 @@ import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
 import org.ini4j.Wini;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
@@ -149,10 +148,6 @@ public class App implements AppIntf{
             // some inits in static scope
             // ...
 
-            if (System.getSecurityManager() == null) {
-                System.setSecurityManager(new SecurityManager());
-            }
-
             // do main on instance
             App.runningInstance = new App();  
             RunningApp.setRunningInstance(runningInstance);
@@ -219,6 +214,10 @@ public class App implements AppIntf{
     
     protected void initRMI(){
         try {
+            if (System.getSecurityManager() == null) {
+                System.setSecurityManager(new SecurityManager());
+            }
+            
             // do this after final initialization
             String name = "RemoteForwarder";
             Registry registry = LocateRegistry.getRegistry(null, 29999);
