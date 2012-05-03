@@ -203,6 +203,8 @@
     <bean id="experimentData2DB" class="fi.wsnusbcollect.experiment.ExperimentData2DBImpl" scope="prototype"/>
     <bean id="experimentStatGen" class="fi.wsnusbcollect.experiment.results.ExperimentStatGenImpl" scope="prototype"/>
     
+    <bean id="mailNotifier" class="fi.wsnusbcollect.notify.EventMailNotiffier" />
+    
     <bean id="emdonor" class="fi.wsnusbcollect.dbbenchmark.EMdonor" scope="prototype"/>
     <bean id="benchmark" class="fi.wsnusbcollect.dbbenchmark.BenchmarkExecutor" />
 </beans>

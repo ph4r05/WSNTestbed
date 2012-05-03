@@ -44,6 +44,7 @@
     <bean id="SessionFactory" class="fi.wsnusbcollect.utils.BlindSessionFactory" />
     <bean id="transactionManager" class="fi.wsnusbcollect.utils.BlindTransactionManager" />
     
+    <bean id="mailNotifier" class="fi.wsnusbcollect.notify.EventMailNotiffier" />
     
     <bean id="USBarbitrator" class="fi.wsnusbcollect.usb.USBarbitratorSenslab"/>
     <!--
