@@ -15,26 +15,35 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
-* Simple demonstration of using the javax.mail API.
-*
-* Run from the command line. Please edit the implementation
-* to use correct email addresses and host name.
-*/
+ *  http://www.tutorialspoint.com/java/java_sending_email.htm
+ * Simple demonstration of using the javax.mail API.
+ *
+ * Run from the command line. Please edit the implementation
+ * to use correct email addresses and host name.
+ */
 public class Emailer {
     private static final Logger log = LoggerFactory.getLogger(Emailer.class);    
     
     public static void sendMail(String to, String subject, String body){
       // Sender's email ID needs to be mentioned
-      String from = "testbed@centaur.fi.muni.cz";
+      String from = "centaur.fi@gmail.com";
 
       // Assuming you are sending email from localhost
-      String host = "localhost";
+      String host = "smtp.gmail.com";
+      String user = "centaur.fi@gmail.com";
+      String pass = "kee!ho-axe7zah9A";
 
       // Get system properties
       Properties properties = System.getProperties();
 
       // Setup mail server
-      properties.setProperty("mail.smtp.host", host);
+      //properties.setProperty("mail.smtp.host", host);
+        properties.put("mail.smtp.starttls.enable", "true"); // added this line
+        properties.put("mail.smtp.host", host);
+        properties.put("mail.smtp.user", user);
+        properties.put("mail.smtp.password", pass);
+        properties.put("mail.smtp.port", "587");
+        properties.put("mail.smtp.auth", "true");
 
       // Get the default Session object.
       Session session = Session.getDefaultInstance(properties);
@@ -57,7 +66,10 @@ public class Emailer {
          message.setText(body);
 
          // Send message
-         Transport.send(message);
+         Transport transport = session.getTransport("smtp");
+         transport.connect(host, user, pass);
+         transport.sendMessage(message, message.getAllRecipients());
+         transport.close();
          
          log.info("Sent message successfully....");
       }catch (MessagingException mex) {
