@@ -74,7 +74,7 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
      */
     public MultipleMessageListener(String threadName) {
         // set thread title
-        super("MyMessageListener: " + threadName);
+        super("MultipleMessageListener: " + threadName);
     }
 
     /**
