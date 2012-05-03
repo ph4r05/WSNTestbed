@@ -107,10 +107,10 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
      * elimitanes spikes in database load when multiple threads wants to flush in 
      * the same time
      */
-    int currentMessageThresholdFlush=100;
+    int currentMessageThresholdFlush=400;
     
-    int maxMessageThresholdFlush=200;
-    int minMessageThresholdFlush=40;
+    int maxMessageThresholdFlush=800;
+    int minMessageThresholdFlush=200;
     
     /**
      * Storage of nodes which I am taking care about
@@ -121,21 +121,28 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
     @Override
     public void init(){
         log.info("Initialized DB manager");
+        
+        // need to start itself
+        this.start();
     }
 
     @Override
     public void run() {
-        log.info("Thread running");
+        log.info("ExperimentData2DBImpl thread running; " + this.getName());
         while(running){
             try {
                 Thread.sleep(10L);
+                
+                // flush queues in own cycle - is faster, if spawned multiple threads
+                // it is parallel
+                this.checkQueues();
             } catch (InterruptedException ex) {
                 log.warn("Cannot sleep", ex);
             }
         }
         
         this.em.flush();
-        log.info("Finishing");
+        log.info("ExperimentData2DBImpl Finishing; " + this.getName());
     }   
     
     public EntityManager getEm() {
@@ -205,7 +212,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
                 this.identificationReceived(i, cMsg, mili);
             } else {
                 // print only messages different from identity messages
-                log.info("Command message: " + cMsg.toString());
+                //log.info("Command message: " + cMsg.toString());
             }
         }
         
@@ -289,8 +296,6 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
             this.objQueue.add(dbg);
 
         }
-        
-        this.checkQueues();
     }
     
     /**
@@ -329,7 +334,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
      * queues can overflow and congestion may occur. If problem, run database benchmark 
      * and compare JDBC with Hibernate times. Should be in reasonable ratio.
      */
-    public synchronized void flushQueues(){
+    public void flushQueues(){
         log.debug("Flushing queue size=" + this.objQueue.size() + "; thread: " + this.getName());    
         try {
             if (session2==null){

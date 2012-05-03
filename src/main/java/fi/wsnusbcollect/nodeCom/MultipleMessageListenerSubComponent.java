@@ -6,12 +6,12 @@ package fi.wsnusbcollect.nodeCom;
 
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.tinyos.message.Message;
 import org.slf4j.Logger;
@@ -39,8 +39,8 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
      * Queue of message listeners registered for particular AMType
      * AMType->Queue<Listener>
      */
-    protected ConcurrentHashMap<Integer, ConcurrentLinkedQueue<MessageListener>> messageListeners = 
-            new ConcurrentHashMap<Integer, ConcurrentLinkedQueue<MessageListener>>(1);
+    protected Map<Integer, Queue<MessageListener>> messageListeners = 
+            new HashMap<Integer, Queue<MessageListener>>(1);
 
     public MultipleMessageListenerSubComponent(MultipleMessageListener parent, ConnectedNode node) {
         this.parent = parent;
@@ -67,7 +67,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
      */
     @Override
     public void messageReceived(int i, Message msg) {
-        this.messageReceived(i, msg, System.currentTimeMillis());
+        this.messageReceived(i, msg, 0);
     }
 
     /**
@@ -79,30 +79,30 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
     public void messageReceived(MessageReceived mReceived){
         if (mReceived==null) return;
         int amtype = mReceived.getMsg().amType();
-        // do we have an interest to receive such message?
-        if (this.messageListeners.containsKey(amtype)==false) return;
         
         // here we have an interest in given message
         // get list of listeners interested in receiving messages of this AMtype
-        ConcurrentLinkedQueue<MessageListener> listenersList = messageListeners.get(amtype);
-        if (listenersList==null || listenersList.isEmpty()) return;
+        Queue<MessageListener> listenersList = messageListeners.get(amtype);
+        if (listenersList==null) return;
 
-         // iterate over all registered listeners
-         for(MessageListener curListener : listenersList){
-             if (curListener == null) {
-                 continue;
-             }
-             
-             // notify this listener,, separate try block - exception
-             // can be thrown, this exception affects only one listener
-             try {
-                 // notify here               
-                 curListener.messageReceived(mReceived.getI(), mReceived.getMsg(), mReceived.getTimeReceivedMili());
-             } catch (Exception e) {
-                 log.error("Exception during notifying listener", e);
-                 continue;
-             }
-         }
+        try {
+            // iterate over all registered listeners
+            for (MessageListener curListener : listenersList) {
+                if (curListener == null) {
+                    continue;
+                }
+
+                // notify this listener,, separate try block - exception
+                // can be thrown, this exception affects only one listener
+
+                // notify here               
+                curListener.messageReceived(mReceived.getI(), mReceived.getMsg(), mReceived.getMsg().getMilliTime());
+
+            }
+        } catch (Exception e) {
+            log.error("Exception during notifying listener", e);
+
+        }
     }
     
     /**
@@ -129,7 +129,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
             }
             
             // get list
-            ConcurrentLinkedQueue<MessageListener> listenersList = this.messageListeners.get(amtype);
+            Queue<MessageListener> listenersList = this.messageListeners.get(amtype);
             if (listenersList==null || listenersList.isEmpty()){
                 // list empty => cannot be in
                 return;
@@ -197,7 +197,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
             // Phase - list of listeners
             //
             boolean registeredInMoteIF=false;
-            ConcurrentLinkedQueue<MessageListener> queueListeners = null;
+            Queue<MessageListener> queueListeners = null;
             if (this.messageListeners.containsKey(amtype)){
                 queueListeners = this.messageListeners.get(amtype);
                 registeredInMoteIF=true;
@@ -282,7 +282,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
     /**
      * Registers all mapped listeners to physical interface
      */
-    protected void registerListeners(ConnectedNode cn){
+    protected synchronized void registerListeners(ConnectedNode cn){
         if (cn==null || cn.getMoteIf()==null){
             log.warn("Cannot register listeners to invalid node");
             return;
@@ -338,7 +338,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
      * Accepts global message listeners - new ones are re-registered
      * @param listeners 
      */
-    public void acceptListeners(Map<Integer, Queue<MessageListener>> listeners){
+    public synchronized void acceptListeners(Map<Integer, Queue<MessageListener>> listeners){
         if (listeners==null || listeners.isEmpty()){
             return;
         }
@@ -386,7 +386,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
         return node;
     }
 
-    public Map<Integer, ConcurrentLinkedQueue<MessageListener>> getMessageListeners() {
+    public Map<Integer, Queue<MessageListener>> getMessageListeners() {
         return Collections.unmodifiableMap(messageListeners);
     }
 }

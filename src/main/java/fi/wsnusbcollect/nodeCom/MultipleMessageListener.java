@@ -67,6 +67,8 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
      */
     protected boolean dropingPackets=true;
 
+    
+    
     /**
      *
      * @param gateway
@@ -277,7 +279,7 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
          while(true){
             // yield for some time, processor rest
             try {
-                Thread.sleep(0, 200);
+                Thread.sleep(0, 20);
             } catch (InterruptedException ex) {
                 log.warn("Cannot sleep in message listener loop", ex);
             }
@@ -317,78 +319,74 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
                  continue;
              }
 
-             // if is nonempty, select first element
-             if (!queue.isEmpty()) {
-                 tmpMessage = queue.remove();
-             } else {
-                 tmpMessage = null;
-             }
-
-             // end of synchronization block, check if we have some message
-             if (tmpMessage == null) {
-                 continue;
-             }
-
-             // check listener for existence
-             if (!(tmpMessage instanceof MessageReceived)) {
-                 log.error("Message is not instance of messageReceived - please inspect it");
-                 continue;
-             }
-
-             // determine message received
-             Message msg = tmpMessage.getMsg();
-             if (msg == null) {
-                 // empty message, continue
-                 log.error("Message is empty in envelope", tmpMessage);
-                 continue;
-             }
-
-             // iterate over listeners list and notify each listener 
-             // in serial manner
-             boolean large = queue.size() > 1500;
-             if (large) {
-                 log.info(this.getName() + "; XX qsize=" + queue.size() + "; msgtime=" + tmpMessage.getTimeReceivedMili() + "; nowtime=" + System.currentTimeMillis());
-             }
-             
-             // signalize to particular node id from which it arrived
-             Integer amtype = Integer.valueOf(msg.amType());
-             int nodeId = tmpMessage.getGateway();
-             if (this.perNodeListeners.containsKey(nodeId)==false){
-                 // nobody... thus need to report to global registered listeners
+             // another loop for message dispatch
+             while(queue.isEmpty()==false){
+                 tmpMessage = queue.poll();
                  
-                 // get list of listeners interested in receiving messages of
-                 // this AMtype
-                 Queue<MessageListener> listenersList = messageListeners.get(amtype);
-                 if (listenersList == null || listenersList.isEmpty()) {
-                     // list is null || empty, cannot forward to anyone
+                 // end of synchronization block, check if we have some message
+                 if (tmpMessage == null) {
+                     break;
+                 }
+
+                 // determine message received
+                 Message msg = tmpMessage.getMsg();
+                 if (msg == null) {
+                     // empty message, continue
+                     log.error("Message is empty in envelope", tmpMessage);
                      continue;
                  }
-                 
-                 // iterate over all registered listeners
-                 for(MessageListener curListener : listenersList){
-                     if (curListener == null) {
-                         continue;
-                     }
-                     
-                     // notify this listener,, separate try block - exception
-                     // can be thrown, this exception affects only one listener
-                     try {
-                         // notify here
-                         curListener.messageReceived(tmpMessage.getI(), msg, tmpMessage.getTimeReceivedMili());
-                     } catch (Exception e) {
-                         log.error("Exception during notifying listener", e);
-                         continue;
-                     }
-                 }
-             } else {
-                // somebody is gateway -> redirect to it
-                MultipleMessageListenerSubComponent subComponent = this.perNodeListeners.get(nodeId);
-                subComponent.messageReceived(tmpMessage);
-             }
 
-             // set message to null to release it from memory for garbage collector
-             tmpMessage.setMsg(null);
-             tmpMessage = null;
+                 // signalize to particular node id from which it arrived
+                 Integer amtype = Integer.valueOf(msg.amType());
+                 int nodeId = tmpMessage.getGateway();
+
+                 // iterate over listeners list and notify each listener 
+                 // in serial manner
+                 boolean large = queue.size() > 1500;
+                 if (large) {
+                     log.info(this.getName() + "; XX qsize=" + queue.size() 
+                             + "; amtype=" + amtype
+                             + "; gw=" + nodeId
+                             + "; msgtime=" + tmpMessage.getTimeReceivedMili() 
+                             + "; nowtime=" + System.currentTimeMillis());
+                 }
+
+                 if (this.perNodeListeners.containsKey(nodeId)==false){
+                     // nobody... thus need to report to global registered listeners
+
+                     // get list of listeners interested in receiving messages of
+                     // this AMtype
+                     Queue<MessageListener> listenersList = messageListeners.get(amtype);
+                     if (listenersList == null || listenersList.isEmpty()) {
+                         // list is null || empty, cannot forward to anyone
+                         continue;
+                     }
+
+                     // iterate over all registered listeners
+                     for(MessageListener curListener : listenersList){
+                         if (curListener == null) {
+                             continue;
+                         }
+
+                         // notify this listener,, separate try block - exception
+                         // can be thrown, this exception affects only one listener
+                         try {
+                             // notify here
+                             curListener.messageReceived(tmpMessage.getI(), msg, tmpMessage.getTimeReceivedMili());
+                         } catch (Exception e) {
+                             log.error("Exception during notifying listener", e);
+                             continue;
+                         }
+                     }
+                 } else {
+                    // somebody is gateway -> redirect to it
+                    this.perNodeListeners.get(nodeId).messageReceived(tmpMessage);
+                 }
+
+                 // set message to null to release it from memory for garbage collector
+                 tmpMessage.setMsg(null);
+                 tmpMessage = null;
+             } // end of while
         }
     }
 
@@ -417,7 +415,6 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
 
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
         msgReceiveed.setGateway(gateway);
-        //msgReceiveed.setTimeReceivedMili(mili);
         msgReceiveed.setTimeReceivedMili(msg.getMilliTime());
         this.queue.add(msgReceiveed);
     }
@@ -428,7 +425,7 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         if (this.dropingPackets) return;
         
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
-        msgReceiveed.setTimeReceivedMili(System.currentTimeMillis());
+        msgReceiveed.setTimeReceivedMili(msg.getMilliTime());
         this.queue.add(msgReceiveed);
     }
 
