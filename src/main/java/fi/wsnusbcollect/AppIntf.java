@@ -12,4 +12,5 @@ import java.util.Properties;
  */
 public interface AppIntf {
     public Properties getProps();
+    public AppConfiguration getConfig();
 }

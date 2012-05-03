@@ -141,6 +141,11 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
     protected String configFileContents;
     
     /**
+     * application configuration wrapper
+     */
+    protected AppConfiguration appConfig;
+    
+    /**
      * RMI registry
      */
     protected Registry registry=null;
@@ -552,6 +557,7 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
         try {
             in = new BufferedReader(new FileReader(this.configFile));
             this.ini = new Wini(in);
+            this.appConfig = new AppConfiguration(ini);
         } catch (FileNotFoundException ex) {
             log.error("Config file not found");
         } catch (IOException ex){
@@ -761,5 +767,10 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
             this.timerSynchronizer = null;
             log.info("Timesynchronizer disabled from remote procedure");
         }
+    }
+    
+    @Override
+    public AppConfiguration getConfig() {
+        return this.appConfig;
     }
 }

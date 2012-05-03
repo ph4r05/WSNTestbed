@@ -138,6 +138,11 @@ public class App implements AppIntf{
     protected String configFileContents;
     
     /**
+     * application configuration wrapper
+     */
+    protected AppConfiguration appConfig;
+    
+    /**
      * Remote worker class if needed (if using self as forwarder running on different machine)
      */
     protected RemoteForwarderWork remoteWork;
@@ -385,6 +390,7 @@ public class App implements AppIntf{
         try {
             in = new BufferedReader(new FileReader(this.configFile));
             this.ini = new Wini(in);
+            this.appConfig = new AppConfiguration(ini);
         } catch (FileNotFoundException ex) {
             log.error("Config file not found");
         } catch (IOException ex){
@@ -571,5 +577,9 @@ public class App implements AppIntf{
     public boolean isRmi() {
         return rmi;
     }
-    
+
+    @Override
+    public AppConfiguration getConfig() {
+        return this.appConfig;
+    }
 }

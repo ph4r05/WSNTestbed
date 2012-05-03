@@ -5,6 +5,8 @@
 package fi.wsnusbcollect.experiment;
 
 import fi.wsnusbcollect.App;
+import fi.wsnusbcollect.AppConfiguration;
+import fi.wsnusbcollect.RunningApp;
 import fi.wsnusbcollect.db.ExperimentMetadata;
 import fi.wsnusbcollect.db.USBconfiguration;
 import fi.wsnusbcollect.messages.CollectionDebugMsg;
@@ -105,21 +107,11 @@ public class ExperimentInitImpl implements ExperimentInit {
         String moteInclude = App.getRunningInstance().getUseMotesString();
         String moteExclude = App.getRunningInstance().getIgnoreMotesString();
         
-        // read config file
-        this.config = App.getRunningInstance().getIni();
-        if (this.config!=null){            
-            // include/exclude reading
-            if (this.config.containsKey(INISECTION_MOTELIST)){
-                Ini.Section motelist = this.config.get(INISECTION_MOTELIST);
-                
-                if (motelist.containsKey("include")){
-                    moteInclude = motelist.get("include");
-                }
-                
-                if (motelist.containsKey("exclude")){
-                    moteExclude = motelist.get("exclude");
-                }
-            }
+        // override from config file:)
+        AppConfiguration config1 = RunningApp.getRunningInstance().getConfig();
+        if (config1!=null){
+            moteInclude = config1.getConfig(INISECTION_MOTELIST, "include", moteInclude);
+            moteExclude = config1.getConfig(INISECTION_MOTELIST, "exclude", moteExclude);
         }
         
         // config file/arguments parsing, node selectors, get final set of nodes to connect to
@@ -162,44 +154,23 @@ public class ExperimentInitImpl implements ExperimentInit {
         
         // read config file
         this.config = App.getRunningInstance().getIni();
-        if (this.config!=null){
-            // read experiment metadata - to be stored in database
-            if (this.config.containsKey(INISECTION_METADATA)==false){
-                log.error("Config file has to contain section " + INISECTION_METADATA);
-                throw new IllegalArgumentException("Config file has to contain section " + INISECTION_METADATA);
-            }
-            
+        
+        // use config helper
+        AppConfiguration config1 = RunningApp.getRunningInstance().getConfig();
+        if (config1!=null){
             // store config file as raw
             expMeta.setConfigFile(App.getRunningInstance().getConfigFileContents());
             
-            // get metadata section from ini file
-            Ini.Section metadata = this.config.get("experimentMetadata");
-            
-            // experiment group
-            if (metadata.containsKey("group")){
-                expMeta.setExperimentGroup(metadata.get("group"));
-            } else {
-                expMeta.setExperimentGroup("default");
-                log.warn("Cannot found experiment group, using default");
-            }
-            
-            // experiment name
-            if (metadata.containsKey("name")){
-                expMeta.setName(metadata.get("name"));
-            } else {
+            // mandatory
+            if (config1.hasConfig(INISECTION_METADATA, "name")==false){
                 log.error("INI file must contain experiment name field");
                 throw new IllegalArgumentException("INI file must contain experiment name field");
             }
             
-            // annotation
-            if (metadata.containsKey("annotation")){
-                expMeta.setDescription(metadata.get("annotation"));
-            }
-            
-            // keywords
-            if (metadata.containsKey("keywords")){
-                expMeta.setKeywords(metadata.get("keywords"));
-            }
+            expMeta.setName(config1.getConfig(INISECTION_METADATA, "name", "defaultName"));
+            expMeta.setExperimentGroup(config1.getConfig(INISECTION_METADATA, "group", "defaultGroup"));
+            expMeta.setDescription(config1.getConfig(INISECTION_METADATA, "annotation", ""));
+            expMeta.setKeywords(config1.getConfig(INISECTION_METADATA, "keywords", ""));
             
             // read parameters from config file
             this.params.load(this.config);

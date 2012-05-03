@@ -8,6 +8,7 @@ import com.csvreader.CsvWriter;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.xml.DomDriver;
 import fi.wsnusbcollect.App;
+import fi.wsnusbcollect.AppConfiguration;
 import fi.wsnusbcollect.RunningApp;
 import fi.wsnusbcollect.db.DataCSVWritable;
 import fi.wsnusbcollect.db.ExperimentDataGenericMessage;
@@ -28,6 +29,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.PostConstruct;
+import org.ini4j.Wini;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +69,13 @@ public class ExperimentRecords2CSV implements ExperimentRecords2DB{
         // load data directory from properties file
         if (realDataDir==null){
             realDataDir = RunningApp.getRunningInstance().getProps().getProperty(DATADIR, "expData");
-        
+            
+            // try to detect from config file
+            AppConfiguration config = RunningApp.getRunningInstance().getConfig();
+            if (config!=null && config.hasConfig("experimentMetadata", DATADIR)){
+                realDataDir = config.getConfig("experimentMetadata", DATADIR, realDataDir);
+            }
+            
             // assure existence
             File dataDir = new File(realDataDir);
             if (dataDir.exists()==false){
