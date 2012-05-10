@@ -38,6 +38,10 @@ public class RingBuffer<Item> implements Iterable<Item> {
     public boolean isEmpty() { return N == 0; }
     public int size()        { return N;      }
 
+    public synchronized void add(Item item){
+        this.enqueue(item);
+    }
+    
     public synchronized void enqueue(Item item) {
         if (N == a.length && checkBoundaries) { throw new RuntimeException("Ring buffer overflow"); }
         a[last] = item;
