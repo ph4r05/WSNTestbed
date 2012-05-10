@@ -22,6 +22,10 @@ public class RTTRecord implements DataCSVWritable {
     public int counter;
     public int succCounter;
     public long expStart;
+    
+    public int min;
+    public int max;
+    public int median;
 
     public RTTRecord() {
     }
@@ -91,12 +95,39 @@ public class RTTRecord implements DataCSVWritable {
         this.expStart = expStart;
     }
 
+    public int getMax() {
+        return max;
+    }
+
+    public void setMax(int max) {
+        this.max = max;
+    }
+
+    public int getMedian() {
+        return median;
+    }
+
+    public void setMedian(int median) {
+        this.median = median;
+    }
+
+    public int getMin() {
+        return min;
+    }
+
+    public void setMin(int min) {
+        this.min = min;
+    }
+    
     @Override
     public void writeCSVheader(CsvWriter csvOutput) throws IOException {
         csvOutput.write("cycle");
         csvOutput.write("nodeId");
         csvOutput.write("meanRTT");
         csvOutput.write("stddev");
+        csvOutput.write("median");
+        csvOutput.write("min");
+        csvOutput.write("max");
         csvOutput.write("counter");
         csvOutput.write("succCounter");
     }
@@ -107,6 +138,9 @@ public class RTTRecord implements DataCSVWritable {
         csvOutput.write(String.valueOf(this.nodeId));
         csvOutput.write(String.valueOf(this.meanRTT));
         csvOutput.write(String.valueOf(this.stddev));
+        csvOutput.write(String.valueOf(this.median));
+        csvOutput.write(String.valueOf(this.min));
+        csvOutput.write(String.valueOf(this.max));
         csvOutput.write(String.valueOf(this.counter));
         csvOutput.write(String.valueOf(this.succCounter));
     }

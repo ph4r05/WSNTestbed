@@ -4,11 +4,9 @@
  */
 package fi.wsnusbcollect.forward;
 
-import com.csvreader.CsvWriter;
-import fi.wsnusbcollect.db.DataCSVWritable;
-import fi.wsnusbcollect.db.FileWritableTypes;
 import fi.wsnusbcollect.experiment.ExperimentRecords2CSV;
-import java.io.IOException;
+import fi.wsnusbcollect.utils.stats.BoxAndWhiskerCalculator;
+import fi.wsnusbcollect.utils.stats.BoxAndWhiskerItem;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,15 +68,22 @@ public class MassRTTtester {
 
                 try {
                     curTester.testRTT(subcycle);
-                    double meanRTT = curTester.getMeanRTT();
+                    
                     double stdDev = curTester.getStdDev();
                     int rttCounter = curTester.getRttCounter();
                     int succRttCoutner = curTester.getSuccRttCoutner();
-
+                    
+                    // classical statistics item
+                    BoxAndWhiskerItem statItem = BoxAndWhiskerCalculator.calculateBoxAndWhiskerStatistics(curTester.getRTTs());
+                    double meanRTT = statItem.getMean().doubleValue();
+                    
                     // build CSV record
                     log.info("RTT test finished, going to write stat information");
                     RTTRecord rttRecord = new RTTRecord(cycle, nodeId, meanRTT, stdDev, rttCounter, succRttCoutner);
                     rttRecord.setExpStart(expStart);
+                    rttRecord.setMedian(statItem.getMedian().intValue());
+                    rttRecord.setMin(statItem.getMinRegularValue().intValue());
+                    rttRecord.setMax(statItem.getMaxRegularValue().intValue());
                     this.dataWriter.storeEntityCSV(rttRecord);
                     this.dataWriter.flush();
 

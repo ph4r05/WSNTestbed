@@ -81,7 +81,7 @@ public class RTTtester implements MessageListener{
             
             try {
                 this.moteif.send(this.nodeId, msg);
-                this.lastRttTime = startTime;
+                this.lastRttTime = System.currentTimeMillis();
                 log.info("MSg sent to: " + this.nodeId);
             } catch (IOException ex) {
                 log.info("Cannot send message, counter: " + this.rttCounter, ex);
@@ -90,7 +90,7 @@ public class RTTtester implements MessageListener{
             // wait for response
             while(this.lastRttTime!=null){
                 try {
-                    Thread.sleep(2);
+                    Thread.sleep(10);
                     long totalTime = System.currentTimeMillis() - startTime;
                     if (totalTime>800){
                         log.warn("Expiring RTT round: " + this.rttCounter + "; for nodeId: " + this.nodeId);
@@ -119,6 +119,19 @@ public class RTTtester implements MessageListener{
         }
         
         return Statistics.calculateMean(rtts);
+    }
+    
+    /**
+     * 
+     * Returns raw results
+     * @return 
+     */
+    public List<Long> getRTTs(){
+        if (this.rtts == null || this.rtts.isEmpty()){
+            throw new IllegalStateException("Has to run test first!");
+        }
+        
+        return this.rtts;
     }
     
     /**
