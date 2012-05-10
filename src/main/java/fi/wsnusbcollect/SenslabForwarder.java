@@ -3,7 +3,9 @@ package fi.wsnusbcollect;
 import fi.wsnusbcollect.console.Console;
 import fi.wsnusbcollect.console.ConsoleHelperImpl;
 import fi.wsnusbcollect.console.ConsoleImpl;
+import fi.wsnusbcollect.forward.MassPeriodicMessageTester;
 import fi.wsnusbcollect.forward.MassRTTtester;
+import fi.wsnusbcollect.forward.PeriodicMessageTester;
 import fi.wsnusbcollect.forward.RTTtester;
 import fi.wsnusbcollect.forward.RemoteForwarderWork;
 import fi.wsnusbcollect.forward.TimeSyncTester;
@@ -113,8 +115,17 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
     @Option(name="--rtt-test", usage="perform RTT test on all connected nodes, how many cycles?")
     private int rttTest=0;
     
+    @Option(name="--direct-rtt-test", usage="perform RTT test on all connected nodes, how many cycles? Directly connects to TCP")
+    private int directRttTest=0;
+    
     @Option(name="--time-sync-test", usage="perform time sync test on all connected nodes, how many?")
     private int timeSyncTest=0;
+    
+    @Option(name="--periodic-msg-test", usage="perform test on delays between periodically sent messages")
+    private boolean periodicMsgTest=false;
+    
+    @Option(name="--direct-periodic-msg-test", usage="perform test on delays between periodically sent messages, connect directly to TCP socket")
+    private boolean directPeriodicMsgTest=false;
     
     /**
      * Real parsed list of motes to use - uses 
@@ -329,6 +340,28 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
             String connectionString = this.cnType + "@" + this.host + ":" + (this.connectPort + ncr.getNodeId());
             ncr.setConnectionString(connectionString);
             
+            nodesOutSF.put(ncr.getNodeId(), ncr);
+            log.info("Built connection string info for node: " + ncr.getNodeId() + "; ConnectionString: " + connectionString);
+        }
+        
+        // do we want test speed of serial forwarder or RTT before SF?
+        // now is the right time (SF latency determined:))
+        if (this.directPeriodicMsgTest){
+            log.info("Direct periodic msg test NOW");
+            this.periodicMessageTest();
+        }
+        
+        if (this.directRttTest>0){
+            log.info("Direct RTT test NOW");
+            this.rttTest();
+        }
+        
+        // create serial forwarders and connect to
+        // clear nodesOutSF
+        this.nodesOutSF.clear();
+        // rebuild, now based on serial forwarder
+        for(NodeConfigRecord ncr : nodes2connect){    
+            String connectionString = ncr.getConnectionString();
             log.info("Going to connect to node: " + ncr.getNodeId() + "; ConnectionString: " + connectionString);
             
             // now we have complete node connect list, it remains only to create corresponding serial forwarders
@@ -366,6 +399,10 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
         
         if (this.timeSyncTest>0){
             this.timeSyncTest();
+        }
+        
+        if (this.periodicMsgTest){
+            this.periodicMessageTest();
         }
         
         // shell or block?
@@ -442,6 +479,49 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
         }
         
         TimeSyncTester tester = new TimeSyncTester(nodesOutSF, nodeCon);
+        return tester;
+    }
+    
+    /**
+     * Perform periodic message receiving and storing gaps between received messages
+     * This could help to analyze delays between sending each message, delay induced by
+     * network forwarding, delay induced in message sending by sensor node, inaccuracy of 
+     * node crystal based timer
+     */
+    public void periodicMessageTest(){
+        Map<Integer, PeriodicMessageTester> testers = new HashMap<Integer, PeriodicMessageTester>();
+        
+        log.info("Going to initialize RTT testers");
+        for(Integer nodeId : this.nodesOutSF.keySet()){
+            testers.put(nodeId, this.getPeriodicMessageTester(nodeId));
+        }
+        
+        // build mass tester
+        log.info("Going to create mass tester");
+        MassPeriodicMessageTester massTester = new MassPeriodicMessageTester(testers);
+        massTester.init();
+        
+        // start collecting
+        massTester.test();
+        
+        //
+        massTester.deinit();
+    }
+    
+    public PeriodicMessageTester getPeriodicMessageTester(int nodeid){
+        if (this.nodesOutSF.containsKey(nodeid)==false){
+            log.error("Given id is not in database");
+            return null;
+        }
+        
+        
+        MoteIF moteif = this.getMoteIF(nodeid);
+        if (moteif==null){
+            log.error("Cannot obtain connection to node");
+            return null;
+        }
+        
+        PeriodicMessageTester tester = new PeriodicMessageTester(nodeid, moteif);
         return tester;
     }
     
