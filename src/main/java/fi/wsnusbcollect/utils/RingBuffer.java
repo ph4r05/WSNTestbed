@@ -14,6 +14,8 @@ package fi.wsnusbcollect.utils;
  *************************************************************************/
 
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 public class RingBuffer<Item> implements Iterable<Item> {
@@ -36,7 +38,7 @@ public class RingBuffer<Item> implements Iterable<Item> {
     public boolean isEmpty() { return N == 0; }
     public int size()        { return N;      }
 
-    public void enqueue(Item item) {
+    public synchronized void enqueue(Item item) {
         if (N == a.length && checkBoundaries) { throw new RuntimeException("Ring buffer overflow"); }
         a[last] = item;
         last = (last + 1) % a.length;     // wrap-around
@@ -44,7 +46,7 @@ public class RingBuffer<Item> implements Iterable<Item> {
     }
 
     // remove the least recently added item - doesn't check for underflow
-    public Item dequeue() {
+    public synchronized Item dequeue() {
         if (isEmpty()) { throw new RuntimeException("Ring buffer underflow"); }
         Item item = a[first];
         a[first] = null;                  // to help with garbage collection
@@ -84,6 +86,22 @@ public class RingBuffer<Item> implements Iterable<Item> {
 
     public void setCheckBoundaries(boolean checkBoundaries) {
         this.checkBoundaries = checkBoundaries;
+    }
+    
+    /**
+     * Returns current values as list - need to lock during list construction
+     * @return 
+     */
+    public synchronized List<Item> asList(){
+        // get iterator and copy data
+        List<Item> list = new LinkedList<Item>();
+        
+        Iterator<Item> iterator = this.iterator();
+        while(iterator.hasNext()){
+            list.add(iterator.next());
+        }
+        
+        return list;
     }
     
     // an iterator, doesn't implement remove() since it's optional
