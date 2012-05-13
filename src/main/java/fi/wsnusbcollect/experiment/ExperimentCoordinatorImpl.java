@@ -391,7 +391,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         messageSizes.add(0);
         messageSizes.add(8);
         messageSizes.add(16);
-        messageSizes.add(24);
+        messageSizes.add(32);
+        messageSizes.add(64);
         
         // init experiment state
         this.eState = new ExperimentState();
