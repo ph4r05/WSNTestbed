@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class MultiPingResponseMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 2;
+    public static final int DEFAULT_MESSAGE_SIZE = 4;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 13;
 
-    /** Create a new MultiPingResponseMsg of size 2. */
+    /** Create a new MultiPingResponseMsg of size 4. */
     public MultiPingResponseMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -90,6 +90,9 @@ public class MultiPingResponseMsg extends net.tinyos.message.Message {
         s += "  [counter=0x"+Long.toHexString(get_counter())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
+        s += "  [request=0x"+Long.toHexString(get_request())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       return s;
     }
@@ -160,9 +163,72 @@ public class MultiPingResponseMsg extends net.tinyos.message.Message {
     }
 
     /////////////////////////////////////////////////////////
+    // Accessor methods for field: request
+    //   Field type: int, unsigned
+    //   Offset (bits): 16
+    //   Size (bits): 16
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'request' is signed (false).
+     */
+    public static boolean isSigned_request() {
+        return false;
+    }
+
+    /**
+     * Return whether the field 'request' is an array (false).
+     */
+    public static boolean isArray_request() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'request'
+     */
+    public static int offset_request() {
+        return (16 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'request'
+     */
+    public static int offsetBits_request() {
+        return 16;
+    }
+
+    /**
+     * Return the value (as a int) of the field 'request'
+     */
+    public int get_request() {
+        return (int)getUIntBEElement(offsetBits_request(), 16);
+    }
+
+    /**
+     * Set the value of the field 'request'
+     */
+    public void set_request(int value) {
+        setUIntBEElement(offsetBits_request(), 16, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'request'
+     */
+    public static int size_request() {
+        return (16 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'request'
+     */
+    public static int sizeBits_request() {
+        return 16;
+    }
+
+    /////////////////////////////////////////////////////////
     // Accessor methods for field: data
     //   Field type: short[], unsigned
-    //   Offset (bits): 16
+    //   Offset (bits): 32
     //   Size of each element (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -184,7 +250,7 @@ public class MultiPingResponseMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data'
      */
     public static int offset_data(int index1) {
-        int offset = 16;
+        int offset = 32;
         if (index1 < 0) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 8;
         return (offset / 8);
@@ -194,7 +260,7 @@ public class MultiPingResponseMsg extends net.tinyos.message.Message {
      * Return the offset (in bits) of the field 'data'
      */
     public static int offsetBits_data(int index1) {
-        int offset = 16;
+        int offset = 32;
         if (index1 < 0) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 8;
         return offset;

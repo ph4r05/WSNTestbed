@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 24;
+    public static final int DEFAULT_MESSAGE_SIZE = 30;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 16;
 
-    /** Create a new MultiPingResponseReportMsg of size 24. */
+    /** Create a new MultiPingResponseReportMsg of size 30. */
     public MultiPingResponseReportMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -96,6 +96,13 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
         s += "  [nodeid=";
         for (int i = 0; i < 3; i++) {
           s += "0x"+Long.toHexString(getElement_nodeid(i) & 0xffff)+" ";
+        }
+        s += "]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [request=";
+        for (int i = 0; i < 3; i++) {
+          s += "0x"+Long.toHexString(getElement_request(i) & 0xffff)+" ";
         }
         s += "]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
@@ -380,9 +387,137 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
     }
 
     /////////////////////////////////////////////////////////
-    // Accessor methods for field: nodecounter
+    // Accessor methods for field: request
     //   Field type: int[], signed
     //   Offset (bits): 72
+    //   Size of each element (bits): 16
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'request' is signed (true).
+     */
+    public static boolean isSigned_request() {
+        return true;
+    }
+
+    /**
+     * Return whether the field 'request' is an array (true).
+     */
+    public static boolean isArray_request() {
+        return true;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'request'
+     */
+    public static int offset_request(int index1) {
+        int offset = 72;
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
+        offset += 0 + index1 * 16;
+        return (offset / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'request'
+     */
+    public static int offsetBits_request(int index1) {
+        int offset = 72;
+        if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
+        offset += 0 + index1 * 16;
+        return offset;
+    }
+
+    /**
+     * Return the entire array 'request' as a int[]
+     */
+    public int[] get_request() {
+        int[] tmp = new int[3];
+        for (int index0 = 0; index0 < numElements_request(0); index0++) {
+            tmp[index0] = getElement_request(index0);
+        }
+        return tmp;
+    }
+
+    /**
+     * Set the contents of the array 'request' from the given int[]
+     */
+    public void set_request(int[] value) {
+        for (int index0 = 0; index0 < value.length; index0++) {
+            setElement_request(index0, value[index0]);
+        }
+    }
+
+    /**
+     * Return an element (as a int) of the array 'request'
+     */
+    public int getElement_request(int index1) {
+        return (int)getUIntBEElement(offsetBits_request(index1), 16);
+    }
+
+    /**
+     * Set an element of the array 'request'
+     */
+    public void setElement_request(int index1, int value) {
+        setUIntBEElement(offsetBits_request(index1), 16, value);
+    }
+
+    /**
+     * Return the total size, in bytes, of the array 'request'
+     */
+    public static int totalSize_request() {
+        return (48 / 8);
+    }
+
+    /**
+     * Return the total size, in bits, of the array 'request'
+     */
+    public static int totalSizeBits_request() {
+        return 48;
+    }
+
+    /**
+     * Return the size, in bytes, of each element of the array 'request'
+     */
+    public static int elementSize_request() {
+        return (16 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of each element of the array 'request'
+     */
+    public static int elementSizeBits_request() {
+        return 16;
+    }
+
+    /**
+     * Return the number of dimensions in the array 'request'
+     */
+    public static int numDimensions_request() {
+        return 1;
+    }
+
+    /**
+     * Return the number of elements in the array 'request'
+     */
+    public static int numElements_request() {
+        return 3;
+    }
+
+    /**
+     * Return the number of elements in the array 'request'
+     * for the given dimension.
+     */
+    public static int numElements_request(int dimension) {
+      int array_dims[] = { 3,  };
+        if (dimension < 0 || dimension >= 1) throw new ArrayIndexOutOfBoundsException();
+        if (array_dims[dimension] == 0) throw new IllegalArgumentException("Array dimension "+dimension+" has unknown size");
+        return array_dims[dimension];
+    }
+
+    /////////////////////////////////////////////////////////
+    // Accessor methods for field: nodecounter
+    //   Field type: int[], signed
+    //   Offset (bits): 120
     //   Size of each element (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -404,7 +539,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'nodecounter'
      */
     public static int offset_nodecounter(int index1) {
-        int offset = 72;
+        int offset = 120;
         if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return (offset / 8);
@@ -414,7 +549,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bits) of the field 'nodecounter'
      */
     public static int offsetBits_nodecounter(int index1) {
-        int offset = 72;
+        int offset = 120;
         if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return offset;
@@ -510,7 +645,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: rssi
     //   Field type: short[], signed
-    //   Offset (bits): 120
+    //   Offset (bits): 168
     //   Size of each element (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -532,7 +667,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'rssi'
      */
     public static int offset_rssi(int index1) {
-        int offset = 120;
+        int offset = 168;
         if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return (offset / 8);
@@ -542,7 +677,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bits) of the field 'rssi'
      */
     public static int offsetBits_rssi(int index1) {
-        int offset = 120;
+        int offset = 168;
         if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return offset;
@@ -638,7 +773,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: len
     //   Field type: byte[], signed
-    //   Offset (bits): 168
+    //   Offset (bits): 216
     //   Size of each element (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -660,7 +795,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'len'
      */
     public static int offset_len(int index1) {
-        int offset = 168;
+        int offset = 216;
         if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 8;
         return (offset / 8);
@@ -670,7 +805,7 @@ public class MultiPingResponseReportMsg extends net.tinyos.message.Message {
      * Return the offset (in bits) of the field 'len'
      */
     public static int offsetBits_len(int index1) {
-        int offset = 168;
+        int offset = 216;
         if (index1 < 0 || index1 >= 3) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 8;
         return offset;
