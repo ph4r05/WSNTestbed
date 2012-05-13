@@ -470,7 +470,13 @@ public class MyMessageListener extends Thread implements MessageListenerInterfac
         //log.info("PCKT["+System.currentTimeMillis()+"]: " + i + "; AMtype: " + msg.amType() + "; src: " + msg.getSerialPacket().get_header_src());
         // really add message to queue
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
-        msgReceiveed.setTimeReceivedMili(System.currentTimeMillis());
+        
+        // code changed - using modiffied tinyos variant - use timestamp from message
+        long recvTstamp = msg.getMilliTime();
+        if (recvTstamp==0){
+            msgReceiveed.setTimeReceivedMili(System.currentTimeMillis());
+        }
+        
         this.queue.add(msgReceiveed);
     }
 

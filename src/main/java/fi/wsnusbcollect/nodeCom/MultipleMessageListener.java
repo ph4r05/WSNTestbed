@@ -426,6 +426,16 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
 
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
         msgReceiveed.setGateway(gateway);
+        
+        long recvTstamp = msg.getMilliTime();
+        if (recvTstamp==0){
+            if (mili>0){
+                msgReceiveed.setTimeReceivedMili(mili);
+            } else {
+                msgReceiveed.setTimeReceivedMili(System.currentTimeMillis());
+            }
+        }
+        
         msgReceiveed.setTimeReceivedMili(msg.getMilliTime());
         this.queue.add(msgReceiveed);
     }
