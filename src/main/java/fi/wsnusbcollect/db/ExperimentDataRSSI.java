@@ -37,6 +37,8 @@ public class ExperimentDataRSSI implements Serializable, DataCSVWritable {
     
     private int sendingNode;
     
+    private int request;
+    
     private int sendingNodeCounter;
     
     private int connectedNodeCounter;
@@ -57,7 +59,7 @@ public class ExperimentDataRSSI implements Serializable, DataCSVWritable {
         StringBuilder sb = new StringBuilder();
         sb.append("INSERT INTO ExperimentDataRSSI(")
                 .append("id,experiment_id,miliFromStart,connectedNode,")
-                .append("sendingNode,sendingNodeCounter,connectedNodeCounter,")
+                .append("sendingNode,sendingNodeCounter,connectedNodeCounter,request")
                 .append("rssi,len) VALUES ");
             
         int i=0;
@@ -70,6 +72,7 @@ public class ExperimentDataRSSI implements Serializable, DataCSVWritable {
                     .append(entity.getSendingNode()).append(",")
                     .append(entity.getSendingNodeCounter()).append(",")
                     .append(entity.getConnectedNodeCounter()).append(",")
+                    .append(entity.getRequest()).append(",")
                     .append(entity.getRssi()).append(",")
                     .append(entity.getLen()).append(")");
 
@@ -149,13 +152,21 @@ public class ExperimentDataRSSI implements Serializable, DataCSVWritable {
 
     public void setLen(short len) {
         this.len = len;
-    } 
+    }
+
+    public int getRequest() {
+        return request;
+    }
+
+    public void setRequest(int request) {
+        this.request = request;
+    }
     
     @Override
     public String getCSVname() {
         return "rssi";
     }
-
+    
     @Override
     public void writeCSVdata(CsvWriter csvOutput) throws IOException {    
         csvOutput.write(String.valueOf(this.experiment.getId()));
@@ -164,6 +175,7 @@ public class ExperimentDataRSSI implements Serializable, DataCSVWritable {
         csvOutput.write(String.valueOf(this.sendingNode));
         csvOutput.write(String.valueOf(this.sendingNodeCounter));
         csvOutput.write(String.valueOf(this.connectedNodeCounter));
+        csvOutput.write(String.valueOf(this.request));
         csvOutput.write(String.valueOf(this.rssi));
         csvOutput.write(String.valueOf(this.len));
     }
@@ -176,6 +188,7 @@ public class ExperimentDataRSSI implements Serializable, DataCSVWritable {
         csvOutput.write("sendingNode");
         csvOutput.write("sendingNodeCounter");
         csvOutput.write("connectedNodeCounter");
+        csvOutput.write("request");
         csvOutput.write("rssi");
         csvOutput.write("len");
     }

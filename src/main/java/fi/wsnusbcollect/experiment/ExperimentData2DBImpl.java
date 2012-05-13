@@ -248,6 +248,7 @@ public class ExperimentData2DBImpl extends Thread implements ExperimentData2DB{
                 dataRSSI.setSendingNode(cMsg.getElement_nodeid(j));
                 dataRSSI.setSendingNodeCounter(cMsg.getElement_nodecounter(j));
                 dataRSSI.setLen(cMsg.getElement_len(j));
+                dataRSSI.setRequest(cMsg.getElement_request(j));
                 
                 this.objQueue.add(dataRSSI);
             }
