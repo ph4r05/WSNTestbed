@@ -1155,7 +1155,19 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         mpr.loadFromMessage(payload);
         this.storeData(mpr);
         
-        this.sendMessageToNode(payload, nodeId, false);
+        // message to send is more flexible for our needs
+        MessageToSend m2s = new MessageToSend(payload, nodeId, payload.toString());
+        
+        // all command send as blocking
+        m2s.setBlockingSend(true);
+        m2s.setBlockingTimeout(3000L);
+        
+        // if reset wait 3 secs
+        if (payload.get_command_code() == MessageTypes.COMMAND_RESET){
+            m2s.setPauseAfterSend(3000L);
+        }
+        
+        this.sendMessageToNode(m2s, true);
     }
     
     /**
