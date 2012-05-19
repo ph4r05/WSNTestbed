@@ -15,7 +15,7 @@ package fi.wsnusbcollect.usb;
  * 
  * @author ph4r05
  */
-public class NodeConfigRecord implements Cloneable {
+public class NodeConfigRecord implements Cloneable, Comparable<NodeConfigRecord> {
     private String bus;
     private String dev;
     private String usbPath;
@@ -154,7 +154,7 @@ public class NodeConfigRecord implements Cloneable {
                 .append(";\t NodeID: ").append(getNodeId())
                 .append(";\t Dev: ").append(getDevicePath())
                 .append(";\t Alias: ").append(getDeviceAlias())
-                .append(";\t Description").append(getDescription())
+                .append(";\t Description: ").append(getDescription())
                 .append(";\t USB: ").append(getUsbPath());
         return sb.toString();
     }
@@ -179,6 +179,37 @@ public class NodeConfigRecord implements Cloneable {
     public Object clone() {
         NodeConfigRecord copy = cloneself();
         return copy;
+    }
+
+    @Override
+    public int compareTo(NodeConfigRecord o2) {
+
+        // totally identic
+        if (this.equals(o2)) {
+            return 0;
+        }
+
+        if (this.getNodeId() == null && o2.getNodeId() == null) {
+            if (this.getDev() == null) {
+                return 1;
+            }
+            if (o2.getDev() == null) {
+                return -1;
+            }
+            return this.getDev().compareTo(o2.getDev());
+        }
+
+        if (this.getNodeId() == null) {
+            return 1;
+        }
+        if (o2.getNodeId() == null) {
+            return -1;
+        }
+        if (this.getNodeId().equals(o2.getNodeId())) {
+            return 0;
+        }
+
+        return this.getNodeId() < o2.getNodeId() ? -1 : 1;
     }
     
 }

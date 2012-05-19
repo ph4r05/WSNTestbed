@@ -14,6 +14,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -941,10 +942,19 @@ public class USBarbitratorImpl implements USBarbitrator {
     public void showBinding(){
         System.out.println("Dumping output: ");
         
+        List<NodeConfigRecord> ncrList = new ArrayList<NodeConfigRecord>(this.moteList.size());
+        
         Iterator<String> iterator = this.moteList.keySet().iterator();
         while(iterator.hasNext()){
             String serial = iterator.next();
             NodeConfigRecord ncr = this.moteList.get(serial);
+            
+            ncrList.add(ncr);
+        }
+        
+        Collections.sort(ncrList);
+        
+        for(NodeConfigRecord ncr : ncrList){
             System.out.println(ncr.getHumanOutput());
         }
     }
@@ -978,6 +988,9 @@ public class USBarbitratorImpl implements USBarbitrator {
             System.err.println("Makefile does not exists: " + makefile.getPath());
             return;
         }
+        
+        // sort
+        Collections.sort(nodes2connect);
         
         // info at the beggining
         System.out.println("Following nodes will be reprogrammed: ");
