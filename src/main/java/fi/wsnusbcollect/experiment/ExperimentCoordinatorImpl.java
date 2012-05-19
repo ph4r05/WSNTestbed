@@ -1156,7 +1156,8 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.storeData(mpr);
         
         // message to send is more flexible for our needs
-        MessageToSend m2s = new MessageToSend(payload, nodeId, payload.toString());
+        MessageToSend m2s = new MessageToSend(payload, nodeId, null);
+        m2s.setListenerKey(payload.toString());
         
         // all command send as blocking
         m2s.setBlockingSend(true);
