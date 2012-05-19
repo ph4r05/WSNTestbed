@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author ph4r05
  */
-public class ExperimentCtp implements PostConstructable {
+public class ExperimentCtp extends ExperimentModuleBase implements PostConstructable {
     private static final Logger log = LoggerFactory.getLogger(ExperimentCtp.class);
     
     /**
@@ -92,6 +92,12 @@ public class ExperimentCtp implements PostConstructable {
             // sending enabled, broadcast request to every node in network
             this.startCtpSend();
         }
+    }
+    
+    @Override
+    public void main() {
+        // set CTP root according to config file
+        this.startCtpSend();
     }
     
     /**

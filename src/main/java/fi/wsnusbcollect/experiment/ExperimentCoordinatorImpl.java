@@ -343,33 +343,33 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             // get metadata section from ini file
             Ini.Section metadata = config.get("rssiMap");
             
-            if (metadata.containsKey("NoiseFloorReadingTimeout")){
+            if (metadata.containsKey("noiseCollectInterval")){
                 try {
-                    configRSSI.setNoiseFloorReadingTimeout(Integer.parseInt(metadata.get("NoiseFloorReadingTimeout")));
+                    configRSSI.setNoiseFloorReadingTimeout(Integer.parseInt(metadata.get("noiseCollectInterval")));
                 } catch(NumberFormatException e){
                     log.error("Cannot parse noise floor reading timeout",e);
                 }
             }
             
-            if (metadata.containsKey("NodeAliveThreshold")){
+            if (metadata.containsKey("nodeAliveThreshold")){
                 try {
-                    configRSSI.setNoiseFloorReadingTimeout(Integer.parseInt(metadata.get("NodeAliveThreshold")));
+                    configRSSI.setNodeAliveThreshold(Integer.parseInt(metadata.get("nodeAliveThreshold")));
                 } catch(NumberFormatException e){
                     log.error("Cannot parse NodeAliveThreshold",e);
                 }
             }
             
-            if (metadata.containsKey("PacketsRequested")){
+            if (metadata.containsKey("packetsRequested")){
                 try {
-                    configRSSI.setNoiseFloorReadingTimeout(Integer.parseInt(metadata.get("PacketsRequested")));
+                    configRSSI.setPacketsRequested(Integer.parseInt(metadata.get("packetsRequested")));
                 } catch(NumberFormatException e){
                     log.error("Cannot parse PacketsRequested",e);
                 }
             }
             
-            if (metadata.containsKey("PacketDelay")){
+            if (metadata.containsKey("packetDelay")){
                 try {
-                    configRSSI.setNoiseFloorReadingTimeout(Integer.parseInt(metadata.get("PacketDelay")));
+                    configRSSI.setPacketDelay(Integer.parseInt(metadata.get("packetDelay")));
                 } catch(NumberFormatException e){
                     log.error("Cannot parse PacketDelay",e);
                 }

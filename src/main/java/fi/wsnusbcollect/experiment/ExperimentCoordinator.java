@@ -110,4 +110,13 @@ public interface ExperimentCoordinator extends Runnable{
     
     public void sendCTPLogger(int nodeId, int enable);
     public void sendCTPComm(int nodeId, int cmdId, int val);
+    
+    public void add2experimentLog(String severity, int code, String reason, String reasonDesc);
+    public void add2experimentLog(String severity, int code, String reason, String reasonDesc, String desc);
+    
+    /**
+     * Holds suspended until script allows execution
+     */
+    public void waitSuspended();
+    public void pause(long mili);
 }
