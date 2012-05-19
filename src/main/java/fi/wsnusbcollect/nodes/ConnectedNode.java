@@ -236,7 +236,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         try {
             msgSender.add(msg);
         } catch (TimeoutException ex) {
-            log.error("Cannot add message", ex);
+            log.error("Cannot add message, timeouted blocked waiting", ex);
         }
     }
 

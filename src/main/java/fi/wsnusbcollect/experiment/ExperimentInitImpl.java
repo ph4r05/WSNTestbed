@@ -17,8 +17,10 @@ import fi.wsnusbcollect.messages.CtpResponseMsg;
 import fi.wsnusbcollect.messages.CtpSendRequestMsg;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
+import fi.wsnusbcollect.nodeCom.MessageSender;
 import fi.wsnusbcollect.nodeCom.MultipleMessageListener;
 import fi.wsnusbcollect.nodeCom.MultipleMessageSender;
+import fi.wsnusbcollect.nodeCom.MyMessageListener;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import fi.wsnusbcollect.nodes.ConnectedNode;
@@ -27,7 +29,6 @@ import fi.wsnusbcollect.nodes.NodeHandler;
 import fi.wsnusbcollect.nodes.NodePlatform;
 import fi.wsnusbcollect.nodes.NodePlatformFactory;
 import fi.wsnusbcollect.nodes.SimpleGenericNode;
-import fi.wsnusbcollect.notify.Emailer;
 import fi.wsnusbcollect.notify.EventMailNotifierIntf;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
@@ -44,7 +45,6 @@ import javax.annotation.Resource;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
 import net.tinyos.packet.PhoenixSource;
-import org.ini4j.Ini;
 import org.ini4j.Wini;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -249,20 +249,15 @@ public class ExperimentInitImpl implements ExperimentInit {
      * @param ncr 
      */
     @Override
-        public void initConnectedNodes(Properties props, List<NodeConfigRecord> ncr) {
+    public void initConnectedNodes(Properties props, List<NodeConfigRecord> ncr) {
         log.info("initializing connected nodes here");
         if (ncr==null){
             throw new NullPointerException("NCR is null");
         }
         
-        MultipleMessageSender mMsgSender = null;
-        Map<Integer, MoteIF> connectedNodes = new HashMap<Integer, MoteIF>();
         Integer defaultGateway=null;
-        
         int nodesPerOneListener=16;
-        List<List<ConnectedNode>> listForListener = new LinkedList<List<ConnectedNode>>();
-        List<ConnectedNode> curListForListener = new LinkedList<ConnectedNode>();
-        listForListener.add(curListForListener);
+        int nodesPerOneSender=200;
         
         Iterator<NodeConfigRecord> iterator = ncr.iterator();
         while(iterator.hasNext()){
@@ -292,27 +287,9 @@ public class ExperimentInitImpl implements ExperimentInit {
             cn.setNodeObj(gn);
             cn.setNodeConfig(nextncr);
             cn.setMoteIf(connectToNode);
-            
-//            // message listener
-//            MyMessageListener listener = new MyMessageListener(connectToNode);
-//            listener.setDropingPackets(true);
-//            
-//            // message sender
-//            MessageSender sender = new MessageSender(connectToNode);
-//            
-//            cn.setMsgListener(listener);
-//            cn.setMsgSender(sender);
-            
+
             // store for multiple packet sender
-            connectedNodes.put(cn.getNodeId(), connectToNode);
             defaultGateway = cn.getNodeId();
-            
-            // multiple nodes for listener
-            curListForListener.add(cn);
-            if (curListForListener.size() >= nodesPerOneListener){
-                curListForListener = new LinkedList<ConnectedNode>();
-                listForListener.add(curListForListener);
-            }
 
             // add to map
             this.nodeReg.put(cn);
@@ -320,23 +297,136 @@ public class ExperimentInitImpl implements ExperimentInit {
             System.out.println("Initialized connected node: " + cn.toString());
         }
         
-        // init multiple sender
-        mMsgSender = new MultipleMessageSender(defaultGateway, connectedNodes.get(defaultGateway));
-        mMsgSender.setAllGateways(connectedNodes, defaultGateway, true);
-        mMsgSender.start();
-        log.info("MultipleMessage sender started");
+        // use configuration here to determine parameters for sender/listener init
+        AppConfiguration config1 = RunningApp.getRunningInstance().getConfig();
         
-        Collection<NodeHandler> nodeHandlers = this.nodeReg.values();
-        for(NodeHandler curNH : nodeHandlers){
-            if (!(curNH instanceof ConnectedNode)) continue;
-            final ConnectedNode cn = (ConnectedNode) curNH;
-            cn.setMsgSender(mMsgSender);
-            
-            log.info("MessageSender updated for node: " + cn.getNodeId());
+        /**
+         * MSG listener initialization
+         */
+        
+        if (config1.hasConfig(INISECTION_METADATA, "nodesPerOneSender")){
+            try {
+                nodesPerOneSender = Integer.parseInt(config1.getConfig(INISECTION_METADATA, "nodesPerOneSender"));
+                log.info("Using nodesPerOneSender="+nodesPerOneSender+" from config file");
+            } catch(NumberFormatException ex){
+                log.warn("Mallformed config file - nodesPerOneSender cannot be converted to integer");
+                nodesPerOneSender = 256;
+            }
+        }
+        
+        // init multiple sender
+        this.initMsgSenders(ncr, nodesPerOneSender, defaultGateway);
+        
+        /**
+         * MSG sender initialization
+         */
+        
+        if (config1.hasConfig(INISECTION_METADATA, "nodesPerOneListener")){
+            try {
+                nodesPerOneListener = Integer.parseInt(config1.getConfig(INISECTION_METADATA, "nodesPerOneListener"));
+                log.info("Using nodesPerOneListener="+nodesPerOneListener+" from config file");
+            } catch(NumberFormatException ex){
+                log.warn("Mallformed config file - nodesPerOneListener cannot be converted to integer");
+                nodesPerOneListener = 16;
+            }
         }
         
         // init multiple receiver
+        this.initMsgListeners(ncr, nodesPerOneListener);
+        
+        // starting all threads
+        System.out.println("Starting all threads");
+        this.nodeReg.startAll();
+        
+        System.out.println("Initialized");
+        status=1;
+    }
+    
+    /**
+     * Splits one list of connectedNodes extracted from node handler register
+     * to several smaller chunks - used for listener and sender initialization.
+     * 
+     * One chunk can be used as set of nodes for one message sender/listener
+     * 
+     * @param inOneblock
+     * @return 
+     */
+    public List<List<ConnectedNode>> partitionConnectedNodes(int inOneblock){
+        List<List<ConnectedNode>> listForListener = new LinkedList<List<ConnectedNode>>();
+        List<ConnectedNode> curListForListener = new LinkedList<ConnectedNode>();
+        listForListener.add(curListForListener);
+        
+        for(NodeHandler nh :this.nodeReg.values()){
+                if (ConnectedNode.class.isInstance(nh)==false) continue;
+                final ConnectedNode cn = (ConnectedNode) nh;
+                
+                // multiple nodes for listener
+                curListForListener.add(cn);
+                if (curListForListener.size() >= inOneblock){
+                    curListForListener = new LinkedList<ConnectedNode>();
+                    listForListener.add(curListForListener);
+                }
+        }
+        
+        return listForListener;
+    }
+    
+    /**
+     * Registers default message listeners for particular connected node.
+     * In current implementation are registered data dumpers.
+     * @param cn 
+     */
+    public void registerDefaultMessageListeners(ConnectedNode cn){
+        // add listening to packets here to separate DB listener
+        ExperimentData2DB dbForNode = App.getRunningInstance().getAppContext().getBean("experimentData2DB", ExperimentData2DB.class);
+        dbForNode.setExpMeta(expMeta);
+        dbForNode.addNode(cn.getNodeId());
+        log.info("DB for node is running: " + dbForNode.isRunning() + "; for node: " + cn.getNodeId());
+
+        cn.registerMessageListener(new CommandMsg(), dbForNode);
+        cn.registerMessageListener(new NoiseFloorReadingMsg(), dbForNode);
+        cn.registerMessageListener(new MultiPingResponseReportMsg(), dbForNode);
+        cn.registerMessageListener(new CtpReportDataMsg(), dbForNode);
+        cn.registerMessageListener(new CtpResponseMsg(), dbForNode);
+        cn.registerMessageListener(new CtpSendRequestMsg(), dbForNode);
+        cn.registerMessageListener(new CtpInfoMsg(), dbForNode);
+        cn.registerMessageListener(new CollectionDebugMsg(), dbForNode);
+        log.info("Listener for node: " + cn.getNodeId() + "");
+    }
+    
+    /**
+     * Initializes message listeners for each node.
+     * If nodesPerListener=1 then is used listener for single node,otherwise 
+     * MultipleMessageListener  will be used.
+     * 
+     * Message listeners are registered with registerDefaultMessageListeners.
+     * 
+     * @param connectedNodes
+     * @param nodesPerListener 
+     */
+    public void initMsgListeners(List<NodeConfigRecord> ncr, int nodesPerListener){
         log.info("Initializing multiple message listener");
+        
+        // at first decide which listener to use
+        if (nodesPerListener==1){
+            for(NodeHandler nh :this.nodeReg.values()){
+                if (ConnectedNode.class.isInstance(nh)==false) continue;
+                final ConnectedNode cn = (ConnectedNode) nh;
+                
+                // message listener
+                MyMessageListener listener = new MyMessageListener(cn.getMoteIf());
+                listener.setDropingPackets(true);
+                cn.setMsgListener(listener);
+                
+                this.registerDefaultMessageListeners(cn);
+            }
+            
+            return;
+        }
+        
+        // otherwise use more nodes per one listener -> preprocess
+        List<List<ConnectedNode>> listForListener = this.partitionConnectedNodes(nodesPerListener);
+        
         int listenerCount = 1;
         for(List<ConnectedNode> curXListForListener: listForListener){
             log.info("MultipleMessageListener id: " + listenerCount);
@@ -348,36 +438,71 @@ public class ExperimentInitImpl implements ExperimentInit {
                 mMsgListener.connectNode(cn, null);
                 cn.setMsgListener(mMsgListener);
                 
-                // add listening to packets here to separate DB listener
-                ExperimentData2DB dbForNode = App.getRunningInstance().getAppContext().getBean("experimentData2DB", ExperimentData2DB.class);
-                dbForNode.setExpMeta(expMeta);
-                dbForNode.addNode(cn.getNodeId());
-                log.info("DB for node is running: " + dbForNode.isRunning() + "; for node: " + cn.getNodeId());
-            
-                cn.registerMessageListener(new CommandMsg(), dbForNode);
-                cn.registerMessageListener(new NoiseFloorReadingMsg(), dbForNode);
-                cn.registerMessageListener(new MultiPingResponseReportMsg(), dbForNode);
-                cn.registerMessageListener(new CtpReportDataMsg(), dbForNode);
-                cn.registerMessageListener(new CtpResponseMsg(), dbForNode);
-                cn.registerMessageListener(new CtpSendRequestMsg(), dbForNode);
-                cn.registerMessageListener(new CtpInfoMsg(), dbForNode);
-                cn.registerMessageListener(new CollectionDebugMsg(), dbForNode);
-                log.info("Listener for node: " + cn.getNodeId() + "");
+                this.registerDefaultMessageListeners(cn);
             }
             
             listenerCount+=1;
         }
-        
-        // starting all threads
-        System.out.println("Starting all threads");
-        this.nodeReg.startAll();
-        
-        System.out.println("Initialized");
-        status=1;
     }
     
     /**
-     * Connects to given source and if OK returns mote interface
+     * Initialize message sender for connected nodes.
+     * If nodesPerSender=1 then is used MessageSender for single node, otherwise 
+     * MultipleMessageSender will be used.
+     * 
+     * Here one can use big chunks of nodes for one message sender since it is 
+     * not critical and it can save memory because each sender spawns its own thread.
+     * 
+     * @param ncr
+     * @param nodesPerSender
+     * @param defaultGateway 
+     */
+    public void initMsgSenders(List<NodeConfigRecord> ncr, int nodesPerSender, Integer defaultGateway){
+        // at first decide which listener to use
+        if (nodesPerSender==1){
+            for(NodeHandler nh :this.nodeReg.values()){
+                if (ConnectedNode.class.isInstance(nh)==false) continue;
+                final ConnectedNode cn = (ConnectedNode) nh;
+                
+                // message listener
+                MessageSender sender = new MessageSender(cn.getMoteIf());
+                cn.setMsgSender(sender);
+            }
+            
+            return;
+        }
+        
+        // otherwise use more nodes per one listener -> preprocess
+        List<List<ConnectedNode>> listForSender = this.partitionConnectedNodes(nodesPerSender);
+        
+        int count = 1;
+        for(List<ConnectedNode> curXListForSender: listForSender){
+            // construct connected nodes map for sender
+            Map<Integer, MoteIF> connectedNodes = new HashMap<Integer, MoteIF>();
+            for(ConnectedNode cn : curXListForSender){
+                connectedNodes.put(cn.getNodeId(), cn.getMoteIf());
+            }
+            
+            // create one message sender instance for more nodes
+            MultipleMessageSender mMsgSender = new MultipleMessageSender(defaultGateway, connectedNodes.get(defaultGateway));
+            mMsgSender.setAllGateways(connectedNodes, defaultGateway, true);
+            mMsgSender.start();
+            log.info("MultipleMessageSender id: " + count + "; started");
+            
+            // now update sender for each node
+            for(ConnectedNode cn : curXListForSender){
+                cn.setMsgSender(mMsgSender);
+                log.info("MessageSender updated for node: " + cn.getNodeId());
+            }
+            
+            count+=1;
+        }
+    }
+    
+    /**
+     * Connects physically to given source by tinyOS BuildSource.
+     * If everything is OK method returns MoteIF.
+     * 
      * @param source
      * @return 
      */
@@ -417,10 +542,6 @@ public class ExperimentInitImpl implements ExperimentInit {
     public void setExpCoordinator(ExperimentCoordinatorImpl expCoordinator) {
         this.expCoordinator = expCoordinator;
     }
-
-//    public void setConsole(Console console) {
-//        this.console = console;
-//    }
 
     @Override
     public ExperimentMetadata getExpMeta() {

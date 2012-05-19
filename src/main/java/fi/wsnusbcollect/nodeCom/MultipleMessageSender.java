@@ -541,7 +541,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
 
             // messages were not found...                
             // sleep small amount of time - CPU
-            this.pause(10);
+            this.pause(1);
         }
         
         return failedMessages;
@@ -600,7 +600,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
                 
                 // message was not found...
                 // sleep small amount of time - CPU
-                this.pause(10);
+                this.pause(1);
             }
         } else {
             this.queue.add(msg);
