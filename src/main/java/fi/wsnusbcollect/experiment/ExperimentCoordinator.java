@@ -6,6 +6,7 @@ package fi.wsnusbcollect.experiment;
 
 import fi.wsnusbcollect.experiment.results.ExperimentStatGen;
 import fi.wsnusbcollect.messages.CommandMsg;
+import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -31,7 +32,9 @@ public interface ExperimentCoordinator extends Runnable{
     
     public void sendReset(int nodeId);
     public void sendNoiseFloorReading(int nodeId, int delay);
+    public void sendMessageToNode(MessageToSend payload, boolean protocol);
     public void sendMessageToNode(Message payload, int nodeId, boolean protocol);
+    public void sendMessageToNode(Message payload, int nodeId, boolean protocol, boolean blocking);
     public void sendSetAddressRecognition(int nodeId, boolean enabled);
     public void sendSetCTPRoot(int nodeId, boolean isRoot);
     
@@ -99,6 +102,8 @@ public interface ExperimentCoordinator extends Runnable{
     public void setLogCTPMessages(boolean logCTPMessages);
     public boolean isLogCommandMessages();
     public void setLogCommandMessages(boolean logCommandMessages);
+    public boolean isLogPrintfMessages();
+    public void setLogPrintfMessages(boolean logPrintfMessages);
     public boolean isRestartNodesBeforeExperiment();
     public void setRestartNodesBeforeExperiment(boolean restartNodesBeforeExperiment);
     

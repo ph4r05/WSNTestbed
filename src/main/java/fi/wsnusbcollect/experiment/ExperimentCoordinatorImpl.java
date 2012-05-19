@@ -14,6 +14,7 @@ import fi.wsnusbcollect.db.ExperimentDataGenericMessage;
 import fi.wsnusbcollect.db.ExperimentDataLog;
 import fi.wsnusbcollect.db.ExperimentDataRevokedCycles;
 import fi.wsnusbcollect.db.ExperimentMultiPingRequest;
+import fi.wsnusbcollect.db.PrintfEntity;
 import fi.wsnusbcollect.messages.CollectionDebugMsg;
 import fi.wsnusbcollect.messages.CommandMsg;
 import fi.wsnusbcollect.messages.CtpInfoMsg;
@@ -24,8 +25,10 @@ import fi.wsnusbcollect.messages.MessageTypes;
 import fi.wsnusbcollect.messages.MultiPingMsg;
 import fi.wsnusbcollect.messages.MultiPingResponseReportMsg;
 import fi.wsnusbcollect.messages.NoiseFloorReadingMsg;
+import fi.wsnusbcollect.messages.PrintfMsg;
 import fi.wsnusbcollect.messages.RssiMsg;
 import fi.wsnusbcollect.nodeCom.MessageListener;
+import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.NodeHandler;
@@ -135,6 +138,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     private boolean logGenericMessages=false;
     private boolean logCTPMessages=false;
     private boolean logCommandMessages=false;
+    private boolean logPrintfMessages=false;
     
     private boolean restartNodesBeforeExperiment=true;
     
@@ -389,9 +393,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // init message sizes - should be from config file
         ArrayList<Integer> messageSizes = new ArrayList<Integer>();
         messageSizes.add(0);
-        messageSizes.add(8);
+//        messageSizes.add(8);
         messageSizes.add(16);
-        messageSizes.add(32);
+//        messageSizes.add(32);
         messageSizes.add(64);
         
         // init experiment state
@@ -537,7 +541,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             
             // no error happened => continue
             if (nodeError==false){
-                this.sendMultiPingRequest(curNode, curTx, experimentCounter,
+                this.sendMultiPingRequest(curNode, curTx, 0,
                         1, 0, 0, true, true);
                 this.pause(1000);
                 succCyclesFromLastReset++;
@@ -749,6 +753,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.nodeReg.registerMessageListener(new CtpSendRequestMsg(), this);
         this.nodeReg.registerMessageListener(new CtpInfoMsg(), this);
         this.nodeReg.registerMessageListener(new CollectionDebugMsg(), this);
+        this.nodeReg.registerMessageListener(new PrintfMsg(), this);
         this.nodeReg.setDropingReceivedPackets(false);
         
         // restart nodes before experiment - clean all settings to default
@@ -968,11 +973,40 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // was this message already handled by specific handler?
         boolean genericMessage=true;
 
-        // update last seen record
-        this.nodeReg.updateLastSeen(msg.getSerialPacket().get_header_src(), mili);
+        // null packet testing
+        // this could occur if in mote software is not set source of serial packet
+        if (msg.getSerialPacket().get_header_src()==0 && !PrintfMsg.class.isInstance(msg)){
+            // packet from 0 - suspicious
+            log.info("NullPacket! Destination: " 
+                    + msg.getSerialPacket().get_header_src() 
+                    + "; \nSerialPacket: " + msg.getSerialPacket().toString()
+                    + "; \nDataPacket: " + msg.toString());
+            return;
+        }
         
         // source nodeid
         int nodeIdSrc = msg.getSerialPacket().get_header_src();
+        
+        // printf message - printf client
+        if (PrintfMsg.class.isInstance(msg)) {
+            genericMessage=false;
+            
+            PrintfMsg pmsg = (PrintfMsg) msg;
+            PrintfEntity printfEntity = new PrintfEntity();
+            printfEntity.loadFromMessage(pmsg);
+            printfEntity.setSendingNode(nodeIdSrc);
+            printfEntity.setConnectedNode(nodeIdSrc);
+            this.storeData(printfEntity);
+            
+            if (this.logPrintfMessages){
+                log.info("Printf msg from ["+nodeIdSrc+"]: " + printfEntity.getBuff());
+            }
+            
+            return;
+        }
+        
+        // update last seen record
+        this.nodeReg.updateLastSeen(msg.getSerialPacket().get_header_src(), mili);
         
         // command message?
         if (CommandMsg.class.isInstance(msg)){
@@ -1015,7 +1049,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             log.info("RSSI message: " + rMsg.toString());
         }
         
-        // status
+        // CTP status info
         if (CtpInfoMsg.class.isInstance(msg)){
             final CtpInfoMsg sMsg = (CtpInfoMsg) msg;
             if (logCTPMessages){
@@ -1026,6 +1060,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             genericMessage=false;
         }
         
+        // CTP report data
         if (CtpReportDataMsg.class.isInstance(msg)){
             final CtpReportDataMsg sMsg = (CtpReportDataMsg) msg;
             if (logCTPMessages){
@@ -1050,7 +1085,6 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         }
         
         this.lastMsg=null;
-        //this.lastMsg = msg;
     }
     
     @Override
@@ -1060,7 +1094,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     
     /**
      * Sends multi ping request to specified node. Sending packet from this 
-     * method is written to db protocol
+     * method is written to db protocol. Sending is synchronous -> block until 
+     * message it sent or timeouted.
+     * 
      * @param nodeId
      * @param txpower
      * @param channel
@@ -1097,7 +1133,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         this.storeData(mpr);
         
         // add message to send
-        this.sendMessageToNode(msg, nodeId, false);
+        this.sendMessageToNode(msg, nodeId, false, true);
     }
     
     /**
@@ -1317,12 +1353,51 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
      * 
      * @param payload    data packet to send. Is CommandMessage
      * @param nodeId     nodeId to send message to
-     * @param protocol   if yes then message is written to generic message protocol
+     * @param protocol   if TRUE then message is written to generic message protocol
      */    
     @Override
     public synchronized void sendMessageToNode(Message payload, int nodeId, boolean protocol){
+        this.sendMessageToNode(payload, nodeId, protocol, false);
+    }
+    
+    /**
+     * Send selected defined packet to node.
+     * Another methods may build custom command packet, it is then passed to this method
+     * which sends it to all selected nodes
+     * 
+     * @param payload    data packet to send.
+     * @param nodeId     nodeId to send message to
+     * @param protocol   if TRUE then message is written to generic message protocol
+     * @param blocking   if TRUE then method blocks until message is sent by sender
+     */    
+    @Override
+    public synchronized void sendMessageToNode(Message payload, int nodeId, boolean protocol, boolean blocking){
+        // build custom message to send
+        MessageToSend m2s = new MessageToSend(payload, nodeId, null);
+        m2s.setBlockingSend(blocking);
+        m2s.setBlockingTimeout(3000L);
+        
+        // for blocking need to set string key correctly
+        if (blocking){
+            m2s.setListenerKey(payload.toString());
+        }
+        
+        this.sendMessageToNode(m2s, protocol);
+    }
+    
+    /**
+     * Send selected defined packet to node.
+     * Another methods may build custom command packet, it is then passed to this method
+     * which sends it to all selected nodes
+     * 
+     * @param payload    data packet to send. 
+     * @param protocol   if TRUE then message is written to generic message protocol
+     */    
+    @Override
+    public synchronized void sendMessageToNode(MessageToSend payload, boolean protocol){
         // decide whether send message to all nodes 
-        if (nodeId<0){
+        if (payload.getDestination()<0){
+            // mass send to all registered nodes
             Collection<NodeHandler> values = this.nodeReg.values();
             for (NodeHandler nh : values){
                 // can add message?
@@ -1334,12 +1409,14 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                 try {
                     // store to protocol?
                     if (protocol){
-                        this.storeGenericMessageToProtocol(payload, nh.getNodeId() , true, false);
+                        this.storeGenericMessageToProtocol(payload.getsMsg(), nh.getNodeId(), true, false);
                     }
 
                     // add to send queue
                     log.debug("Message to send for node: " + nh.getNodeId() + "; Command: " + payload);
-                    nh.addMessage2Send(payload, null);
+                    
+                    payload.setDestination(nh.getNodeId());
+                    nh.addMessage2Send(payload);
                 }  catch (Exception ex) {
                     log.error("Cannot send CmdMessage to nodeId: " + nh.getNodeId() , ex);
                 }
@@ -1347,7 +1424,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         } else {
             // sending message only to specific node
             try {           
-                Integer nId = Integer.valueOf(nodeId);
+                Integer nId = Integer.valueOf(payload.getDestination());
                 // get node from node register
                 if (this.nodeReg.containsKey(nId)==false){
                     log.error("Cannot send message to node " + nId + "; No such node found in register");
@@ -1362,14 +1439,15 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
 
                 // store to protocol?
                 if (protocol){
-                    this.storeGenericMessageToProtocol(payload, nodeId, true, false);
+                    this.storeGenericMessageToProtocol(payload.getsMsg(), nId, true, false);
                 }
 
                 // add to send queue
                 log.debug("Message to send for node: " + nId + "; Command: " + payload);
-                nh.addMessage2Send(payload, null);
+                nh.addMessage2Send(payload);
+                    
             }  catch (Exception ex) {
-                log.error("Cannot send CmdMessage to nodeId: " + nodeId, ex);
+                log.error("Cannot send CmdMessage to nodeId: " + payload.getDestination(), ex);
             }
         }
     }
@@ -1686,6 +1764,12 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     public void setRestartNodesBeforeExperiment(boolean restartNodesBeforeExperiment) {
         this.restartNodesBeforeExperiment = restartNodesBeforeExperiment;
     }
-    
-    
+
+    public boolean isLogPrintfMessages() {
+        return logPrintfMessages;
+    }
+
+    public void setLogPrintfMessages(boolean logPrintfMessages) {
+        this.logPrintfMessages = logPrintfMessages;
+    }
 }
