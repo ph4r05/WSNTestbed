@@ -1157,7 +1157,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         
         // message to send is more flexible for our needs
         MessageToSend m2s = new MessageToSend(payload, nodeId, null);
-        m2s.setListenerKey(payload.toString() + System.currentTimeMillis());
+        m2s.setListenerKey(payload.toString()  + "|" + nodeId + "|" + System.currentTimeMillis());
         
         // all command send as blocking
         m2s.setBlockingSend(true);
@@ -1392,7 +1392,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         
         // for blocking need to set string key correctly
         if (blocking){
-            m2s.setListenerKey(payload.toString() + System.currentTimeMillis());
+            m2s.setListenerKey(payload.toString() + "|" + nodeId + "|" + System.currentTimeMillis());
         }
         
         this.sendMessageToNode(m2s, protocol);
