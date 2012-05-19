@@ -11,7 +11,7 @@
  */ 
 
 // at first please check results of dry run without db cleaning before delete
-$dryrun = true;
+$dryrun = false;
 // number of seconds of experiment duration to consider experiment to delete
 $timeout = 60*60;
 
@@ -22,9 +22,9 @@ mysql_select_db('xklinec') || die('Cannot select database');
 mysql_query('SET WAIT_TIMEOUT=' . 60*60*3);
 
 // query selects old and useless database experiment records
-$sql = 'SELECT TIME_TO_SEC(datestop-datestart) as duration, e.* 
+$sql = 'SELECT (datestop-datestart) as duration, e.* 
             FROM `ExperimentMetadata` e 
-            WHERE TIME_TO_SEC(datestop-datestart) < '.$timeout.' OR 
+            WHERE (datestop-datestart) < '.$timeout.' OR 
             (e.datestop IS NULL AND id NOT IN 
                 (SELECT e2.id FROM `ExperimentMetadata` e2 WHERE e2.datestop IS NULL AND 
                     datestart=(SELECT MAX(datestart) FROM `ExperimentMetadata` WHERE datestop IS NULL))
