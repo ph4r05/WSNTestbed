@@ -415,6 +415,8 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
      * Entry method for helper message receivers - contains gateway information
      * For each gateway is registered different helper class
      * 
+     * If is serialPacket.src == 0 then gateway is set as source
+     * 
      * @param gateway
      * @param i
      * @param msg
@@ -427,6 +429,7 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
         MessageReceived msgReceiveed = new MessageReceived(i, msg);
         msgReceiveed.setGateway(gateway);
         
+        // message timing
         long recvTstamp = msg.getMilliTime();
         if (recvTstamp==0){
             if (mili>0){
@@ -436,18 +439,28 @@ public class MultipleMessageListener extends Thread implements MessageListenerIn
             }
         }
         
+        // is message source set?
+        if (msg.getSerialPacket().get_header_src()==0){
+            msg.getSerialPacket().set_header_src(gateway);
+        }
+        
         msgReceiveed.setTimeReceivedMili(msg.getMilliTime());
         this.queue.add(msgReceiveed);
     }
     
+    /**
+     * Deprecated method - messages should be routed via SubComponent class
+     * @deprecated 
+     * 
+     * @param i
+     * @param msg 
+     */
     @Override
     public void messageReceived(int i, Message msg) {
-        // blocking?
-        if (this.dropingPackets) return;
-        
-        MessageReceived msgReceiveed = new MessageReceived(i, msg);
-        msgReceiveed.setTimeReceivedMili(msg.getMilliTime());
-        this.queue.add(msgReceiveed);
+        throw new IllegalStateException("MultipleMessageListener should not be "
+                + "registered itself directly as packet listener."
+                + "Better use MultipleMessageListenerSubComponent as message listener"
+                + " for particular connected node");
     }
 
 
