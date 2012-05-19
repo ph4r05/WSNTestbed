@@ -57,7 +57,7 @@ $cleaningSQLsArr = explode(';', $cleaningSQLs);
 
 $ids2delete = array();
 while($result = mysql_fetch_assoc($res)){
-    $result['datestop'] = intval($result['datestop']);
+    $result['datestop'] = trim($result['datestop']);
     echo "Found experiment id: {$result['id']} with duration: {$result['duration']} secs \t from {$result['datestart']} to {$result['datestop']}\n";
     
     // consider alive checks duration if stop is empty
