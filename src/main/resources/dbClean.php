@@ -22,9 +22,9 @@ mysql_select_db('xklinec') || die('Cannot select database');
 mysql_query('SET WAIT_TIMEOUT=' . 60*60*3);
 
 // query selects old and useless database experiment records
-$sql = 'SELECT (datestop-datestart) as duration, e.* 
+$sql = 'SELECT TIME_TO_SEC( TIMEDIFF( datestop, datestart ) ) as duration, e.* 
             FROM `ExperimentMetadata` e 
-            WHERE (datestop-datestart) < '.$timeout.' OR 
+            WHERE TIME_TO_SEC( TIMEDIFF( datestop, datestart ) ) < '.$timeout.' OR 
             (e.datestop IS NULL AND id NOT IN 
                 (SELECT e2.id FROM `ExperimentMetadata` e2 WHERE e2.datestop IS NULL AND 
                     datestart=(SELECT MAX(datestart) FROM `ExperimentMetadata` WHERE datestop IS NULL))
