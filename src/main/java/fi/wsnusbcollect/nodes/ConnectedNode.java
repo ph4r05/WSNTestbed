@@ -15,6 +15,7 @@ import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
@@ -103,9 +104,23 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         // shutdown moteif
         if (this.moteIf!=null){
             this.moteIf.getSource().shutdown();
-            this.moteIf = null;
+            log.info("Packet listener shutdown for nodeID: " + this.getNodeId() + "; waiting to terminate");
             
-            log.info("Packet listener shutdown for nodeID: " + this.getNodeId());
+            int counter = 0;
+            try {
+                while (this.moteIf.getSource() != null && this.moteIf.getSource().isAlive() && counter < 20) {
+                    // wait after shutdown
+                    Thread.sleep(500);
+                }
+                
+                if (this.moteIf.getSource() != null && this.moteIf.getSource().isAlive()){
+                    log.warn("Killing packet source was not successfull, nodeId: " + this.getNodeId());
+                }
+            } catch (InterruptedException ex) {
+                log.error("Cannot sleep after mote listener shutdown", ex);
+            }
+
+            this.moteIf = null;
         }
     }
     
