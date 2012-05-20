@@ -161,10 +161,18 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         // reset node with USB arbitrator - handles environment differences
         boolean ok = usbArbitrator.resetNode(this, properties);
         
-        if (ok){
-            this.connectToNode();
-        } else {
-            log.error("Cannot restart node from node handler");
+        // sleep 100ms 
+        try {
+            Thread.sleep(100);
+        } catch(InterruptedException ex) {
+            log.error("Interrupted sleep in hw reset", ex);
+        }
+        
+        // try to connect in all circumstances
+        this.connectToNode();
+        
+        if (!ok){
+            log.error("Cannot restart node from node handler, nodeID: " + this.getNodeId());
         }
     }
     
@@ -179,13 +187,13 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         
         if (this.msgSender!=null && this.msgSender.isAlive()){
             this.msgSender.shutdown();
-            log.info("MsgSender interrupted");
+            log.info("MsgSender interrupted, nodeId: " + this.getNodeId());
         }
         
         // shutdown listener
         if (this.msgListener!=null && this.msgListener.isAlive()){
             this.msgListener.shutdown();
-            log.info("MsgListener interrupted");
+            log.info("MsgListener interrupted, nodeId: " + this.getNodeId());
         }
         
         // shutdown moteif
@@ -230,13 +238,13 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     @Override
     public synchronized void addMessage2Send(MessageToSend msg) throws TimeoutException{
         if (this.isMessageSenderFit()==false){
-            log.warn("Cannot send message to null message sender");
+            log.warn("Cannot send message to null message sender, nodeId: " + this.getNodeId());
             throw new NullPointerException("Cannot use null message sender");
         }
         try {
             msgSender.add(msg);
         } catch (TimeoutException ex) {
-            log.error("Cannot add message, timeouted blocked waiting", ex);
+            log.error("Cannot add message, timeouted blocked waiting, nodeId: " + this.getNodeId(), ex);
             throw ex;
         }
     }
@@ -348,7 +356,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     public boolean connectToNode(String source){
         MoteIF connectionToNode = ConnectedNode.getConnectionToNode(source);
         if (connectionToNode==null){
-            log.warn("Cannot connect to device: " + source);
+            log.warn("Cannot connect to device: " + source + "; nodeId: " + this.getNodeId());
             return false;
         }
         

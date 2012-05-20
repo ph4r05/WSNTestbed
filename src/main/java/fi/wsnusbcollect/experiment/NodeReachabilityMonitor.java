@@ -430,7 +430,7 @@ public class NodeReachabilityMonitor implements MessageListener{
             } else {
                 // latency increased a lot, do hard reset
                 if (cn.hwresetPossible()) {
-                    // try HW reset
+                    // try HW reset, already perform reconnecting
                     cn.hwreset();
                     resetDone = true;
 

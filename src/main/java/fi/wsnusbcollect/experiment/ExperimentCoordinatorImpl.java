@@ -43,6 +43,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import net.tinyos.message.Message;
@@ -244,7 +245,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     }
     
     /**
-     * Send reset packet to all registered nodes SEQUENTIALY
+     * Send reset packet to all registered nodes SEQUENTIALY.
+     * 
+     * ConenctedNodes are reconnected after 100ms delay after reset
      */
     @Override
     public void resetAllNodes(){
@@ -252,14 +255,53 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         Iterator<NodeHandler> iterator = values.iterator();
         while(iterator.hasNext()){
             NodeHandler nh = iterator.next();
+            
+            // reset is sent as blocking message
             this.sendReset(nh.getNodeId());
+            
+            try {
+                if (nh instanceof ConnectedNode){
+                    // default sleep time for reset
+                    Thread.sleep(100);
+                    
+                    ConnectedNode cn = (ConnectedNode) nh;
+                    cn.reconnect();
+                    log.info("Reconnected nodeId: " + cn.getNodeId());
+                }
+            } catch (InterruptedException ex) {
+                log.error("Interrupted in reset sleep", ex);
+                break;
+            } catch (Exception ex){
+                log.error("Exception during node reset", ex);
+            }
         }
     }
     
+    /**
+     * Sends reset command to node, reconnects
+     * @param nodeId 
+     */
     @Override
     public void resetNode(int nodeId){
         if (this.nodeReg.containsKey(nodeId)==false) return;
         this.sendReset(nodeId);
+        
+        // reconnect now
+        if (this.nodeReg.containsKey(nodeId)){
+            NodeHandler nh = this.nodeReg.get(nodeId);
+            if (nh instanceof ConnectedNode){
+                
+                try {
+                    // default sleep time for reset
+                    Thread.sleep(100);
+                } catch (InterruptedException ex) {
+                    log.error("Interrupted in reset sleep", ex);
+                }
+
+                ConnectedNode cn = (ConnectedNode) nh;
+                cn.reconnect();
+            }
+        }
     }
     
     /**
