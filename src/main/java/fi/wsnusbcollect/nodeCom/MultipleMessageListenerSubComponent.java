@@ -313,7 +313,7 @@ public class MultipleMessageListenerSubComponent implements MessageListener  {
         // really unregister if possible.
          // If connects to another node in future, we don't want to receive
         // messages from old listeners
-        this.unregisterListeners(this.node);        
+        this.unregisterListeners(this.node);       
         return true;
     }
     

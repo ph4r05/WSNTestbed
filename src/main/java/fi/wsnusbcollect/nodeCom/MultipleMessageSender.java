@@ -675,6 +675,7 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
         
         if (this.connectedGateways.containsKey(nh.getNodeId()) == false){
             // no such node in register, nothing to do
+            log.info("Cannot disconnect, no such node in register. NodeID: " + nh.getNodeId());
             return;
         }
         
