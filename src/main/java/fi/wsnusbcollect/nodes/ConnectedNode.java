@@ -228,7 +228,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     }
 
     @Override
-    public synchronized void addMessage2Send(MessageToSend msg) {
+    public synchronized void addMessage2Send(MessageToSend msg) throws TimeoutException{
         if (this.isMessageSenderFit()==false){
             log.warn("Cannot send message to null message sender");
             throw new NullPointerException("Cannot use null message sender");
@@ -237,6 +237,7 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
             msgSender.add(msg);
         } catch (TimeoutException ex) {
             log.error("Cannot add message, timeouted blocked waiting", ex);
+            throw ex;
         }
     }
 

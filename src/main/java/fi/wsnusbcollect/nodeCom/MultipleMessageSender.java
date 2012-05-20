@@ -303,8 +303,8 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
                 // to be prepared - time is OK
                 MessageToSend nextMessage = iterator.next();
                 
-                // determine wanted gateway for current message - if not specified, use default gateway
-                Integer wantedGateway = nextMessage.getSource() != null ? nextMessage.getSource() : this.gateway;
+                // determine wanted gateway for current message - if not specified, use destination
+                Integer wantedGateway = nextMessage.getSource() != null ? nextMessage.getSource() : nextMessage.getDestination();
                 
                 // is wanted gateway in set of gateways I am managing?
                 if (wantedGateway!=null && this.connectedGateways.containsKey(wantedGateway)==false){
@@ -379,7 +379,9 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
                     }
                     
                     // basic message sent log
-                    log.info("Sending message: NodeID: " +  msgToSend.getDestination() + "; StringID: " + msgToSend.getString());
+                    log.info("Sending message: NodeID: " +  msgToSend.getDestination() 
+                            + "; GW: " + gateway2SendId
+                            + "; StringID: " + msgToSend.getString());
 
                     // store last sent messages, global for every connected gateway
                     this.timeLastMessageSent = System.currentTimeMillis();

@@ -6,6 +6,7 @@ package fi.wsnusbcollect.nodes;
 
 import fi.wsnusbcollect.nodeCom.MessageSentListener;
 import fi.wsnusbcollect.nodeCom.MessageToSend;
+import java.util.concurrent.TimeoutException;
 import net.tinyos.message.Message;
 
 /**
@@ -58,7 +59,7 @@ public interface NodeHandler {
      */
     public boolean canAddMessage2Send();
 
-    public void addMessage2Send(MessageToSend msg);
+    public void addMessage2Send(MessageToSend msg) throws TimeoutException;
 
     /**
      * Generic send message method - send message to this node

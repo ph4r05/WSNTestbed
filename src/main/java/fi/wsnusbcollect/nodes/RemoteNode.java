@@ -7,6 +7,7 @@ package fi.wsnusbcollect.nodes;
 import fi.wsnusbcollect.nodeCom.MessageSentListener;
 import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
+import java.util.concurrent.TimeoutException;
 import net.tinyos.message.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,7 +104,7 @@ public class RemoteNode extends AbstractNodeHandler implements NodeHandler{
     }
 
     @Override
-    public void addMessage2Send(MessageToSend msg) {
+    public void addMessage2Send(MessageToSend msg) throws TimeoutException {
         if (this.canSend()==false){
             log.warn("Cannot add message 2 send");
             throw new IllegalStateException("Cannot add message 2 send");
