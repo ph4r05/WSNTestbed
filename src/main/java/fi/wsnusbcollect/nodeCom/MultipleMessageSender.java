@@ -310,6 +310,12 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
                 if (wantedGateway!=null && this.connectedGateways.containsKey(wantedGateway)==false){
                     // no -> need to remove message
                     log.warn("Need to throw message away - gateway " + wantedGateway + " is not available here.", nextMessage);
+                    
+                    // try now with default gateway, now not needed, but 
+                    // for future use you may consider to try to send message via
+                    // default gateway
+                    wantedGateway = this.gateway;
+                    
                     iterator.remove();
                     continue;
                 }
