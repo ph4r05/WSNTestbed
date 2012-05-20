@@ -104,6 +104,8 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
         if (this.moteIf!=null){
             this.moteIf.getSource().shutdown();
             this.moteIf = null;
+            
+            log.info("Packet listener shutdown for nodeID: " + this.getNodeId());
         }
     }
     
