@@ -68,14 +68,14 @@
         </dependency>
         
         <!--
-            Localy added dependency for maven (not found in cetral repo)
-            To add tinyos.jar to maven index use command:
-            mvn install:install-file -Dfile=./tinyos.jar -DgroupId=net -DartifactId=tinyos -Dversion=2.0 -Dpackaging=jar
+            Localy added dependency for maven. Need to use TinyOSJava-2.1.ph4edit
+            To add to maven index use command:
+            mvn install:install-file -Dfile=./tinyos.jar -DgroupId=net -DartifactId=tinyos -Dversion=2.1ph4 -Dpackaging=jar
         -->
         <dependency>
             <groupId>net</groupId>
             <artifactId>tinyos</artifactId>
-            <version>2.1</version>
+            <version>2.1ph4</version>
         </dependency>
         
         <!--
