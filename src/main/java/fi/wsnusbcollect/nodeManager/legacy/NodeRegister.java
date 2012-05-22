@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.nodeManager;
+package fi.wsnusbcollect.nodeManager.legacy;
 
 import fi.wsnusbcollect.nodes.SimpleGenericNode;
 import fi.wsnusbcollect.nodes.GenericNode;
@@ -12,6 +12,8 @@ import fi.wsnusbcollect.nodes.NodePlatformFactory;
 import fi.wsnusbcollect.nodes.NodePlatform;
 import fi.wsnusbcollect.nodes.NodePlatformTelosb;
 import fi.wsnusbcollect.messages.MessageTypes;
+import fi.wsnusbcollect.nodeManager.NodeRegisterEvent;
+import fi.wsnusbcollect.nodeManager.NodeRegisterEventListener;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -30,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Stores all generic information about each node.
  * 
  * New responsibility added - initializing connected nodes
+ * @deprecated do not use, legacy class from old version
  * @author ph4r05
  */
 public class NodeRegister implements Serializable{

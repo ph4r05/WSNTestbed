@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package fi.wsnusbcollect.nodeManager;
+package fi.wsnusbcollect.nodeManager.legacy;
 
 import fi.wsnusbcollect.nodes.SimpleGenericNode;
 import fi.wsnusbcollect.nodes.MobileNode;
@@ -21,6 +21,7 @@ import java.nio.charset.Charset;
 /**
  * Save and restore node register configuration
  * 
+ * @deprecated do not use, legacy class from old version
  * @author ph4r05
  */
 public class NodeRegisterConfigurationManager {

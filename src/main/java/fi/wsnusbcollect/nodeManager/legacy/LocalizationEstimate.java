@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package fi.wsnusbcollect.nodeManager;
+package fi.wsnusbcollect.nodeManager.legacy;
 
 import fi.wsnusbcollect.utils.stats.TextHistogramData;
 import java.util.Map;

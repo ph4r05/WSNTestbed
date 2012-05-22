@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.nodeManager;
+package fi.wsnusbcollect.nodeManager.legacy;
 
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;

@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package fi.wsnusbcollect.nodeManager;
+package fi.wsnusbcollect.nodeManager.legacy;
 
 import fi.wsnusbcollect.nodes.GenericNode;
 import java.util.List;
@@ -17,6 +17,7 @@ import java.util.List;
  * NodeRegister or some other class unserializes it and loads configuration to
  * currently initialized node register.
  * 
+ * @deprecated do not use, legacy class from old version
  * @author ph4r05
  */
 public class NodeRegisterConfiguration {

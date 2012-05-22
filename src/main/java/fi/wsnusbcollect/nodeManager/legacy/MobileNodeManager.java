@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.nodeManager;
+package fi.wsnusbcollect.nodeManager.legacy;
 
 import fi.wsnusbcollect.nodes.MobileNode;
 import java.io.Serializable;
@@ -17,6 +17,7 @@ import java.util.Set;
  * Each mobile node has own instance of mobile node
  * Manager manages its own mobile nodes.
  *
+ * @deprecated do not use, legacy class from old version
  * @author ph4r05
  */
 public class MobileNodeManager implements Serializable {
