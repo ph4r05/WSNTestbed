@@ -1,6 +1,14 @@
+<<<<<<< HEAD
 /target/
 /_lib/
 /~/
 *.log
 *.log.*
 /tos/nbproject/private/
+
+nbactions.xml
+*.class
+# Package Files #
+*.jar
+*.war
+*.ear
