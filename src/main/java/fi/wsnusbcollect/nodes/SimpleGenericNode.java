@@ -5,7 +5,7 @@
 
 package fi.wsnusbcollect.nodes;
 
-import fi.wsnusbcollect.nodeManager.CoordinateRecord;
+import fi.wsnusbcollect.nodeManager.legacy.CoordinateRecord;
 import java.util.HashMap;
 import java.util.Map;
 

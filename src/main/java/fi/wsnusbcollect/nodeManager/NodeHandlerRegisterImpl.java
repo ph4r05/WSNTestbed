@@ -8,6 +8,7 @@ import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.nodes.AbstractNodeHandler;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.NodeHandler;
+import fi.wsnusbcollect.notify.EventMailNotifierIntf;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -18,11 +19,14 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import javax.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Node handler register implements map
+ * Node handler register implements map NodeID -> Node Handler
+ * Main structure that 
+ * collects all nodes in one and provides some basic functionality.
  * @author ph4r05
  */
 public class NodeHandlerRegisterImpl implements NodeHandlerRegister {
@@ -33,6 +37,10 @@ public class NodeHandlerRegisterImpl implements NodeHandlerRegister {
     
     // set of connected nodes - base stations
     private Set<Integer> connectedNodes;
+    
+    // problem notifier
+    @Resource(name="mailNotifier")
+    protected EventMailNotifierIntf notifier;
 
     public NodeHandlerRegisterImpl() {
         this.primaryMap = new ConcurrentHashMap<Integer, NodeHandler>();
@@ -336,5 +344,20 @@ public class NodeHandlerRegisterImpl implements NodeHandlerRegister {
         }
         
         return list;
+    }
+
+    /**
+     * Take care about problems reported by TinyOS library
+     * @param nodeid
+     * @param msg 
+     */
+    @Override
+    public void tosMsg(Integer nodeid, String msg) {
+        log.warn("Message from tinyOS messenger ["+nodeid+"]: " + msg);
+        
+        // report this problem with notifier as well
+        if (this.notifier!=null){
+            this.notifier.notifyEvent(120, "ID: " + nodeid, "Message from tinyOS messenger ["+nodeid+"]: " + msg, null);
+        }
     }
 }

@@ -5,21 +5,23 @@
 package fi.wsnusbcollect.nodes;
 
 import fi.wsnusbcollect.App;
+import fi.wsnusbcollect.nodeCom.ExtendedTOSMessenger;
 import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.nodeCom.MessageListenerInterface;
 import fi.wsnusbcollect.nodeCom.MessageSenderInterface;
 import fi.wsnusbcollect.nodeCom.MessageSentListener;
 import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
+import fi.wsnusbcollect.nodeCom.TOSMessengerListener;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import fi.wsnusbcollect.usb.USBarbitrator;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
 import net.tinyos.packet.PhoenixSource;
+import net.tinyos.util.Messenger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +34,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @author ph4r05
  */
-public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
+public class ConnectedNode extends AbstractNodeHandler implements NodeHandler, TOSMessengerListener{
     private static final Logger log = LoggerFactory.getLogger(ConnectedNode.class);
     
     // node object (contains node id, platform, position, readings, timers)
@@ -52,6 +54,9 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
 
     // mote interface for specific node
     private MoteIF moteIf;
+    
+    // parent tos messenger to forward messages to - can be node register
+    private TOSMessengerListener tosMessengerListener;
     
     private boolean resetQueues=true;
     
@@ -348,11 +353,10 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     /**
      * Connects to given source (by connection string) and if OK returns mote interface
      * @param source
+     * @param messenger
      * @return 
      */
-    public static MoteIF getConnectionToNode(String source){
-        // build custom error mesenger - store error messages from tinyos to logs directly
-        TOSLogMessenger messenger = new TOSLogMessenger();
+    public static MoteIF getConnectionToNode(String source, Messenger messenger){
         PhoenixSource phoenix = BuildSource.makePhoenix(source, messenger);
         MoteIF moteInterface = null;
         
@@ -366,12 +370,30 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
     }
     
     /**
+     * Connects to given source (by connection string) and if OK returns mote interface
+     * @param source
+     * @return 
+     */
+    public static MoteIF getConnectionToNode(String source){
+        // build custom error mesenger - store error messages from tinyos to logs directly
+        TOSLogMessenger messenger = new TOSLogMessenger();
+        return ConnectedNode.getConnectionToNode(source, messenger);
+    }
+    
+    /**
      * Connects to node specified by connection string
      * @param source
      * @return 
      */
     public boolean connectToNode(String source){
-        MoteIF connectionToNode = ConnectedNode.getConnectionToNode(source);
+        // build new messenger, if there is some listener, register directly to
+        // it, otherwise register self as listener, just forward to log.
+        // can be extended to compute statistics/handle problems
+        ExtendedTOSMessenger extendedTOSMessenger = 
+                new ExtendedTOSMessenger(this.getNodeId(),
+                        this.tosMessengerListener != null ? this.tosMessengerListener : this);
+        
+        MoteIF connectionToNode = ConnectedNode.getConnectionToNode(source, extendedTOSMessenger);
         if (connectionToNode==null){
             log.warn("Cannot connect to device: " + source + "; nodeId: " + this.getNodeId());
             return false;
@@ -556,5 +578,18 @@ public class ConnectedNode extends AbstractNodeHandler implements NodeHandler{
 
     public void setResetQueues(boolean resetQueues) {
         this.resetQueues = resetQueues;
+    }
+
+    @Override
+    public void tosMsg(Integer nodeid, String msg) {
+        log.warn("Message from tinyOS messenger["+nodeid+"]: " + msg);
+    }
+
+    public TOSMessengerListener getTosMessengerListener() {
+        return tosMessengerListener;
+    }
+
+    public void setTosMessengerListener(TOSMessengerListener tosMessengerListener) {
+        this.tosMessengerListener = tosMessengerListener;
     }
 }

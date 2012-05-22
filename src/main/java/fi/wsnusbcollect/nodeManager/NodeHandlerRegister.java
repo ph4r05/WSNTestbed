@@ -5,16 +5,19 @@
 package fi.wsnusbcollect.nodeManager;
 
 import fi.wsnusbcollect.nodeCom.MessageListener;
+import fi.wsnusbcollect.nodeCom.TOSMessengerListener;
 import fi.wsnusbcollect.nodes.NodeHandler;
 import java.util.List;
 import java.util.Map;
 import net.tinyos.message.Message;
 
 /**
- *
+ * Main interface for NodeHandlerRegister - main structure that 
+ * collects all nodes in one and provides some basic functionality.
+ * 
  * @author ph4r05
  */
-public interface NodeHandlerRegister extends Map<Integer, NodeHandler> {
+public interface NodeHandlerRegister extends Map<Integer, NodeHandler>, TOSMessengerListener {
 
     /**
      * Returns nodes as list where last seen indicator is less than given boudnary

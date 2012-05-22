@@ -39,6 +39,7 @@ package fi.wsnusbcollect.nodeCom;
  * @author Dusan Klinec (ph4r05) - extended basic idea
  * 
  */
+import fi.wsnusbcollect.nodeCom.deliveryGarentee.MessageDeliveryGuarantor;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import java.util.Collection;
 import java.util.Collections;

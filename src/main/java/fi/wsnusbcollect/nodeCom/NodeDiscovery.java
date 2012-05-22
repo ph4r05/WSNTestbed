@@ -10,7 +10,7 @@ import net.tinyos.message.MessageListener;
 import net.tinyos.message.MoteIF;
 import fi.wsnusbcollect.messages.CommandMsg;
 import fi.wsnusbcollect.messages.MessageTypes;
-import fi.wsnusbcollect.nodeManager.NodeRegister;
+import fi.wsnusbcollect.nodeManager.legacy.NodeRegister;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
  * Discovery thread discovers new nodes in network and adds it to 
  * node register. Already detected nodes records are updated
  *
+ * Warning! This class was used in old version. Now it is not maintained 
  * @author ph4r05
  */
 public class NodeDiscovery extends Thread implements MessageListener{

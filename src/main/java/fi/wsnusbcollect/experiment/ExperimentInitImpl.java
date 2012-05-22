@@ -287,6 +287,7 @@ public class ExperimentInitImpl implements ExperimentInit {
             cn.setNodeObj(gn);
             cn.setNodeConfig(nextncr);
             cn.setMoteIf(connectToNode);
+            cn.setTosMessengerListener(nodeReg);
 
             // store for multiple packet sender
             defaultGateway = cn.getNodeId();
