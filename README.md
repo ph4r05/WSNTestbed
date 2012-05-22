@@ -2,12 +2,12 @@ WSNTestbed
 ==========
 
 
-==Overview==
+## Overview==
 
 Java command line application for manipulating with Wireless Sensor Network (WSN), collecting data
 and controlling running experiment on testbed.
 
-==Warning!==
+## Warning!
 Technical documentation for this project is in early stages, this is only short
 description. There can be some inaccuracies in this text.
 
@@ -15,10 +15,20 @@ Application has been made for specific needs of our laboratory at Masaryk Univer
 thus it contains some very specific features/settings. But it also contains some 
 universal classes which can be useful for others. 
 
-==Requirements==
+## Requirements
 Requires modified version of TinyOS Java SDK, see TinyOSJava-2.1.ph4edit repo.
+In order to build this application you need to install aforementioned package
+to maven repository. This can be done by following command:
 
-==Main used technologies==
+    mvn install:install-file -Dfile=./WSNTinyOS.jar -DgroupId=net -DartifactId=tinyos -Dversion=2.1ph4 -Dpackaging=jar
+
+assuming that built TinyOSJava-2.1.ph4edit is called WSNTinyOS.jar.
+
+Building this application is done by:
+
+    mvn package
+
+## Main technologies used 
 * Spring as dependency injection container.
 * Hibernate for DB connection, ORM.
 * c3p0 database connection pool
@@ -26,7 +36,7 @@ Requires modified version of TinyOS Java SDK, see TinyOSJava-2.1.ph4edit repo.
 * SLF4J for logging
 
 
-==Description== 
+## Description
 This application provides framework for WSN for server side application. One can easy 
 send messages synchronously or asynchronously, register as packet listener. Level of
 abstraction is added compared to original TinyOS Java SDK to support connecting/disconnecting
