@@ -3,7 +3,9 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.nodeCom;
+package fi.wsnusbcollect.nodeCom.deliveryGarentee;
+
+import fi.wsnusbcollect.nodeCom.MessageToSend;
 
 /**
  * Event information object for message delivery guarantor.

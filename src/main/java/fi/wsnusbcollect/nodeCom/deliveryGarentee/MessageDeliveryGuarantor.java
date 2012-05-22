@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.nodeCom;
+package fi.wsnusbcollect.nodeCom.deliveryGarentee;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,7 +17,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.tinyos.message.Message;
 import fi.wsnusbcollect.messages.CommandMsg;
-import fi.wsnusbcollect.nodeManager.NodeRegister;
+import fi.wsnusbcollect.nodeCom.MessageSender;
+import fi.wsnusbcollect.nodeCom.MessageSentListener;
+import fi.wsnusbcollect.nodeManager.legacy.NodeRegister;
 
 /**
  * Service responsible for the delivery of messages.

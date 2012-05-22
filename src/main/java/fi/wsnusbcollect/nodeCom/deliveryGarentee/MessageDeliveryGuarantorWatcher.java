@@ -3,8 +3,10 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.nodeCom;
+package fi.wsnusbcollect.nodeCom.deliveryGarentee;
 
+import fi.wsnusbcollect.nodeCom.MessageSentListener;
+import fi.wsnusbcollect.nodeCom.MessageToSend;
 import net.tinyos.message.MessageListener;
 
 /**

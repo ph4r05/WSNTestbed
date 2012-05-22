@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.nodeCom;
+package fi.wsnusbcollect.nodeCom.deliveryGarentee;
 
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -15,6 +15,7 @@ import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import fi.wsnusbcollect.messages.CommandMsg;
 import fi.wsnusbcollect.messages.MessageTypes;
+import fi.wsnusbcollect.nodeCom.MessageToSend;
 
 /**
  * Per message object watches signals from guarantor service, keeps track about previous

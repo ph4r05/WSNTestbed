@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.wsnusbcollect.nodeCom;
+package fi.wsnusbcollect.nodeCom.deliveryGarentee;
 
 /**
  * Listen to message delivery events
