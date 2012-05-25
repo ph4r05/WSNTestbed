@@ -24,7 +24,7 @@ to maven repository. This can be done by following command:
 
 assuming that built TinyOSJava-2.1.ph4edit is called WSNTinyOS.jar.
 
-Next you will need new jython. You can obtain it from: [[http://sourceforge.net/projects/jython/files/jython-dev/2.5.3b1/jython_installer-2.5.3b1.jar/download]]
+Next you will need new jython. You can obtain it from: http://sourceforge.net/projects/jython/files/jython-dev/2.5.3b1/jython_installer-2.5.3b1.jar/download
 
     mvn install:install-file -Dfile=./jython-2.5.3b1.jar -DgroupId=org.python -DartifactId=jython -Dversion=2.5.3b1 -Dpackaging=jar
 
