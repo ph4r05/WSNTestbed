@@ -366,6 +366,10 @@
             <version>2.5.2</version>
         </dependency>-->
         
+        <!--
+            New jython library from original site (probably not in maven repo yet)
+            mvn install:install-file -Dfile=./jython-2.5.3b1.jar -DgroupId=org.python -DartifactId=jython -Dversion=2.5.3b1 -Dpackaging=jar
+        -->
         <dependency>
             <groupId>org.python</groupId>
             <artifactId>jython</artifactId>
