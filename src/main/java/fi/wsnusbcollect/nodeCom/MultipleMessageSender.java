@@ -591,13 +591,6 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
             // repeatedly check if is message already sent - 
             while(true){
                 long currentTime = System.currentTimeMillis();
-                if ((currentTime-timeStart) > msg.getBlockingTimeout()){
-                    // timeout, message was not sent...
-                    log.warn("Message cannot be send, timeouted. Key: " + msgKey);
-                    log.debug("Failed message: " + msg.toString());
-                    throw new TimeoutException("Message was not send - timeout");
-                }
-                
                 // message was sent - check set queue?
                 if (this.blockingMessageSent.contains(msgKey)){
                     // key was found => message was sent successfully, cleanup records.
@@ -605,6 +598,13 @@ public class MultipleMessageSender extends Thread implements MessageSentListener
                     this.blockingMessageSent.remove(msgKey);
                     this.blockingSendMessage.remove(msgKey);
                     return;
+                }
+                
+                if ((currentTime-timeStart) > msg.getBlockingTimeout()){
+                    // timeout, message was not sent...
+                    log.warn("Message cannot be send, timeouted. Key: " + msgKey);
+                    log.debug("Failed message: " + msg.toString());
+                    throw new TimeoutException("Message was not send - timeout");
                 }
                 
                 // message was not found...

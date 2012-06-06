@@ -28,6 +28,11 @@ public class EventMailNotiffier implements EventMailNotifierIntf {
     private int timeoutSeconds = 7200;
     
     /**
+     * If true then do not send any notifications
+     */
+    private boolean disabled=false;
+    
+    /**
      * Mail address to send notifications to
      */
     private String to="ph4r05@gmail.com";
@@ -59,6 +64,9 @@ public class EventMailNotiffier implements EventMailNotifierIntf {
      */
     @Override
     public void notifyEvent(int code, String subcode, String text, Throwable exception){
+        // if disabled just drop event
+        if (this.disabled) return;
+        
         EventFootprint eventFootprint = new EventFootprint(code, subcode, text, exception);
         
         // clear event history
@@ -172,6 +180,11 @@ public class EventMailNotiffier implements EventMailNotifierIntf {
     @Override
     public void setTo(String to) {
         this.to = to;
+    }
+
+    @Override
+    public void disableNotifications(boolean disable) {
+        this.disabled = disable;
     }
     
     /**

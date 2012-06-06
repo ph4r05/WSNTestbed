@@ -32,6 +32,7 @@ import fi.wsnusbcollect.nodeCom.MessageToSend;
 import fi.wsnusbcollect.nodeManager.NodeHandlerRegister;
 import fi.wsnusbcollect.nodes.ConnectedNode;
 import fi.wsnusbcollect.nodes.NodeHandler;
+import fi.wsnusbcollect.notify.EventMailNotifierIntf;
 import fi.wsnusbcollect.utils.RingBuffer;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -43,7 +44,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import net.tinyos.message.Message;
@@ -76,6 +76,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
     
     @Resource(name="consoleHelper")
     protected ConsoleHelper consoleHelper;
+    
+    @Resource(name="mailNotifier")
+    protected EventMailNotifierIntf notifier;
     
     /**
      * Experiment records data handler
@@ -324,6 +327,10 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         // at first reset all nodes before experiment count
         System.out.println("Restarting all nodes before experiment, "
                 + "waiting nodes to reinit (need to receive IDENTITY message from everyone)");
+        
+        // disable mail notifications here, abnormal messages are OK during restarting nodes
+        this.notifier.disableNotifications(true);
+        
         // use node monitor to restart all nodes, set higher agresivity, reconnect is 
         // not enough
         this.nodeReg.registerMessageListener(new CommandMsg(), this.nodeMonitor);
@@ -342,6 +349,9 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             log.info("All nodes prepared, starting experiment");
             System.out.println("All nodes prepared, starting experiment");
         }
+        
+        // finally enable notifications
+        this.notifier.disableNotifications(false);
     }
     
     /**
@@ -1203,7 +1213,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         
         // all command send as blocking
         m2s.setBlockingSend(true);
-        m2s.setBlockingTimeout(3000L);
+        m2s.setBlockingTimeout(5000L);
         
         // if reset wait 3 secs
         if (payload.get_command_code() == MessageTypes.COMMAND_RESET){
