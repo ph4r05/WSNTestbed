@@ -19,8 +19,8 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -223,50 +223,64 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
     }    
     
     @Override
-    public void generateRSSITotalStats(long experiment_id, boolean joinTime){
-        /**
-         * Main strategy of data loading from database is that we load set of all
-         * nodes in experiment to which was send MultiPingRequest. Next we will
-         * iterate over transmitting node ID.
-         *
-         * Next we select all possible configurations from experiment.
-         * One configuration is tuple: (txnode, txpower, packetlen).
-         *
-         * We remove revoked experiments where [time_of_request, time_of_request]
-         * overlaps with revoked experiment intervals. Thus we get all requests for
-         * one configuration in memory.
-         *
-         * For every configuration we next iterate over nodes heard this transmission.
-         *
-         * For complete data descriptor (txnode, txpower, packetlen, rxnode) we
-         * load all RSSI values from database to list, calculate statistics and generate
-         * store computed values
-         */
-
+    public void generateRSSITotalStats(Collection<Long> experiment_ids, boolean joinTime){
         // bucket to store computed statistical data for each TxRx configuration
         HashMap<ExperimentRSSITxRxConfiguration, BoxAndWhiskerItem> computedStatData = new HashMap<ExperimentRSSITxRxConfiguration, BoxAndWhiskerItem>();
         
-        // load experiment with given id
-        ExperimentMetadata exp = this.loadExperiment(experiment_id);
-        if (exp==null){
-            log.error("Cannot find experiment with given ID");
-            return;
-        }
-        log.info("Experiment metadata loaded: " + exp.toString());
+        // prepare structure for revoked cycles
+        List<ExperimentDataRevokedCycles> revoked = new LinkedList<ExperimentDataRevokedCycles>();
         
-        // load all revoked experiments
-        // strong assumption: result is ordered by miliStart!!!
-        TypedQuery<ExperimentDataRevokedCycles> tq = 
-                this.em.createQuery("SELECT rc FROM ExperimentDataRevokedCycles rc "
-                                    + "WHERE rc.experiment=:experiment ORDER BY miliStart", ExperimentDataRevokedCycles.class);
-        List<ExperimentDataRevokedCycles> revoked = tq.setParameter("experiment", exp).getResultList();
-        log.info("Loaded revoked cycles, size: " + revoked.size());
+        // list of experiment ids for SQL queries with IN operator
+        StringBuilder expListSql = new StringBuilder();
+        // file identifier builder
+        StringBuilder fileIdSB = new StringBuilder();
+        
+        // load experiments metadata
+        int expIdx = 0;
+        List<ExperimentMetadata> expList = new LinkedList<ExperimentMetadata>();
+        for(Long experiment_id : experiment_ids){
+            expIdx+=1;
+            
+            // load experiment with given id
+            ExperimentMetadata exp = this.loadExperiment(experiment_id);
+            if (exp==null){
+                log.error("Cannot find experiment with given ID");
+                return;
+            }
+            
+            log.info("Experiment metadata loaded: " + exp.toString());
+            expList.add(exp);
+        
+            // load all revoked experiment cycles
+            // strong assumption: result is ordered by miliStart!!! - used in algorithm 
+            // for deletion of revoked cycles
+            TypedQuery<ExperimentDataRevokedCycles> tq = 
+                    this.em.createQuery("SELECT rc FROM ExperimentDataRevokedCycles rc "
+                                        + "WHERE rc.experiment=:experiment ORDER BY miliStart", ExperimentDataRevokedCycles.class);
+            List<ExperimentDataRevokedCycles> revokedTmp = tq.setParameter("experiment", exp).getResultList();
+            
+            // add to global list
+            revoked.addAll(revokedTmp);
+            
+            // build experiment id list
+            if(expIdx>1)expListSql.append(",");
+            expListSql.append(experiment_id);
+            
+            if (expIdx>1)fileIdSB.append("_");
+            fileIdSB.append(experiment_id);
+            
+            log.info("Loaded revoked cycles, size: " + revoked.size());
+        }
+        
+        // need to resort revoked experiment cycles list according to miliStart ASCending
+        Collections.sort(revoked, new RevokedRecordComparator());
         
         // get all nodes in given experiment
         log.info("Loading txnodes id attended experiment...");
         List<Integer> txnodes = this.template.queryForList(
-                "SELECT node FROM ExperimentMultiPingRequest WHERE experiment_id=? GROUP BY node ORDER BY node", 
-                new Object[] { experiment_id }, 
+                  "SELECT node FROM ExperimentMultiPingRequest "
+                + "WHERE experiment_id IN("+expListSql.toString()+") "
+                + "GROUP BY node ORDER BY node",
                 Integer.class);
 
         log.info("Loaded txnodes from experiment, count: " + txnodes.size());
@@ -279,20 +293,30 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
             // now get all possible configurations
             List<ExperimentRSSITxConfiguration> configurations = this.template.query(
             "SELECT DISTINCT node, txpower, packetSize FROM ExperimentMultiPingRequest "
-                    + "WHERE node=? AND experiment_id=? ORDER BY node, txpower, packetSize",
-            new Object[] { nodeId, experiment_id }, 
+                    + "WHERE node=? AND experiment_id IN (" + expListSql.toString()
+                    + ") ORDER BY node, txpower, packetSize",
+            new Object[] { nodeId }, 
             new BeanPropertyRowMapper(ExperimentRSSITxConfiguration.class));
             log.info("Loaded all possible configurations: " + listToString(configurations, false));
             
-            // load all requests for particular experiment and txnode
-            log.info("Loading requests for txNode: " + nodeId);
-            TypedQuery<ExperimentMultiPingRequest> tq2 = 
-                this.em.createQuery("SELECT er FROM ExperimentMultiPingRequest er "
-                                    + "WHERE er.experiment=:experiment AND node=:node "
-                                    + "ORDER BY node, txpower, packetSize, miliFromStart", ExperimentMultiPingRequest.class);
-            List<ExperimentMultiPingRequest> requests = 
-                    tq2.setParameter("experiment", exp).setParameter("node", nodeId).getResultList();
-            log.info("Loaded all requests from given node, size: " + requests.size());
+            // prepare structure for requests
+            List<ExperimentMultiPingRequest> requests = new LinkedList<ExperimentMultiPingRequest>();
+            for(ExperimentMetadata exp : expList){
+                // load all requests for particular experiment and txnode
+                log.info("Loading requests for txNode: " + nodeId);
+                TypedQuery<ExperimentMultiPingRequest> tq2 = 
+                    this.em.createQuery("SELECT er FROM ExperimentMultiPingRequest er "
+                                        + "WHERE er.experiment=:experiment AND node=:node "
+                                        + "ORDER BY node, txpower, packetSize, miliFromStart", ExperimentMultiPingRequest.class);
+                List<ExperimentMultiPingRequest> requestsTmp = 
+                        tq2.setParameter("experiment", exp).setParameter("node", nodeId).getResultList();
+                log.info("Loaded all requests from given node, size: " + requests.size());
+                
+                requests.addAll(requestsTmp);
+            }
+            
+            // resort requests
+            Collections.sort(requests, new ExperimentMultiPingRequestComparator());
             
             // buckets categorized by TxCategory. One entry contains list of requests
             HashMap<ExperimentRSSITxConfiguration, LinkedList<ExperimentMultiPingRequest>> expBucket = new HashMap<ExperimentRSSITxConfiguration, LinkedList<ExperimentMultiPingRequest>>();
@@ -379,11 +403,11 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
             for (ExperimentRSSITxConfiguration curTx : keyList){
                 try {
                     // now can open CSV file, gnu
-                    String outputFile = CSVDIR + "rssiTotal-E"+experiment_id+"-Tx"+curTx.getNode()+".csv";
-                    String outputFileDetail = CSVDIR + "rssiTotalDetail-E"+experiment_id+"-Tx"+curTx.getNode()+".csv";
+                    String outputFile = CSVDIR + "rssiTotal-E"+fileIdSB.toString()+"-Tx"+curTx.getNode()+".csv";
+                    String outputFileDetail = CSVDIR + "rssiTotalDetail-E"+fileIdSB.toString()+"-Tx"+curTx.getNode()+".csv";
                     if (joinTime){
-                        outputFile = CSVDIR + "rssiJoin-E"+experiment_id+"-Tx"+curTx.getNode()+".csv";
-                        outputFileDetail = CSVDIR + "rssiJoinDetail-E"+experiment_id+"-Tx"+curTx.getNode()+".csv";
+                        outputFile = CSVDIR + "rssiJoin-E"+fileIdSB.toString()+"-Tx"+curTx.getNode()+".csv";
+                        outputFileDetail = CSVDIR + "rssiJoinDetail-E"+fileIdSB.toString()+"-Tx"+curTx.getNode()+".csv";
                     }
                     
                     log.info("Output file for this record: " + outputFile);
@@ -488,13 +512,18 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                                     .append(cReq.getMiliFromStart() + this.experimentBlockDuration*10)
                                     .append(") AND request=")
                                     .append(cReq.getCounter())
+                                    .append(" AND experiment_id=")
+                                    .append(cReq.getExperiment().getId())
                                     .append(" )");
                             } else {
                                 // use only time bounding method, data is no referenced by counter
-                                sbRssi.append("(miliFromStart BETWEEN ")
+                                sbRssi.append("((miliFromStart BETWEEN ")
                                         .append(cReq.getMiliFromStart())
                                         .append(" AND ")
                                         .append(cReq.getMiliFromStart() + this.experimentBlockDuration)
+                                        .append(") ")
+                                        .append(" AND experiment_id=")
+                                        .append(cReq.getExperiment().getId())
                                         .append(") ");
                             }
                             
@@ -531,21 +560,25 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                                     .append(" AND ")
                                     .append(cReq.getMiliFromStart() + this.experimentBlockDuration*10)
                                     .append(") AND request=")
-                                    .append(cReq.getCounter())
+                                    .append(cReq.getCounter())    
+                                    .append(" AND experiment_id=")
+                                    .append(cReq.getExperiment().getId())
                                     .append(" )");
                             } else {
                                 // use only time bounding method, data is no referenced by counter
-                                sbRssi.append("(miliFromStart BETWEEN ")
+                                sbRssi.append("((miliFromStart BETWEEN ")
                                     .append(cReq.getMiliFromStart())
                                     .append(" AND ")
                                     .append(cReq.getMiliFromStart() + this.experimentBlockDuration)
+                                    .append(") ")
+                                    .append(" AND experiment_id=")
+                                    .append(cReq.getExperiment().getId())
                                     .append(") ");
                             }
                             sb.append(")");
                             sbRssi.append(")");
                             sqlTimeCriteria.add(new RssiSQLDataSpecifier(sb.toString(), sbRssi.toString(), 
-                                    cReq.getId(), cReq.getMiliFromStart(), cReq.getMiliFromStart() + this.experimentBlockDuration));                            
-//                            sqlTimeCriteria.add(new Tuple<String, Long>(sb.toString(), cReq.getId()));
+                                    cReq.getId(), cReq.getMiliFromStart(), cReq.getMiliFromStart() + this.experimentBlockDuration));
                         }
                     }
                     
@@ -563,7 +596,7 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                         // GET ALL RXNODES
                         log.info("Loading rxNodes for configuration " + curTx.toString() + "; reqNum: " + curRequestNum);
                         List<Integer> rxNodes = this.template.queryForList(
-                                "SELECT DISTINCT connectedNode FROM experimentDataRSSI WHERE experiment_id=" + experiment_id + " AND " + curRssiDataSqlTimeCriteria + " ORDER BY connectedNode", Integer.class);
+                                "SELECT DISTINCT connectedNode FROM experimentDataRSSI WHERE experiment_id IN (" + expListSql.toString() + ") AND " + curRssiDataSqlTimeCriteria + " ORDER BY connectedNode", Integer.class);
 
                         // now iterate over all RX nodes
                         for(Integer rxNode : rxNodes){
@@ -572,19 +605,19 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
 
                             // load noise measured by this node in specific interval
                             String sqlNoise = "SELECT noise FROM experimentDataNoise "
-                                    + "WHERE experiment_id=" + experiment_id + " AND connectedNode="+rxNode+" AND " + curSqlTimeCriteria;
+                                    + "WHERE experiment_id IN (" + expListSql.toString() + ")  AND connectedNode="+rxNode+" AND " + curSqlTimeCriteria;
                             log.info("Loading NOISE data with SQL: " + sqlNoise);
                             List<Integer> noiseData = this.template.queryForList(sqlNoise, Integer.class);
                             
                             // load alive counters
                             String sqlAlive = "SELECT COUNT(*) FROM experimentDataAliveCheck "
-                                    + "WHERE experiment_id=" + experiment_id + " AND node="+rxNode+" AND " + curSqlTimeCriteria;
+                                    + "WHERE experiment_id IN (" + expListSql.toString() + ")  AND node="+rxNode+" AND " + curSqlTimeCriteria;
                             log.info("Loading ALIVE data with SQL: " + sqlAlive);
                             Integer aliveN = this.template.queryForInt(sqlAlive);
                             
                             // select all data for RXnode here
                             String SQLData = "SELECT rssi FROM experimentDataRSSI "
-                                    + "WHERE experiment_id=" + experiment_id + " AND connectedNode="+rxNode+" AND " + curRssiDataSqlTimeCriteria;
+                                    + "WHERE experiment_id IN (" + expListSql.toString() + ")  AND connectedNode="+rxNode+" AND " + curRssiDataSqlTimeCriteria;
                             log.info("Loading data with SQL: " + SQLData);
                             List<Integer> rssiData = this.template.queryForList(SQLData, Integer.class);
 
@@ -658,6 +691,32 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                 }
             } // end of foreach(txConfiguration)
         } // end of foreach(txnodes)
+    }
+    
+    @Override
+    public void generateRSSITotalStats(long experiment_id, boolean joinTime){
+        /**
+         * Main strategy of data loading from database is that we load set of all
+         * nodes in experiment to which was send MultiPingRequest. Next we will
+         * iterate over transmitting node ID.
+         *
+         * Next we select all possible configurations from experiment.
+         * One configuration is tuple: (txnode, txpower, packetlen).
+         *
+         * We remove revoked experiments where [time_of_request, time_of_request]
+         * overlaps with revoked experiment intervals. Thus we get all requests for
+         * one configuration in memory.
+         *
+         * For every configuration we next iterate over nodes heard this transmission.
+         *
+         * For complete data descriptor (txnode, txpower, packetlen, rxnode) we
+         * load all RSSI values from database to list, calculate statistics and generate
+         * store computed values
+         */
+         ArrayList<Long> list = new ArrayList<Long>();
+         list.add(experiment_id);
+        
+         this.generateRSSITotalStats(list, joinTime);
     }
     
     
@@ -753,6 +812,43 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
             if (o1.getPacketSize() > o2.getPacketSize()) return 1;
             
             return 0;
+        }
+    }
+    
+    /**
+     * Comparator for request:
+     * node, txpower, packetSize, miliFromStart
+     */
+    public class ExperimentMultiPingRequestComparator implements Comparator<ExperimentMultiPingRequest>{
+
+        @Override
+        public int compare(ExperimentMultiPingRequest o1, ExperimentMultiPingRequest o2) {
+            if (o1.getNode() < o2.getNode()) return -1;
+            if (o1.getNode() > o2.getNode()) return 1;
+            
+            if (o1.getTxpower() < o2.getTxpower()) return -1;
+            if (o1.getTxpower() > o2.getTxpower()) return 1;
+            
+            if (o1.getPacketSize() < o2.getPacketSize()) return -1;
+            if (o1.getPacketSize() > o2.getPacketSize()) return 1;
+            
+            if (o1.getMiliFromStart() < o2.getMiliFromStart()) return -1;
+            if (o1.getMiliFromStart() > o2.getMiliFromStart()) return 1;
+            
+            return 0;
+        }
+        
+    }
+    
+    /**
+     * Comparator for revoked records - sort by miliTime ASCending
+     */
+    public class RevokedRecordComparator implements Comparator<ExperimentDataRevokedCycles>{
+
+        @Override
+        public int compare(ExperimentDataRevokedCycles o1, ExperimentDataRevokedCycles o2) {
+            if (o1.getMiliStart() == o2.getMiliStart()) return 0;
+            return o1.getMiliStart() < o2.getMiliStart() ? -1:1;
         }
     }
     

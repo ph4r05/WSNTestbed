@@ -5,6 +5,7 @@
 package fi.wsnusbcollect.experiment.results;
 
 import fi.wsnusbcollect.db.ExperimentMetadata;
+import java.util.Collection;
 
 /**
  *
@@ -19,6 +20,7 @@ public interface ExperimentStatGen {
     void generateRSSIStats(long experiment_id);
     public ExperimentMetadata loadExperiment(long experiment_id);
     public void generateNoiseStats(long experiment_id);
+    public void generateRSSITotalStats(Collection<Long> experiment_ids, boolean joinTime);
     public void generateRSSITotalStats(long experiment_id, boolean joinTime);
     
     public boolean isRssiDataSupportsRequestId();
