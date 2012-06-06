@@ -76,6 +76,12 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
     
     public static final String CSVDIR="csv/";
     
+    /**
+     * Whether source RSSI data can be referenced by request id - more accurate way
+     * of data binding that time boundaries method
+     */
+    private boolean rssiDataSupportsRequestId=false;
+    
     @PostConstruct
     public void init(){
         this.experimentDataFormat = new DecimalFormat("0.000000");
@@ -366,7 +372,7 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
             } // end of request iterating
             log.info("Revoked experiments check finished");
             
-            // now we have removed revoked cycles, categorized requests by configuration
+            // now we have removed revoked cycles. Ping requests are categorized by configuration
             // so iterate over configurations
             List<ExperimentRSSITxConfiguration> keyList = new ArrayList<ExperimentRSSITxConfiguration>(expBucket.keySet());
             Collections.sort(keyList, new TxComparator());
@@ -410,6 +416,9 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                         csvOutput.write("noise_mean");
                         csvOutput.write("noise_stddev");
                         csvOutput.write("alive_n");
+                        
+                        csvOutput.write("millitimeStart");
+                        csvOutput.write("millitimeStop");
                         csvOutput.endRecord();
                     }
                     
@@ -419,57 +428,132 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                         csvOutputDetail.write("plen");
                         csvOutputDetail.write("rxnode");
                         csvOutputDetail.write("rssi");
+                        
+                        csvOutputDetail.write("millitimeStart");
+                        csvOutputDetail.write("millitimeStop");                        
+                        
                         csvOutputDetail.endRecord();
                     }
                     
-                    // get corresponding list
-                    
+                    // get corresponding list of particular requests for TX configuration
                     LinkedList<ExperimentMultiPingRequest> cReqs = expBucket.get(curTx);
                     
                     int cReqsInBlock = 1;
-                    List<Tuple<String, Long>> sqlTimeCriteria = new ArrayList<Tuple<String, Long>>();
+                    List<RssiSQLDataSpecifier> sqlTimeCriteria = new ArrayList<RssiSQLDataSpecifier>();
                     
-                    // time merging to one???
+                    // Time merging to one?
+                    // if yes then experiments from one txConfiguration are 
+                    // merged into one big data set over time when this tx config was used.
                     if (joinTime){
                         // time is joined here, merge all blocks to one
                         cReqsInBlock = cReqs.size();
                         StringBuilder sb = new StringBuilder();
+                        StringBuilder sbRssi = new StringBuilder();
                         sb.append("(");
+                        sbRssi.append("(");
                         int tmpC=0;
+                        
+                        // min and max times
+                        long timeStart=Long.MAX_VALUE;
+                        long timeStop=Long.MIN_VALUE;
+                        
                         for(ExperimentMultiPingRequest cReq : cReqs){
+                            if (cReq.getMiliFromStart() <= timeStart){
+                                timeStart = cReq.getMiliFromStart();
+                            }
+                            
+                            if (cReq.getMiliFromStart() >= timeStop){
+                                timeStop = cReq.getMiliFromStart();
+                            }
+                            
                             if (tmpC>0){
                                 sb.append(" OR ");
+                                sbRssi.append(" OR ");
                             }
+                            
+                            // global time specifier for multiple tables.
+                            // using only time boundaries method
                             sb.append("(miliFromStart BETWEEN ")
-                                    .append(cReq.getMiliFromStart())
+                                        .append(cReq.getMiliFromStart())
+                                        .append(" AND ")
+                                        .append(cReq.getMiliFromStart() + this.experimentBlockDuration)
+                                        .append(") ");
+                            
+                            // rssi data specific 
+                            if (this.rssiDataSupportsRequestId){
+                                // data is referenced by coutner, use this more accurate method
+                                 sbRssi.append("((miliFromStart BETWEEN ")
+                                    .append(cReq.getMiliFromStart() - this.experimentBlockDuration*10)
                                     .append(" AND ")
-                                    .append(cReq.getMiliFromStart() + this.experimentBlockDuration)
-                                    .append(") ");
+                                    .append(cReq.getMiliFromStart() + this.experimentBlockDuration*10)
+                                    .append(") AND request=")
+                                    .append(cReq.getCounter())
+                                    .append(" )");
+                            } else {
+                                // use only time bounding method, data is no referenced by counter
+                                sbRssi.append("(miliFromStart BETWEEN ")
+                                        .append(cReq.getMiliFromStart())
+                                        .append(" AND ")
+                                        .append(cReq.getMiliFromStart() + this.experimentBlockDuration)
+                                        .append(") ");
+                            }
+                            
                             tmpC+=1;
                         }
                         sb.append(")");
-                        sqlTimeCriteria.add(new Tuple<String, Long>(sb.toString(), 0L));
+                        sbRssi.append(")");
+                        sqlTimeCriteria.add(new RssiSQLDataSpecifier(sb.toString(), sbRssi.toString(), 0L, timeStart, timeStop));
+//                        sqlTimeCriteria.add(new Tuple<String, Long>(sb.toString(), 0L));
                     } else {
                         // time is separate
+                        // thus one block from given txConfig is separate data set
+                        // among other experiment blocks.
                         cReqsInBlock = 1;
                         for(ExperimentMultiPingRequest cReq : cReqs){
                             StringBuilder sb = new StringBuilder();
+                            StringBuilder sbRssi = new StringBuilder();
                             sb.append("(");
+                            sbRssi.append("(");
+                            
+                            // global time specifier for multiple tables.
+                            // using only time boundaries method
                             sb.append("(miliFromStart BETWEEN ")
+                                        .append(cReq.getMiliFromStart())
+                                        .append(" AND ")
+                                        .append(cReq.getMiliFromStart() + this.experimentBlockDuration)
+                                        .append(") ");
+                            
+                            // rssi data specific 
+                            if (this.rssiDataSupportsRequestId){
+                                // data is referenced by coutner, use this more accurate method
+                                sbRssi.append("((miliFromStart BETWEEN ")
+                                    .append(cReq.getMiliFromStart() - this.experimentBlockDuration*10)
+                                    .append(" AND ")
+                                    .append(cReq.getMiliFromStart() + this.experimentBlockDuration*10)
+                                    .append(") AND request=")
+                                    .append(cReq.getCounter())
+                                    .append(" )");
+                            } else {
+                                // use only time bounding method, data is no referenced by counter
+                                sbRssi.append("(miliFromStart BETWEEN ")
                                     .append(cReq.getMiliFromStart())
                                     .append(" AND ")
                                     .append(cReq.getMiliFromStart() + this.experimentBlockDuration)
                                     .append(") ");
+                            }
                             sb.append(")");
-                            sqlTimeCriteria.add(new Tuple<String, Long>(sb.toString(), cReq.getId()));
+                            sbRssi.append(")");
+                            sqlTimeCriteria.add(new RssiSQLDataSpecifier(sb.toString(), sbRssi.toString(), 
+                                    cReq.getId(), cReq.getMiliFromStart(), cReq.getMiliFromStart() + this.experimentBlockDuration));                            
+//                            sqlTimeCriteria.add(new Tuple<String, Long>(sb.toString(), cReq.getId()));
                         }
                     }
                     
-                    
                     long curRequestNum = 0;
-                    for(Tuple<String, Long> curTuple  : sqlTimeCriteria){
-                        String curSqlTimeCriteria = curTuple.getX();
-                        curRequestNum = curTuple.getY();
+                    for(RssiSQLDataSpecifier curTuple  : sqlTimeCriteria){
+                        String curSqlTimeCriteria = curTuple.globalSqlTimeCriteria;
+                        String curRssiDataSqlTimeCriteria = curTuple.rssiDataSqlCriteria;
+                        curRequestNum = curTuple.roundId;
                         // Now we have one particular configuration, need to load data for
                         // it and compute statistical data
 
@@ -479,7 +563,7 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                         // GET ALL RXNODES
                         log.info("Loading rxNodes for configuration " + curTx.toString() + "; reqNum: " + curRequestNum);
                         List<Integer> rxNodes = this.template.queryForList(
-                                "SELECT DISTINCT connectedNode FROM experimentDataRSSI WHERE experiment_id=" + experiment_id + " AND " + curSqlTimeCriteria + " ORDER BY connectedNode", Integer.class);
+                                "SELECT DISTINCT connectedNode FROM experimentDataRSSI WHERE experiment_id=" + experiment_id + " AND " + curRssiDataSqlTimeCriteria + " ORDER BY connectedNode", Integer.class);
 
                         // now iterate over all RX nodes
                         for(Integer rxNode : rxNodes){
@@ -500,7 +584,7 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                             
                             // select all data for RXnode here
                             String SQLData = "SELECT rssi FROM experimentDataRSSI "
-                                    + "WHERE experiment_id=" + experiment_id + " AND connectedNode="+rxNode+" AND " + curSqlTimeCriteria;
+                                    + "WHERE experiment_id=" + experiment_id + " AND connectedNode="+rxNode+" AND " + curRssiDataSqlTimeCriteria;
                             log.info("Loading data with SQL: " + SQLData);
                             List<Integer> rssiData = this.template.queryForList(SQLData, Integer.class);
 
@@ -540,6 +624,9 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                             csvOutput.write(this.getRounded(noiseStdDev));
                             csvOutput.write(String.valueOf(aliveN));
                             
+                            csvOutput.write(String.valueOf(curTuple.timeStart));
+                            csvOutput.write(String.valueOf(curTuple.timeStop));
+                            
                             csvOutput.endRecord();
 
                             // detail CSV
@@ -549,6 +636,10 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
                                 csvOutputDetail.write(String.valueOf(txrxcon.getPacketSize()));
                                 csvOutputDetail.write(String.valueOf(txrxcon.getRxnode()));
                                 csvOutputDetail.write(String.valueOf(crssi));
+                                
+                                csvOutputDetail.write(String.valueOf(curTuple.timeStart));
+                                csvOutputDetail.write(String.valueOf(curTuple.timeStop));
+                                
                                 csvOutputDetail.endRecord();
                             }
                             csvOutputDetail.flush();
@@ -614,6 +705,16 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
         sb.append("]");
         return sb.toString();
     }
+
+    @Override
+    public boolean isRssiDataSupportsRequestId() {
+        return rssiDataSupportsRequestId;
+    }
+
+    @Override
+    public void setRssiDataSupportsRequestId(boolean rssiDataSupportsRequestId) {
+        this.rssiDataSupportsRequestId = rssiDataSupportsRequestId;
+    }
     
     /**
      * Order:
@@ -652,6 +753,31 @@ public class ExperimentStatGenImpl implements ExperimentStatGen {
             if (o1.getPacketSize() > o2.getPacketSize()) return 1;
             
             return 0;
+        }
+    }
+    
+    /**
+     * Used as internal helper class to group info abou one tx configuration to load data from database
+     */
+    protected class RssiSQLDataSpecifier {
+        public String globalSqlTimeCriteria;
+        public String rssiDataSqlCriteria;
+        public Long roundId;
+        public Long timeStart;
+        public Long timeStop;
+
+        public RssiSQLDataSpecifier(String globalSqlTimeCriteria, String rssiDataSqlCriteria, Long roundId) {
+            this.globalSqlTimeCriteria = globalSqlTimeCriteria;
+            this.rssiDataSqlCriteria = rssiDataSqlCriteria;
+            this.roundId = roundId;
+        }
+
+        public RssiSQLDataSpecifier(String globalSqlTimeCriteria, String rssiDataSqlCriteria, Long roundId, Long timeStart, Long timeStop) {
+            this.globalSqlTimeCriteria = globalSqlTimeCriteria;
+            this.rssiDataSqlCriteria = rssiDataSqlCriteria;
+            this.roundId = roundId;
+            this.timeStart = timeStart;
+            this.timeStop = timeStop;
         }
     }
     

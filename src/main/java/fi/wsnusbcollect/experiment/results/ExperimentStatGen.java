@@ -20,4 +20,7 @@ public interface ExperimentStatGen {
     public ExperimentMetadata loadExperiment(long experiment_id);
     public void generateNoiseStats(long experiment_id);
     public void generateRSSITotalStats(long experiment_id, boolean joinTime);
+    
+    public boolean isRssiDataSupportsRequestId();
+    public void setRssiDataSupportsRequestId(boolean rssiDataSupportsRequestId);
 }
