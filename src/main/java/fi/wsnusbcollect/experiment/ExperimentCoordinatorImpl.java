@@ -1213,7 +1213,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
         
         // all command send as blocking
         m2s.setBlockingSend(true);
-        m2s.setBlockingTimeout(5000L);
+        m2s.setBlockingTimeout(20000L);
         
         // if reset wait 3 secs
         if (payload.get_command_code() == MessageTypes.COMMAND_RESET){
