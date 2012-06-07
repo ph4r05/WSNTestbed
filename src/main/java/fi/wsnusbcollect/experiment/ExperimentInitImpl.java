@@ -222,6 +222,7 @@ public class ExperimentInitImpl implements ExperimentInit {
         }
         
         this.expRecords.updateExperimentStart(expMeta, mili);
+        expMeta.setMiliStart(mili);
     }
 
     /**
