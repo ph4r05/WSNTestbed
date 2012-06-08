@@ -722,6 +722,7 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
             // if here, need to repeat last X experiments
             log.info("Storing info about interruption, outOfOrder: " + outOufServiceFrom + "; now: " + System.currentTimeMillis());
             this.add2experimentLog("WARN", 5, "Nodes unreachable/restarted", monitorLastErrorDescription);
+            this.notifier.notifyEvent(10, "5;Nodes unreachable/restarted", monitorLastErrorDescription, null);
 
             succCyclesFromLastReset = 0;
         }
@@ -1513,6 +1514,10 @@ public class ExperimentCoordinatorImpl extends Thread implements ExperimentCoord
                     
             }  catch (Exception ex) {
                 log.error("Cannot send CmdMessage to nodeId: " + payload.getDestination(), ex);
+                
+                // use notifier here
+                this.notifier.notifyEvent(10, "MSGSEND_FAIL", "Cannot send message to node: " + payload.getDestination()
+                        + "; " + payload.getString(), ex);
             }
         }
     }
