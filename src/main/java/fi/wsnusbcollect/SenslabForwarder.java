@@ -52,7 +52,16 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
- * Main run class for WSN USB Collect application
+ * SerialNodeForwarder main class.
+ * 
+ * Serves as intermediate element for data flow from server connected to sensor nodes.
+ * Runs on server connected to sensor nodes, provides proxy (serialForwarder) for each 
+ * sensor node. (it needs modified version of TinyOS java SDK - for timestamping of messages)
+ * It starts listener for each connected server node and provides serialForwarder for them.
+ * Remote user can then connect to nodes not previously accessible via network. 
+ * 
+ * This application also provides RMI interface for simple tasks that can be done only 
+ * on server side and not via serialForwarder - for instance hardware node reset.
  *
  * @author ph4r05
  */
@@ -62,6 +71,9 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
     
     // file path separator
     public static final String pathSeparator = System.getProperty("file.separator");
+    
+    // service name registered in RMI registry
+    public static final String RMI_SERVICE_NAME = "RemoteForwarder";
     
     // main properties object
     Properties props = null;
@@ -76,8 +88,14 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
     @Option(name = "--debug", aliases = {"-d"}, usage = "enables debug output")
     private boolean debug;
     
-    @Option(name = "--rmi-server", usage = "starts rmi server")
+    @Option(name = "--rmi-server", usage = "starts RemoteMethodInvocation (RMI) server")
     private boolean rmiServer=false;
+    
+    @Option(name = "--rmi-registry-port", usage = "port for RMI registry service to start")
+    private Integer rmiRegistryPort=29998;
+    
+    @Option(name = "--rmi-server-port", usage = "port for RMI server to start")
+    private Integer rmiServerPort=29999;
     
     @Option(name = "--no-shell", usage = "disables python shell. It consumes a lot of memory, usefull for testing, not for production use")
     private boolean noShell=false;
@@ -88,16 +106,16 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
     @Option(name = "--motes", usage = "comma separated list of motes serial numbers to use in experiment. If ALL present, all defined nodes will be used")
     private String useMotesString = null;
     
-    @Option(name = "--port", aliases = {"-p"}, usage = "determines start port to start forwarders on")
+    @Option(name = "--port", aliases = {"-p"}, usage = "determines start port to start forwarders on - my forwarders from connected nodes")
     private Integer port=30000;
     
-    @Option(name = "--connection-type", usage="connection to use with packet listeners (serial, network, sf)")
+    @Option(name = "--connection-type", usage="connection to use with packet listeners to connect to node (serial, network, sf)")
     private String cnType="network";
     
-    @Option(name = "--hostname", usage="hostname to connect to (default: experiment)")
+    @Option(name = "--hostname", usage="hostname to connect to - with all nodes connected in testbed (default: experiment)")
     private String host="experiment";
     
-    @Option(name="--connectPort", usage="port offset for data source packet listener")
+    @Option(name="--connectPort", usage="port offset for data source packet listener (on hostname)")
     private Integer connectPort=30000;
     
     @Option(name = "--ignore-motes", usage = "comma separated list of motes serial numbers to ignore in experiment.")
@@ -106,10 +124,10 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
     @Option(name = "--senslab", usage = "environment is senslab - specific mote connection")
     private boolean senslab=true;
     
-    @Option(name="--timesync", usage="enables serial cable timesync")
+    @Option(name="--timesync", usage="enables serial cable timesync - sets current time to nodes")
     private boolean timesync=false;
     
-    @Option(name="--timesync-delay", usage="specify interval in milliseconds of synchronization message send from application")
+    @Option(name="--timesync-delay", usage="specify interval in milliseconds of synchronization message send from application to nodes")
     private int timesyncDelay=1000;
     
     @Option(name="--rtt-test", usage="perform RTT test on all connected nodes, how many cycles?")
@@ -293,13 +311,15 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
         // RMI server?
         if (this.rmiServer){
             try {
-                // init RMI, registry should have port 1099
-                String name = "RemoteForwarder";
+                // init RMI service, create engine and export it to public
+                String name = RMI_SERVICE_NAME;
                 RemoteForwarderWork engine = (RemoteForwarderWork) SenslabForwarder.runningInstance;
-                RemoteForwarderWork stub = (RemoteForwarderWork) UnicastRemoteObject.exportObject(engine, 29999);
-                registry = LocateRegistry.getRegistry(null, 29998);
+                RemoteForwarderWork stub = (RemoteForwarderWork) UnicastRemoteObject.exportObject(engine, rmiServerPort);               
+                // start RMI registry service - this is diferent service as RMI service, needs separate port
+                registry = LocateRegistry.getRegistry(null, rmiRegistryPort);
+                // register service name to registry
                 registry.rebind(name, stub);
-                log.info("RemoteForwarderWork bound");
+                log.info("RemoteForwarderWork bound, registryPort: " + rmiRegistryPort + "; serverPort: " + rmiServerPort);
             } catch(Exception ex){
                 log.error("Exception occurred during RMI server start", ex);
             }
@@ -781,6 +801,7 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
         }
         
         List<Integer> failed = new LinkedList<Integer>();
+        log.debug("Reset nodes request arrived");
         
         for(Integer nodeId : nodes2reset){
             if (this.nodesOutSF.containsKey(nodeId)==false){
@@ -846,6 +867,15 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
             this.timerSynchronizer = null;
             log.info("Timesynchronizer disabled from remote procedure");
         }
+    }
+    
+    @Override
+    public String simpleRemoteTest(String src) throws RemoteException {
+        if (src==null){
+            return ":"+System.currentTimeMillis();
+        }
+        
+        return src+":"+System.currentTimeMillis();
     }
     
     @Override

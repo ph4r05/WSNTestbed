@@ -30,4 +30,12 @@ public interface RemoteForwarderWork extends Remote{
      * @throws RemoteException 
      */
     void enableTimeSync(boolean enable, int timeInterval) throws RemoteException;
+    
+    /**
+     * Simple remote method to verify RMI functionality
+     * @param src
+     * @return
+     * @throws RemoteException 
+     */
+    String simpleRemoteTest(String src)  throws RemoteException;
 }

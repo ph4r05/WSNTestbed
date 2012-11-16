@@ -35,7 +35,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
- * Main run class for WSN USB Collect application
+ * Main run class for WSN USB Collect application.
  *
  * @author ph4r05
  */
@@ -104,8 +104,14 @@ public class App implements AppIntf{
     @Option(name = "--senslab", usage = "environment is senslab - specific mote connection")
     private boolean senslab=false;
     
-    @Option(name = "--rmi", usage = "enables RMI on remote server - senslab")
+    @Option(name = "--rmi", usage = "enables RMI on remote forwarder instance - senslab")
     private boolean rmi=false;
+    
+    @Option(name = "--rmi-registry-host", usage = "host for RMI registry service to connect to. Default null=localhost (if registry port is forwarder by SSH to localhost)")
+    private String rmiRegistryHost=null;
+    
+    @Option(name = "--rmi-registry-port", usage = "port for RMI registry service to connect to. Default: 29998")
+    private Integer rmiRegistryPort=29998;
     
     /**
      * Real parsed list of motes to use - uses 
@@ -224,8 +230,10 @@ public class App implements AppIntf{
             }
             
             // do this after final initialization
-            String name = "RemoteForwarder";
-            Registry registry = LocateRegistry.getRegistry(null, 29999);
+            // service name we are looking for - remote forwarder.
+            String name = SenslabForwarder.RMI_SERVICE_NAME;
+            // connect to server RMI registry and lookup given service by svc name
+            Registry registry = LocateRegistry.getRegistry(rmiRegistryHost, rmiRegistryPort);
             this.remoteWork = (RemoteForwarderWork) registry.lookup(name);
         } catch (NotBoundException ex) {
             log.error("Cannot init RMI. Not bound exception", ex);
