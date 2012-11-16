@@ -57,7 +57,7 @@ public class BlindDataSource implements DataSource{
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    @Override
+    // not Override annotation - varies by java versions
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
         throw new UnsupportedOperationException("Not supported yet.");
     }

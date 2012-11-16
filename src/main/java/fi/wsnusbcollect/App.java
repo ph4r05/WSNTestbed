@@ -223,6 +223,9 @@ public class App implements AppIntf{
         log.info("All dependencies initialized");
     }
     
+    /**
+     * Initializes RMI client
+     */
     protected void initRMI(){
         try {
             if (System.getSecurityManager() == null) {
