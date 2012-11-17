@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.tinyos.message.LowlevelTimeSyncMessage;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
@@ -117,25 +118,36 @@ public class TimerSynchronizer extends Thread implements Runnable {
     }
     
     /**
-     * Synchronize now
-     * synchronous send is not very real since there are only
+     * Sends time sync message to all nodes connected, one-by-one, 
+     * using low level time sync messages.
+     * 
+     * Synchronous send is not very real since there are only
      * a few processors to process 256 threads at some time - some delay may
      * occur and thread overhead is big, thus we do it by node-by-node case.
      * 
      * Thus for every node is generated new fresh message with time sync.
+     * Low level time synchronization is used here - time in message is set just
+     * before message sending as byte stream.
      */
     public boolean sync(){
         for(Integer nodeId : this.connectedInterfaces.keySet()){
             MoteIF currentInterface = this.connectedInterfaces.get(nodeId);
             
-            TimeSyncMsg tMsg = new TimeSyncMsg();
+            // special type of message - included in modiffied TinyOS Java SDK
+            // for low level time sync - current time will be added 
+            // just before escaping packet and sending to ByteSource
+            LowlevelTimeSyncMessage tMsg = new LowlevelTimeSyncMessage();
             tMsg.set_counter((short)this.syncCoutner);
             tMsg.set_flags((short)0);
             
-            long time = System.currentTimeMillis();
-            tMsg.set_low((time & 0xFFFFFFFF));
-            tMsg.set_high((time >> 32) & 0xFFFFFFFF);
+            // offset by RTT, will be added just before sending
+            tMsg.set_offset(0);
             
+            // set time to zero, this should be changed by sending layer
+            // thus if is still zero after receiving on sensor node => something 
+            // wrong happened.
+            tMsg.set_low(0);
+            tMsg.set_high(0);
             try {
                 currentInterface.send(nodeId, tMsg);
             } catch (IOException ex) {
@@ -150,7 +162,8 @@ public class TimerSynchronizer extends Thread implements Runnable {
     }
     
     /**
-     * Main synchro loop
+     * Main synchro loop, starts sync() method every synchroDelay seconds.
+     * @see {TimerSynchronizer.sync}
      */
     @Override
     public void run(){
