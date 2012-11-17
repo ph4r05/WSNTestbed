@@ -76,6 +76,7 @@
             <groupId>net</groupId>
             <artifactId>tinyos</artifactId>
             <version>2.1ph4</version>
+            <type>jar</type>
         </dependency>
         
         <!--
