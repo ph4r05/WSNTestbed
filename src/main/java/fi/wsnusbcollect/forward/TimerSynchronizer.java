@@ -4,14 +4,13 @@
  */
 package fi.wsnusbcollect.forward;
 
-import fi.wsnusbcollect.messages.TimeSyncMsg;
 import fi.wsnusbcollect.nodeCom.TOSLogMessenger;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import net.tinyos.message.LowlevelTimeSyncMessage;
+import net.tinyos.message.LowlvlTimeSyncMsg32;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
@@ -53,6 +52,11 @@ public class TimerSynchronizer extends Thread implements Runnable {
     private List<NodeSender> senders;
     
     /**
+     * By this you can temporarily disable time synchronization
+     */
+    private boolean enabled=true;
+    
+    /**
      * Time sync counter
      */
     private int syncCoutner=0;
@@ -60,7 +64,7 @@ public class TimerSynchronizer extends Thread implements Runnable {
     /**
      * Delay for synchronization in milliseconds
      */
-    private int synchroDelay=1000;
+    private int synchroDelay=3000;
     
     /**
      * Terminate control
@@ -136,11 +140,12 @@ public class TimerSynchronizer extends Thread implements Runnable {
             // special type of message - included in modiffied TinyOS Java SDK
             // for low level time sync - current time will be added 
             // just before escaping packet and sending to ByteSource
-            LowlevelTimeSyncMessage tMsg = new LowlevelTimeSyncMessage();
+            LowlvlTimeSyncMsg32 tMsg = new LowlvlTimeSyncMsg32();
             tMsg.set_counter((short)this.syncCoutner);
             tMsg.set_flags((short)0);
             
-            // offset by RTT, will be added just before sending
+            // offset by RTT, will be added just before sending to low|high time
+            // by underlying library. 
             tMsg.set_offset(0);
             
             // set time to zero, this should be changed by sending layer
@@ -150,6 +155,7 @@ public class TimerSynchronizer extends Thread implements Runnable {
             tMsg.set_high(0);
             try {
                 currentInterface.send(nodeId, tMsg);
+                log.info("Sent sync message to node: " + nodeId);
             } catch (IOException ex) {
                 log.error("Cannot send timesync message to node: " + nodeId, ex);
             }
@@ -168,18 +174,23 @@ public class TimerSynchronizer extends Thread implements Runnable {
     @Override
     public void run(){
         // do in loop forever
-        for(;this.terminate==true;){
+        for(;this.terminate==false;){
             try {
                 sleep(this.synchroDelay);
-                this.sync();
+                
+                if (enabled){
+                    this.sync();
+                }
             } catch (InterruptedException ex) {
                 log.error("Interrupter from sleep at time synchronizer", ex);
             }
         }
         
         // when terminate, disable all running threads
-        for(NodeSender ns : this.senders){
-            ns.setTerminate(true);
+        if (this.senders!=null){
+            for(NodeSender ns : this.senders){
+                ns.setTerminate(true);
+            }
         }
         
         // wait to terminate properly
@@ -207,6 +218,14 @@ public class TimerSynchronizer extends Thread implements Runnable {
 
     public int getSyncCoutner() {
         return syncCoutner;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
     
     /**

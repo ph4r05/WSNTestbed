@@ -4,13 +4,14 @@
  */
 package fi.wsnusbcollect.forward;
 
-import com.csvreader.CsvWriter;
-import fi.wsnusbcollect.db.DataCSVWritable;
-import fi.wsnusbcollect.db.FileWritableTypes;
+import fi.wsnusbcollect.db.PrintfEntity;
 import fi.wsnusbcollect.experiment.ExperimentRecords2CSV;
 import fi.wsnusbcollect.messages.CommandMsg;
 import fi.wsnusbcollect.messages.MessageTypes;
+import fi.wsnusbcollect.messages.PrintfMsg;
+import fi.wsnusbcollect.messages.TestSerialMsg;
 import fi.wsnusbcollect.messages.TimeSyncMsg;
+import fi.wsnusbcollect.messages.TimeSyncReportMsg;
 import fi.wsnusbcollect.nodeCom.MessageListener;
 import fi.wsnusbcollect.usb.NodeConfigRecord;
 import java.io.IOException;
@@ -78,6 +79,10 @@ public class TimeSyncTester implements MessageListener{
             
             // register listener here
             moteif.registerListener(new TimeSyncMsg(), this);
+            moteif.registerListener(new TimeSyncReportMsg(), this);
+            moteif.registerListener(new TestSerialMsg(), this);
+            moteif.registerListener(new PrintfMsg(), this);
+            moteif.registerListener(new CommandMsg(), this);
         }
     }
     
@@ -94,6 +99,10 @@ public class TimeSyncTester implements MessageListener{
             
             // register listener here
             moteif.deregisterListener(new TimeSyncMsg(), this);
+            moteif.deregisterListener(new TimeSyncReportMsg(), this);
+            moteif.deregisterListener(new TestSerialMsg(), this);
+            moteif.deregisterListener(new PrintfMsg(), this);
+            moteif.deregisterListener(new CommandMsg(), this);
         }
     }
     
@@ -134,7 +143,7 @@ public class TimeSyncTester implements MessageListener{
             // wait for responses, sleep for 3 seconds for each node
             // should be large enough to obtain results from all nodes            
             try {
-                Thread.sleep(3000);
+                Thread.sleep(15000);
             } catch (InterruptedException ex) {
                 log.error("Cannot sleep", ex);
                 return;
@@ -170,13 +179,63 @@ public class TimeSyncTester implements MessageListener{
         /**
          * Wait only for timesync messages from nodes, should be response on radio broadcast
          */
-        if (ignoreMsgs || TimeSyncMsg.class.isInstance(msg)==false) return;
-        final TimeSyncMsg tMsg = (TimeSyncMsg) msg;
+        //if (ignoreMsgs) return;
+        // change i - I want source here
+        i=msg.getSerialPacket().get_header_src();
         
-        // add timesync message to queue
-        this.msgQueueReceived.add(tMsg);
+        if (TimeSyncMsg.class.isInstance(msg)){
+            final TimeSyncMsg tMsg = (TimeSyncMsg) msg;
+            
+            // add timesync message to queue
+            this.msgQueueReceived.add(tMsg);
+            log.info("TimeSync Recvd ["+i+"]");
+        }
+        
+        if (TimeSyncReportMsg.class.isInstance(msg)){
+            log.info("TimeSyncReportMsg arrived, now["+System.currentTimeMillis()+"] "
+                    + "msgtime["+msg.getMilliTime()+"] from node ["+i+"]");
+            log.info(dumpTimeSyncReportMsg((TimeSyncReportMsg)msg));
+        }
+        
+        if (TestSerialMsg.class.isInstance(msg)){
+            log.info("TestSerial: " + msg.toString());
+        }
+        
+        if (CommandMsg.class.isInstance(msg)){
+            CommandMsg cmsg = (CommandMsg) msg;
+            log.info("CmdMsg: " + cmsg.get_command_code());
+        }
+        
+        // printf support
+        if (PrintfMsg.class.isInstance(msg)){
+            final PrintfMsg pmsg = (PrintfMsg) msg;
+            PrintfEntity entity = new PrintfEntity();
+            entity.loadFromMessage(pmsg);
+            
+            String[] split = entity.getBuff().split("\n");
+            for(String line: split){
+                log.info("PrintfMessage["+i+"]: " + line);
+            }
+        }
     }
-
+    
+    /**
+     * Build dump of time sync report message to string
+     * @param msg
+     * @return 
+     */
+    public static String dumpTimeSyncReportMsg(TimeSyncReportMsg msg){
+        StringBuilder sb = new StringBuilder();
+        sb.append("LocTime: ").append(msg.get_localTime())
+                .append("; globTime: ").append(msg.get_globalTime())
+                .append(";\n lastSync").append(msg.get_lastSync())
+                .append("; entries").append(msg.get_entries())
+                .append(";\n hbeats").append(msg.get_hbeats())
+                .append("; offset").append(msg.get_offset())
+                .append("; skew").append(msg.get_skew());
+        return sb.toString();
+    }
+    
     @Override
     public void messageReceived(int i, Message msg) {
         this.messageReceived(i, msg, 0);

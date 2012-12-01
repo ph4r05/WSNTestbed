@@ -8,13 +8,13 @@ package fi.wsnusbcollect.messages;
 
 public class TestSerialMsg extends net.tinyos.message.Message {
 
-    /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 10;
+        /** The default size of this message type in bytes. */
+    public static final int DEFAULT_MESSAGE_SIZE = 12;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 137;
 
-    /** Create a new TestSerialMsg of size 10. */
+    /** Create a new TestSerialMsg of size 12. */
     public TestSerialMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -97,6 +97,12 @@ public class TestSerialMsg extends net.tinyos.message.Message {
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [radioOn=0x"+Long.toHexString(get_radioOn())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [radioErr=0x"+Long.toHexString(get_radioErr())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [radioErrCn=0x"+Long.toHexString(get_radioErrCn())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [radioRecv=0x"+Long.toHexString(get_radioRecv())+"]\n";
@@ -362,9 +368,135 @@ public class TestSerialMsg extends net.tinyos.message.Message {
     }
 
     /////////////////////////////////////////////////////////
+    // Accessor methods for field: radioErr
+    //   Field type: short, unsigned
+    //   Offset (bits): 48
+    //   Size (bits): 8
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'radioErr' is signed (false).
+     */
+    public static boolean isSigned_radioErr() {
+        return false;
+    }
+
+    /**
+     * Return whether the field 'radioErr' is an array (false).
+     */
+    public static boolean isArray_radioErr() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'radioErr'
+     */
+    public static int offset_radioErr() {
+        return (48 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'radioErr'
+     */
+    public static int offsetBits_radioErr() {
+        return 48;
+    }
+
+    /**
+     * Return the value (as a short) of the field 'radioErr'
+     */
+    public short get_radioErr() {
+        return (short)getUIntBEElement(offsetBits_radioErr(), 8);
+    }
+
+    /**
+     * Set the value of the field 'radioErr'
+     */
+    public void set_radioErr(short value) {
+        setUIntBEElement(offsetBits_radioErr(), 8, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'radioErr'
+     */
+    public static int size_radioErr() {
+        return (8 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'radioErr'
+     */
+    public static int sizeBits_radioErr() {
+        return 8;
+    }
+
+    /////////////////////////////////////////////////////////
+    // Accessor methods for field: radioErrCn
+    //   Field type: short, unsigned
+    //   Offset (bits): 56
+    //   Size (bits): 8
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'radioErrCn' is signed (false).
+     */
+    public static boolean isSigned_radioErrCn() {
+        return false;
+    }
+
+    /**
+     * Return whether the field 'radioErrCn' is an array (false).
+     */
+    public static boolean isArray_radioErrCn() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'radioErrCn'
+     */
+    public static int offset_radioErrCn() {
+        return (56 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'radioErrCn'
+     */
+    public static int offsetBits_radioErrCn() {
+        return 56;
+    }
+
+    /**
+     * Return the value (as a short) of the field 'radioErrCn'
+     */
+    public short get_radioErrCn() {
+        return (short)getUIntBEElement(offsetBits_radioErrCn(), 8);
+    }
+
+    /**
+     * Set the value of the field 'radioErrCn'
+     */
+    public void set_radioErrCn(short value) {
+        setUIntBEElement(offsetBits_radioErrCn(), 8, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'radioErrCn'
+     */
+    public static int size_radioErrCn() {
+        return (8 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'radioErrCn'
+     */
+    public static int sizeBits_radioErrCn() {
+        return 8;
+    }
+
+    /////////////////////////////////////////////////////////
     // Accessor methods for field: radioRecv
     //   Field type: int, unsigned
-    //   Offset (bits): 48
+    //   Offset (bits): 64
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -386,14 +518,14 @@ public class TestSerialMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'radioRecv'
      */
     public static int offset_radioRecv() {
-        return (48 / 8);
+        return (64 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'radioRecv'
      */
     public static int offsetBits_radioRecv() {
-        return 48;
+        return 64;
     }
 
     /**
@@ -427,7 +559,7 @@ public class TestSerialMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: radioSent
     //   Field type: int, unsigned
-    //   Offset (bits): 64
+    //   Offset (bits): 80
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -449,14 +581,14 @@ public class TestSerialMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'radioSent'
      */
     public static int offset_radioSent() {
-        return (64 / 8);
+        return (80 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'radioSent'
      */
     public static int offsetBits_radioSent() {
-        return 64;
+        return 80;
     }
 
     /**

@@ -36,6 +36,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Level;
 import net.tinyos.message.MoteIF;
 import net.tinyos.packet.BuildSource;
 import net.tinyos.packet.PhoenixSource;
@@ -479,6 +480,16 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
         for(int i=0; i<this.timeSyncTest; i++){
             log.info("Starting timesync test, cycle: " + i + "/" + this.timeSyncTest);
             timeSyncTester.test();
+        }
+        
+        // wait and listen for messages
+        try {
+            log.info("Going to sleep after test - messages should be still received");
+            while(true){
+                Thread.sleep(1000);
+            }
+        } catch (InterruptedException ex) {
+                log.info("Sleep interruption");
         }
         
         log.info("TimeSync test finished, deinit...");
