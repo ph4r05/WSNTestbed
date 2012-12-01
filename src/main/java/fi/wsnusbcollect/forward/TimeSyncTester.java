@@ -20,6 +20,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.tinyos.message.Message;
 import net.tinyos.message.MoteIF;
+import net.tinyos.packet.PacketSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +57,16 @@ public class TimeSyncTester implements MessageListener{
      * If true then ignore messages -> no message expected
      */
     protected boolean ignoreMsgs=true;
+    
+    /**
+     * Absolute time value when experiment started
+     */
+    protected long experimentStart=0;
+    
+    /**
+     * Time synchronizer object
+     */
+    protected TimerSynchronizer timeSynchronizer=null;
 
     public TimeSyncTester(Map<Integer, NodeConfigRecord> nodes, Map<Integer, MoteIF> nodeCon) {
         this.nodes = nodes;
@@ -70,6 +81,13 @@ public class TimeSyncTester implements MessageListener{
      * Register listener
      */
     public void init(){
+        // set experiment absolute time point
+        this.experimentStart = System.currentTimeMillis();
+        
+        if (this.timeSynchronizer!=null){
+            this.timeSynchronizer.setAbsoluteTime(expStart);
+        }
+        
         for(Integer nodeId : this.nodeCon.keySet()){
             MoteIF moteif = this.nodeCon.get(nodeId);
             if (moteif==null){
@@ -83,6 +101,14 @@ public class TimeSyncTester implements MessageListener{
             moteif.registerListener(new TestSerialMsg(), this);
             moteif.registerListener(new PrintfMsg(), this);
             moteif.registerListener(new CommandMsg(), this);
+                    
+            // set experiment start relative time counting
+            PacketSource packetSource = moteif.getSource().getPacketSource();
+            if (packetSource instanceof net.tinyos.packet.Packetizer){
+                net.tinyos.packet.Packetizer packetizer = (net.tinyos.packet.Packetizer) packetSource;
+                packetizer.setAbsoluteTime(expStart);
+                log.info("Absolute reference time point set for packetizer: " + packetSource.getName());
+            }
         }
     }
     

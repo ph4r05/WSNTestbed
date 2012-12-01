@@ -81,6 +81,11 @@ public class TimerSynchronizer extends Thread implements Runnable {
      * Round trip times for each node measured
      */
     private Map<Integer, Integer> roundTripTimes = new HashMap<Integer, Integer>();
+    
+    /**
+     * Absolute reference point for relative timestamping
+     */
+    private long absoluteTime=0;
 
     public TimerSynchronizer(Map<Integer, NodeConfigRecord> nodes) {
         this.nodes = nodes;
@@ -151,8 +156,15 @@ public class TimerSynchronizer extends Thread implements Runnable {
             // set time to zero, this should be changed by sending layer
             // thus if is still zero after receiving on sensor node => something 
             // wrong happened.
-            tMsg.set_low(0);
-            tMsg.set_high(0);
+            long curTime = System.currentTimeMillis();
+            if (this.absoluteTime>0){
+                tMsg.set_low(curTime - this.absoluteTime);
+                tMsg.set_high(0);
+            } else {
+                tMsg.set_low((curTime & 0xFFFFFFFF));
+                tMsg.set_high((curTime >> 32) & 0xFFFFFFFF);
+            }
+            
             try {
                 currentInterface.send(nodeId, tMsg);
                 log.info("Sent sync message to node: " + nodeId);
@@ -227,7 +239,24 @@ public class TimerSynchronizer extends Thread implements Runnable {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
-    
+
+    /**
+     * Gets absolute time reference point for relative timestamping.
+     * If is zero, then relative timestamping is disabled.
+     * @return 
+     */
+    public long getAbsoluteTime() {
+        return absoluteTime;
+    }
+
+    /**
+     * Sets absolute time reference point for relative timestamping.
+     * If is zero, then relative timestamping is disabled.
+     * @param absoluteTime 
+     */
+    public void setAbsoluteTime(long absoluteTime) {
+        this.absoluteTime = absoluteTime;
+    }
     /**
      * Sender thread
      */
