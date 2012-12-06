@@ -189,6 +189,13 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
      */
     Map<Integer, NodeConfigRecord> nodesOutSF;
     
+    /**
+     * NodeID -> serial forwarder server listening to this node mapping.
+     * Used to directly manipulate with serial forwarder server part outside of 
+     * main() function.
+     */
+    protected Map<Integer, SerialForwarder> node2SFservers = new HashMap<Integer, SerialForwarder>();
+    
     public static void main(String[] args) {
         log.info("Starting forwarder application");
         try {
@@ -389,6 +396,11 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
             SerialForwarder tmpSf = SerialForwarder.newObjInstance(connectionString, this.port + ncr.getNodeId());
             forwarders.add(tmpSf);
             
+            // add forwarder also to map, to be available to modules if needed ->
+            // time sync module needs to set absolute time stamp to node. This needs
+            // to be done on packet source directly connected to node (network@....)
+            this.node2SFservers.put(ncr.getNodeId(), tmpSf);
+            
             log.info("Starting listen server for node on port: " + (this.port + ncr.getNodeId()));
             tmpSf.startListenServer();
             //tmpSf.getListener();
@@ -475,7 +487,7 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
         TimeSyncTester timeSyncTester = this.getTimeSyncTester();
         
         log.info("Registering timesync listeners");
-        timeSyncTester.init();
+        timeSyncTester.init(this.node2SFservers);
         
         for(int i=0; i<this.timeSyncTest; i++){
             log.info("Starting timesync test, cycle: " + i + "/" + this.timeSyncTest);
@@ -892,5 +904,9 @@ public class SenslabForwarder implements RemoteForwarderWork, AppIntf {
     @Override
     public AppConfiguration getConfig() {
         return this.appConfig;
+    }
+
+    public Map<Integer, SerialForwarder> getNode2SFservers() {
+        return node2SFservers;
     }
 }

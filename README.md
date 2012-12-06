@@ -18,11 +18,12 @@ universal classes which can be useful for others.
 ## Requirements
 Requires modified version of TinyOS Java SDK, see TinyOSJava-2.1.ph4edit repo.
 In order to build this application you need to install aforementioned package
-to maven repository. This can be done by following command:
+to maven repository so as this application can use it. This can be done by following command:
 
     mvn install:install-file -Dfile=./WSNTinyOS.jar -DgroupId=net -DartifactId=tinyos -Dversion=2.1ph4 -Dpackaging=jar
 
-assuming that built TinyOSJava-2.1.ph4edit is called WSNTinyOS.jar.
+assuming that built TinyOSJava-2.1.ph4edit is called WSNTinyOS.jar. For this purpose you can also use provided 
+shell script - reinstallMvnTinyos.sh. It takes path to mentioned JAR file as a first argument.
 
 Next you will need new jython. You can obtain it from: http://sourceforge.net/projects/jython/files/jython-dev/2.5.3b1/jython_installer-2.5.3b1.jar/download
 
@@ -32,12 +33,17 @@ Building this application is done by:
 
     mvn package
 
+Also I recommend to clean previous build before another:
+
+    mvn clean package
+
 ## Main technologies used 
 * Spring as dependency injection container.
-* Hibernate for DB connection, ORM.
-* c3p0 database connection pool
-* Jython for interactive shell.
-* SLF4J for logging
+* Hibernate for DB connection, ORM, JPA 2.0 annotations/logic.
+* c3p0 database connection pool.
+* Jython for interactive python shell.
+* SLF4J for logging.
+* RMI for remote forwarder control.
 
 
 ## Description
