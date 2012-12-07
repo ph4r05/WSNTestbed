@@ -178,7 +178,7 @@ public class TimeSyncTester implements MessageListener{
      */
     public void test(){
         this.coutner = 0;
-        
+        long startTime=0;
         for(Integer nodeId : this.nodes.keySet()){
             MoteIF moteif = this.nodeCon.get(nodeId);
             if(moteif==null){
@@ -199,15 +199,16 @@ public class TimeSyncTester implements MessageListener{
                 msg.set_command_code((short)MessageTypes.COMMAND_TIMESYNC_GETGLOBAL_BCAST);
                 msg.set_command_data(this.coutner++);
 
-                // when was time obtained?
-                long startTime = System.currentTimeMillis();
                 this.ignoreMsgs = false;
-
                 try {
                     moteif.send(nodeId, msg);
+                    // when was time obtained? Time after message was sent - for waiting
+                    // for responses
+                    startTime = System.currentTimeMillis();
                     log.info("Sent bcast request for timesync to node: " + nodeId + "; counter: " + this.coutner);
                 } catch (IOException ex) {
                     log.info("Cannot send message, counter: " + this.coutner + "; nodeid: " + nodeId , ex);
+                    continue;
                 }
 
                 // wait for responses, sleep for 5 seconds for each node
@@ -241,8 +242,8 @@ public class TimeSyncTester implements MessageListener{
          */
         //if (ignoreMsgs) return;
         // change i - I want source here
+        log.info("Msg i: " + i + "; serialPacket: " + msg.getSerialPacket());
         i=msg.getSerialPacket().get_header_src();
-        
         if (TimeSyncMsg.class.isInstance(msg)){
             final TimeSyncMsg tMsg = (TimeSyncMsg) msg;
             log.info("TimeSync Recvd ["+i+"]");
