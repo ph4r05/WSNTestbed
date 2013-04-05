@@ -5,8 +5,10 @@
 package fi.wsnusbcollect.experiment;
 
 import fi.wsnusbcollect.db.ExperimentCTPDebug;
+import fi.wsnusbcollect.db.ExperimentCTPInfoCCA;
 import fi.wsnusbcollect.db.ExperimentCTPInfoStatus;
 import fi.wsnusbcollect.db.ExperimentCTPReport;
+import fi.wsnusbcollect.db.ExperimentCTPReportSendDone;
 import fi.wsnusbcollect.db.ExperimentDataAliveCheck;
 import fi.wsnusbcollect.db.ExperimentDataNoise;
 import fi.wsnusbcollect.db.ExperimentDataRSSI;
@@ -208,13 +210,23 @@ public class ExperimentData2CSV extends Thread implements ExperimentData2DB {
         if (CtpReportDataMsg.class.isInstance(msg)){
             final CtpReportDataMsg cMsg = (CtpReportDataMsg) msg;
             
-            ExperimentCTPReport report = new ExperimentCTPReport();
-            report.loadFromMessage(cMsg);
-            report.setMilitime(mili);
-            report.setExperiment(expMeta);
-            report.setNode(src);
-            
-            this.objQueue.add(report);
+            // send done or just recv?
+            final int flags = cMsg.get_flags();
+            if ((flags & 0x8) > 0){         // send done message
+                ExperimentCTPReportSendDone sendDone = new ExperimentCTPReportSendDone();
+                sendDone.loadFromMessage(cMsg);
+                sendDone.setMilitime(mili);
+                sendDone.setExperiment(expMeta);
+                sendDone.setNode(src);
+                this.objQueue.add(sendDone);
+            } else {
+                ExperimentCTPReport report = new ExperimentCTPReport();
+                report.loadFromMessage(cMsg);
+                report.setMilitime(mili);
+                report.setExperiment(expMeta);
+                report.setNode(src);
+                this.objQueue.add(report);
+            }
         }
         
         // CTP status info message?
@@ -224,6 +236,14 @@ public class ExperimentData2CSV extends Thread implements ExperimentData2DB {
             // only status info save to db
             if (cMsg.get_type()==0){
                 ExperimentCTPInfoStatus status = new ExperimentCTPInfoStatus();
+                status.loadFromMessage(cMsg);
+                status.setMilitime(mili);
+                status.setExperiment(expMeta);
+                status.setNode(src);
+            
+                this.objQueue.add(status);
+            } else if (cMsg.get_type()==2){
+                ExperimentCTPInfoCCA status = new ExperimentCTPInfoCCA();
                 status.loadFromMessage(cMsg);
                 status.setMilitime(mili);
                 status.setExperiment(expMeta);

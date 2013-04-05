@@ -9,12 +9,12 @@ package fi.wsnusbcollect.messages;
 public class CtpInfoMsg extends net.tinyos.message.Message {
 
     /** The default size of this message type in bytes. */
-    public static final int DEFAULT_MESSAGE_SIZE = 13;
+    public static final int DEFAULT_MESSAGE_SIZE = 17;
 
     /** The Active Message type associated with this message. */
     public static final int AM_TYPE = 236;
 
-    /** Create a new CtpInfoMsg of size 13. */
+    /** Create a new CtpInfoMsg of size 17. */
     public CtpInfoMsg() {
         super(DEFAULT_MESSAGE_SIZE);
         amTypeSet(AM_TYPE);
@@ -90,6 +90,9 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
         s += "  [type=0x"+Long.toHexString(get_type())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
+        s += "  [localTime32khz=0x"+Long.toHexString(get_localTime32khz())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
         s += "  [data.data.data=";
         for (int i = 0; i < 6; i++) {
           s += "0x"+Long.toHexString(getElement_data_data_data(i) & 0xffff)+" ";
@@ -97,31 +100,31 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
         s += "]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.status.parent="+(get_data_status_parent())+"]\n";
+        s += "  [data.status.parent=0x"+Long.toHexString(get_data_status_parent())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [data.status.etx=0x"+Long.toHexString(get_data_status_etx())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.status.neighbors="+(get_data_status_neighbors())+"]\n";
+        s += "  [data.status.neighbors=0x"+Long.toHexString(get_data_status_neighbors())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.status.serialQueueSize="+(get_data_status_serialQueueSize())+"]\n";
+        s += "  [data.status.serialQueueSize=0x"+Long.toHexString(get_data_status_serialQueueSize())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.status.ctpSeqNo="+(get_data_status_ctpSeqNo())+"]\n";
+        s += "  [data.status.ctpSeqNo=0x"+Long.toHexString(get_data_status_ctpSeqNo())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.status.ctpBusyCount="+(get_data_status_ctpBusyCount())+"]\n";
+        s += "  [data.status.ctpBusyCount=0x"+Long.toHexString(get_data_status_ctpBusyCount())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [data.status.flags=0x"+Long.toHexString(get_data_status_flags())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.neighInfo.num="+(get_data_neighInfo_num())+"]\n";
+        s += "  [data.neighInfo.num=0x"+Long.toHexString(get_data_neighInfo_num())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
-        s += "  [data.neighInfo.addr="+(get_data_neighInfo_addr())+"]\n";
+        s += "  [data.neighInfo.addr=0x"+Long.toHexString(get_data_neighInfo_addr())+"]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [data.neighInfo.linkQuality=0x"+Long.toHexString(get_data_neighInfo_linkQuality())+"]\n";
@@ -131,6 +134,16 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       try {
         s += "  [data.neighInfo.flags=0x"+Long.toHexString(get_data_neighInfo_flags())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [data.cca.tstamp=0x"+Long.toHexString(get_data_cca_tstamp())+"]\n";
+      } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
+      try {
+        s += "  [data.cca.data=";
+        for (int i = 0; i < 4; i++) {
+          s += "0x"+Long.toHexString(getElement_data_cca_data(i) & 0xffff)+" ";
+        }
+        s += "]\n";
       } catch (ArrayIndexOutOfBoundsException aioobe) { /* Skip field */ }
       return s;
     }
@@ -201,9 +214,72 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     }
 
     /////////////////////////////////////////////////////////
+    // Accessor methods for field: localTime32khz
+    //   Field type: long
+    //   Offset (bits): 8
+    //   Size (bits): 32
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'localTime32khz' is signed (false).
+     */
+    public static boolean isSigned_localTime32khz() {
+        return false;
+    }
+
+    /**
+     * Return whether the field 'localTime32khz' is an array (false).
+     */
+    public static boolean isArray_localTime32khz() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'localTime32khz'
+     */
+    public static int offset_localTime32khz() {
+        return (8 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'localTime32khz'
+     */
+    public static int offsetBits_localTime32khz() {
+        return 8;
+    }
+
+    /**
+     * Return the value (as a long) of the field 'localTime32khz'
+     */
+    public long get_localTime32khz() {
+        return (long)getUIntBEElement(offsetBits_localTime32khz(), 32);
+    }
+
+    /**
+     * Set the value of the field 'localTime32khz'
+     */
+    public void set_localTime32khz(long value) {
+        setUIntBEElement(offsetBits_localTime32khz(), 32, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'localTime32khz'
+     */
+    public static int size_localTime32khz() {
+        return (32 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'localTime32khz'
+     */
+    public static int sizeBits_localTime32khz() {
+        return 32;
+    }
+
+    /////////////////////////////////////////////////////////
     // Accessor methods for field: data.data.data
     //   Field type: int[]
-    //   Offset (bits): 8
+    //   Offset (bits): 40
     //   Size of each element (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -225,7 +301,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.data.data'
      */
     public static int offset_data_data_data(int index1) {
-        int offset = 8;
+        int offset = 40;
         if (index1 < 0 || index1 >= 6) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return (offset / 8);
@@ -235,7 +311,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bits) of the field 'data.data.data'
      */
     public static int offsetBits_data_data_data(int index1) {
-        int offset = 8;
+        int offset = 40;
         if (index1 < 0 || index1 >= 6) throw new ArrayIndexOutOfBoundsException();
         offset += 0 + index1 * 16;
         return offset;
@@ -331,7 +407,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.status.parent
     //   Field type: int
-    //   Offset (bits): 8
+    //   Offset (bits): 40
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -353,14 +429,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.status.parent'
      */
     public static int offset_data_status_parent() {
-        return (8 / 8);
+        return (40 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.status.parent'
      */
     public static int offsetBits_data_status_parent() {
-        return 8;
+        return 40;
     }
 
     /**
@@ -394,7 +470,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.status.etx
     //   Field type: int
-    //   Offset (bits): 24
+    //   Offset (bits): 56
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -416,14 +492,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.status.etx'
      */
     public static int offset_data_status_etx() {
-        return (24 / 8);
+        return (56 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.status.etx'
      */
     public static int offsetBits_data_status_etx() {
-        return 24;
+        return 56;
     }
 
     /**
@@ -457,7 +533,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.status.neighbors
     //   Field type: short
-    //   Offset (bits): 40
+    //   Offset (bits): 72
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -479,14 +555,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.status.neighbors'
      */
     public static int offset_data_status_neighbors() {
-        return (40 / 8);
+        return (72 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.status.neighbors'
      */
     public static int offsetBits_data_status_neighbors() {
-        return 40;
+        return 72;
     }
 
     /**
@@ -520,7 +596,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.status.serialQueueSize
     //   Field type: short
-    //   Offset (bits): 48
+    //   Offset (bits): 80
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -542,14 +618,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.status.serialQueueSize'
      */
     public static int offset_data_status_serialQueueSize() {
-        return (48 / 8);
+        return (80 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.status.serialQueueSize'
      */
     public static int offsetBits_data_status_serialQueueSize() {
-        return 48;
+        return 80;
     }
 
     /**
@@ -583,7 +659,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.status.ctpSeqNo
     //   Field type: int
-    //   Offset (bits): 56
+    //   Offset (bits): 88
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -605,14 +681,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.status.ctpSeqNo'
      */
     public static int offset_data_status_ctpSeqNo() {
-        return (56 / 8);
+        return (88 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.status.ctpSeqNo'
      */
     public static int offsetBits_data_status_ctpSeqNo() {
-        return 56;
+        return 88;
     }
 
     /**
@@ -646,7 +722,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.status.ctpBusyCount
     //   Field type: short
-    //   Offset (bits): 72
+    //   Offset (bits): 104
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -668,14 +744,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.status.ctpBusyCount'
      */
     public static int offset_data_status_ctpBusyCount() {
-        return (72 / 8);
+        return (104 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.status.ctpBusyCount'
      */
     public static int offsetBits_data_status_ctpBusyCount() {
-        return 72;
+        return 104;
     }
 
     /**
@@ -709,7 +785,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.status.flags
     //   Field type: int
-    //   Offset (bits): 80
+    //   Offset (bits): 112
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -731,14 +807,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.status.flags'
      */
     public static int offset_data_status_flags() {
-        return (80 / 8);
+        return (112 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.status.flags'
      */
     public static int offsetBits_data_status_flags() {
-        return 80;
+        return 112;
     }
 
     /**
@@ -772,7 +848,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.neighInfo.num
     //   Field type: short
-    //   Offset (bits): 8
+    //   Offset (bits): 40
     //   Size (bits): 8
     /////////////////////////////////////////////////////////
 
@@ -794,14 +870,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.neighInfo.num'
      */
     public static int offset_data_neighInfo_num() {
-        return (8 / 8);
+        return (40 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.neighInfo.num'
      */
     public static int offsetBits_data_neighInfo_num() {
-        return 8;
+        return 40;
     }
 
     /**
@@ -835,7 +911,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.neighInfo.addr
     //   Field type: int
-    //   Offset (bits): 16
+    //   Offset (bits): 48
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -857,14 +933,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.neighInfo.addr'
      */
     public static int offset_data_neighInfo_addr() {
-        return (16 / 8);
+        return (48 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.neighInfo.addr'
      */
     public static int offsetBits_data_neighInfo_addr() {
-        return 16;
+        return 48;
     }
 
     /**
@@ -898,7 +974,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.neighInfo.linkQuality
     //   Field type: int
-    //   Offset (bits): 32
+    //   Offset (bits): 64
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -920,14 +996,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.neighInfo.linkQuality'
      */
     public static int offset_data_neighInfo_linkQuality() {
-        return (32 / 8);
+        return (64 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.neighInfo.linkQuality'
      */
     public static int offsetBits_data_neighInfo_linkQuality() {
-        return 32;
+        return 64;
     }
 
     /**
@@ -961,7 +1037,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.neighInfo.routeQuality
     //   Field type: int
-    //   Offset (bits): 48
+    //   Offset (bits): 80
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -983,14 +1059,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.neighInfo.routeQuality'
      */
     public static int offset_data_neighInfo_routeQuality() {
-        return (48 / 8);
+        return (80 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.neighInfo.routeQuality'
      */
     public static int offsetBits_data_neighInfo_routeQuality() {
-        return 48;
+        return 80;
     }
 
     /**
@@ -1024,7 +1100,7 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
     /////////////////////////////////////////////////////////
     // Accessor methods for field: data.neighInfo.flags
     //   Field type: int
-    //   Offset (bits): 64
+    //   Offset (bits): 96
     //   Size (bits): 16
     /////////////////////////////////////////////////////////
 
@@ -1046,14 +1122,14 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      * Return the offset (in bytes) of the field 'data.neighInfo.flags'
      */
     public static int offset_data_neighInfo_flags() {
-        return (64 / 8);
+        return (96 / 8);
     }
 
     /**
      * Return the offset (in bits) of the field 'data.neighInfo.flags'
      */
     public static int offsetBits_data_neighInfo_flags() {
-        return 64;
+        return 96;
     }
 
     /**
@@ -1082,6 +1158,197 @@ public class CtpInfoMsg extends net.tinyos.message.Message {
      */
     public static int sizeBits_data_neighInfo_flags() {
         return 16;
+    }
+
+    /////////////////////////////////////////////////////////
+    // Accessor methods for field: data.cca.tstamp
+    //   Field type: long
+    //   Offset (bits): 40
+    //   Size (bits): 32
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'data.cca.tstamp' is signed (false).
+     */
+    public static boolean isSigned_data_cca_tstamp() {
+        return false;
+    }
+
+    /**
+     * Return whether the field 'data.cca.tstamp' is an array (false).
+     */
+    public static boolean isArray_data_cca_tstamp() {
+        return false;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'data.cca.tstamp'
+     */
+    public static int offset_data_cca_tstamp() {
+        return (40 / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'data.cca.tstamp'
+     */
+    public static int offsetBits_data_cca_tstamp() {
+        return 40;
+    }
+
+    /**
+     * Return the value (as a long) of the field 'data.cca.tstamp'
+     */
+    public long get_data_cca_tstamp() {
+        return (long)getUIntBEElement(offsetBits_data_cca_tstamp(), 32);
+    }
+
+    /**
+     * Set the value of the field 'data.cca.tstamp'
+     */
+    public void set_data_cca_tstamp(long value) {
+        setUIntBEElement(offsetBits_data_cca_tstamp(), 32, value);
+    }
+
+    /**
+     * Return the size, in bytes, of the field 'data.cca.tstamp'
+     */
+    public static int size_data_cca_tstamp() {
+        return (32 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of the field 'data.cca.tstamp'
+     */
+    public static int sizeBits_data_cca_tstamp() {
+        return 32;
+    }
+
+    /////////////////////////////////////////////////////////
+    // Accessor methods for field: data.cca.data
+    //   Field type: int[]
+    //   Offset (bits): 72
+    //   Size of each element (bits): 16
+    /////////////////////////////////////////////////////////
+
+    /**
+     * Return whether the field 'data.cca.data' is signed (false).
+     */
+    public static boolean isSigned_data_cca_data() {
+        return false;
+    }
+
+    /**
+     * Return whether the field 'data.cca.data' is an array (true).
+     */
+    public static boolean isArray_data_cca_data() {
+        return true;
+    }
+
+    /**
+     * Return the offset (in bytes) of the field 'data.cca.data'
+     */
+    public static int offset_data_cca_data(int index1) {
+        int offset = 72;
+        if (index1 < 0 || index1 >= 4) throw new ArrayIndexOutOfBoundsException();
+        offset += 0 + index1 * 16;
+        return (offset / 8);
+    }
+
+    /**
+     * Return the offset (in bits) of the field 'data.cca.data'
+     */
+    public static int offsetBits_data_cca_data(int index1) {
+        int offset = 72;
+        if (index1 < 0 || index1 >= 4) throw new ArrayIndexOutOfBoundsException();
+        offset += 0 + index1 * 16;
+        return offset;
+    }
+
+    /**
+     * Return the entire array 'data.cca.data' as a int[]
+     */
+    public int[] get_data_cca_data() {
+        int[] tmp = new int[4];
+        for (int index0 = 0; index0 < numElements_data_cca_data(0); index0++) {
+            tmp[index0] = getElement_data_cca_data(index0);
+        }
+        return tmp;
+    }
+
+    /**
+     * Set the contents of the array 'data.cca.data' from the given int[]
+     */
+    public void set_data_cca_data(int[] value) {
+        for (int index0 = 0; index0 < value.length; index0++) {
+            setElement_data_cca_data(index0, value[index0]);
+        }
+    }
+
+    /**
+     * Return an element (as a int) of the array 'data.cca.data'
+     */
+    public int getElement_data_cca_data(int index1) {
+        return (int)getUIntBEElement(offsetBits_data_cca_data(index1), 16);
+    }
+
+    /**
+     * Set an element of the array 'data.cca.data'
+     */
+    public void setElement_data_cca_data(int index1, int value) {
+        setUIntBEElement(offsetBits_data_cca_data(index1), 16, value);
+    }
+
+    /**
+     * Return the total size, in bytes, of the array 'data.cca.data'
+     */
+    public static int totalSize_data_cca_data() {
+        return (64 / 8);
+    }
+
+    /**
+     * Return the total size, in bits, of the array 'data.cca.data'
+     */
+    public static int totalSizeBits_data_cca_data() {
+        return 64;
+    }
+
+    /**
+     * Return the size, in bytes, of each element of the array 'data.cca.data'
+     */
+    public static int elementSize_data_cca_data() {
+        return (16 / 8);
+    }
+
+    /**
+     * Return the size, in bits, of each element of the array 'data.cca.data'
+     */
+    public static int elementSizeBits_data_cca_data() {
+        return 16;
+    }
+
+    /**
+     * Return the number of dimensions in the array 'data.cca.data'
+     */
+    public static int numDimensions_data_cca_data() {
+        return 1;
+    }
+
+    /**
+     * Return the number of elements in the array 'data.cca.data'
+     */
+    public static int numElements_data_cca_data() {
+        return 4;
+    }
+
+    /**
+     * Return the number of elements in the array 'data.cca.data'
+     * for the given dimension.
+     */
+    public static int numElements_data_cca_data(int dimension) {
+      int array_dims[] = { 4,  };
+        if (dimension < 0 || dimension >= 1) throw new ArrayIndexOutOfBoundsException();
+        if (array_dims[dimension] == 0) throw new IllegalArgumentException("Array dimension "+dimension+" has unknown size");
+        return array_dims[dimension];
     }
 
 }

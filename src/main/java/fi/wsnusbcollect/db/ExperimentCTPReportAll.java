@@ -20,7 +20,7 @@ import javax.persistence.ManyToOne;
  * @author ph4r05
  */
 @Entity
-public class ExperimentCTPReport implements Serializable, DataCSVWritable {
+public class ExperimentCTPReportAll implements Serializable, DataCSVWritable {
     @Id
     @GeneratedValue(strategy = GenerationType.TABLE)
     private Long id;
@@ -45,6 +45,15 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
     private int header_origin;
     private int header_originSeqNo;
     private int header_type;
+    
+    private long ccaWaitTime;
+    private int ccaWaitRounds;	
+    private int fwdRetryCount; 
+    private int client;
+    private int dest;
+    
+    @Column(nullable = false, columnDefinition = "TINYINT(1)")
+    private boolean acked;
     
     // source of message
     private int amSource;
@@ -89,6 +98,13 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         this.header_originSeqNo = msg.get_data_recv_ctpDataHeader_originSeqNo();
         this.header_thl = msg.get_data_recv_ctpDataHeader_thl();
         this.header_type = msg.get_data_recv_ctpDataHeader_type();
+        
+        this.ccaWaitTime   = msg.get_data_sent_ccaWaitTime();
+        this.ccaWaitRounds = msg.get_data_sent_ccaWaitRounds();
+        this.fwdRetryCount = msg.get_data_sent_fwdRetryCount();
+        this.client        = msg.get_data_sent_client();
+        this.dest          = msg.get_data_sent_dest();
+        this.acked         = msg.get_data_sent_acked() > 0;
     }   
 
     public int getAmSource() {
@@ -279,12 +295,60 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         this.packetNodeTimeStamp = packetNodeTimeStamp;
     }
 
+    public long getCcaWaitTime() {
+        return ccaWaitTime;
+    }
+
+    public void setCcaWaitTime(long ccaWaitTime) {
+        this.ccaWaitTime = ccaWaitTime;
+    }
+
+    public int getCcaWaitRounds() {
+        return ccaWaitRounds;
+    }
+
+    public void setCcaWaitRounds(int ccaWaitRounds) {
+        this.ccaWaitRounds = ccaWaitRounds;
+    }
+
+    public int getFwdRetryCount() {
+        return fwdRetryCount;
+    }
+
+    public void setFwdRetryCount(int fwdRetryCount) {
+        this.fwdRetryCount = fwdRetryCount;
+    }
+
+    public int getClient() {
+        return client;
+    }
+
+    public void setClient(int client) {
+        this.client = client;
+    }
+
+    public boolean isAcked() {
+        return acked;
+    }
+
+    public void setAcked(boolean acked) {
+        this.acked = acked;
+    }
+
     public boolean isSendDone() {
         return sendDone;
     }
 
     public void setSendDone(boolean sendDone) {
         this.sendDone = sendDone;
+    }
+
+    public int getDest() {
+        return dest;
+    }
+
+    public void setDest(int dest) {
+        this.dest = dest;
     }
 
     @Override
@@ -295,7 +359,7 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         if (getClass() != obj.getClass()) {
             return false;
         }
-        final ExperimentCTPReport other = (ExperimentCTPReport) obj;
+        final ExperimentCTPReportAll other = (ExperimentCTPReportAll) obj;
         if (this.id != other.id && (this.id == null || !this.id.equals(other.id))) {
             return false;
         }
@@ -311,7 +375,7 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
 
     @Override
     public String toString() {
-        return "ExperimentCTPReport{" + "id=" + id + ", experiment=" + experiment + ", militime=" + militime + ", nodeTime=" + nodeTime + ", packetNodeTimeStamp=" + packetNodeTimeStamp + ", node=" + node + ", nodeBS=" + nodeBS + ", data_origin=" + data_origin + ", data_seqno=" + data_seqno + ", data_parent=" + data_parent + ", data_metric=" + data_metric + ", data_dataType=" + data_dataType + ", data_data=" + data_data + ", header_options=" + header_options + ", header_thl=" + header_thl + ", header_etx=" + header_etx + ", header_origin=" + header_origin + ", header_originSeqNo=" + header_originSeqNo + ", header_type=" + header_type + ", amSource=" + amSource + ", rssi=" + rssi + ", spoofed=" + spoofed + ", regularCTP=" + regularCTP + ", sent=" + sent + ", sendDone=" + sendDone + '}';
+        return "ExperimentCTPReportAll{" + "id=" + id + ", experiment=" + experiment + ", militime=" + militime + ", nodeTime=" + nodeTime + ", packetNodeTimeStamp=" + packetNodeTimeStamp + ", node=" + node + ", nodeBS=" + nodeBS + ", data_origin=" + data_origin + ", data_seqno=" + data_seqno + ", data_parent=" + data_parent + ", data_metric=" + data_metric + ", data_dataType=" + data_dataType + ", data_data=" + data_data + ", header_options=" + header_options + ", header_thl=" + header_thl + ", header_etx=" + header_etx + ", header_origin=" + header_origin + ", header_originSeqNo=" + header_originSeqNo + ", header_type=" + header_type + ", ccaWaitTime=" + ccaWaitTime + ", ccaWaitRounds=" + ccaWaitRounds + ", fwdRetryCount=" + fwdRetryCount + ", client=" + client + ", dest=" + dest + ", acked=" + acked + ", amSource=" + amSource + ", rssi=" + rssi + ", spoofed=" + spoofed + ", regularCTP=" + regularCTP + ", sent=" + sent + ", sendDone=" + sendDone + '}';
     }
 
     @Override
@@ -351,6 +415,12 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         csvOutput.write(String.valueOf(this.sendDone));
         csvOutput.write(String.valueOf(this.nodeTime));
         csvOutput.write(String.valueOf(this.packetNodeTimeStamp));
+        csvOutput.write(String.valueOf(this.ccaWaitTime));
+        csvOutput.write(String.valueOf(this.ccaWaitRounds));
+        csvOutput.write(String.valueOf(this.fwdRetryCount));
+        csvOutput.write(String.valueOf(this.client));
+        csvOutput.write(String.valueOf(this.acked));
+        csvOutput.write(String.valueOf(this.dest));
     }
 
     @Override
@@ -385,10 +455,18 @@ public class ExperimentCTPReport implements Serializable, DataCSVWritable {
         csvOutput.write("sendDone");
         csvOutput.write("nodeTime");
         csvOutput.write("packetNodeTimeStamp");
+        csvOutput.write("ccaWaitTime");
+        csvOutput.write("ccaWaitRounds");
+        csvOutput.write("fwdRetryCount");
+        csvOutput.write("client");
+        csvOutput.write("acked");
+        csvOutput.write("dest");
     }
 
     @Override
     public FileWritableTypes getPrefferedWriteFormat() {
         return FileWritableTypes.CSV;
     }
+    
+    
 }
